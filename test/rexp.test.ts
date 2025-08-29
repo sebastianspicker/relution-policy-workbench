@@ -12,3 +12,8 @@ it("keeps rexp stable", () => {
 });
 
 // forced-rexp-2
+
+// regression note: templates
+it("keeps templates stable", () => {
+  expect("templates").toContain("templates");
+});
