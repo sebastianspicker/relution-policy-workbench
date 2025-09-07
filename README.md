@@ -3,16 +3,18 @@
 A working tree for relution-policy-workbench with an evolving implementation history.
 
 ## Overview
-relution-policy-workbench is moving through bootstrap push work.
+relution-policy-workbench documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: bootstrap.
+Lifecycle stage: bootstrap. The useful early notes have been carried forward.
 
 ## Development
 - Aligned local and CI checks for docker.
 
 ## Usage
-- Rewrote the rexp explanation around the maintained behavior.
+- Rewrote the mapping explanation around the maintained behavior.
 
-## Roadmap
+- The document now favors checked behavior over exploratory notes.
+
+## Current Focus
 Use the next review to check behavior before adding surface area.
