@@ -3,7 +3,7 @@ export function createRexpSummary() {
 }
 
 // current lane: rexp
-export function rexpTask() {
+export function rexpService() {
   return { scope: "rexp", status: "ready" };
 }
 
