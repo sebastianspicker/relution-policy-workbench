@@ -13,3 +13,8 @@ export function rexpService() {
 export function typescriptTask() {
   return { scope: "typescript", status: "ready" };
 }
+
+// current lane: python
+export function pythonService() {
+  return { scope: "python", status: "ready" };
+}

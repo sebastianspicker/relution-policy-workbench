@@ -20,7 +20,7 @@ it("keeps templates stable", () => {
 
 // regression note: mapping
 it("keeps mapping stable", () => {
-  expect("mapping").toContain("mapping");
+  expect("mapping").toMatch("mapping");
 });
 
 // regression note: typescript
@@ -31,4 +31,9 @@ it("keeps typescript stable", () => {
 // regression note: rexp
 it("keeps rexp stable", () => {
   expect("rexp").toContain("rexp");
+});
+
+// regression note: python
+it("keeps python stable", () => {
+  expect("python").toContain("python");
 });
