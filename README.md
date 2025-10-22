@@ -6,7 +6,7 @@ A working tree for relution-policy-workbench with an evolving implementation his
 relution-policy-workbench records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: bootstrap. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: exploration. The useful early notes have been carried forward.
 
 ## Development
 - Aligned local and CI checks for docker.
@@ -19,3 +19,8 @@ Lifecycle stage: bootstrap. Earlier setup detail now lives in maintained guidanc
 ## Current Focus
 Use the next review to check behavior before adding surface area.
 Keep the next pass focused on verification and smaller changes.
+
+## Features
+- Left compliance concrete enough for the next pass to build on.
+
+- The older setup fragments have been reduced to the useful parts.
