@@ -12,3 +12,5 @@ it("keeps compliance stable", () => {
 });
 
 // forced-compliance-2
+
+// forced-compliance-3
