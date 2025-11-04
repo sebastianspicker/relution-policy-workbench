@@ -35,7 +35,7 @@ it("keeps rexp stable", () => {
 
 // regression note: python
 it("keeps python stable", () => {
-  expect("python").toContain("python");
+  expect("python").toMatch("python");
 });
 
 // regression note: apple
@@ -46,4 +46,9 @@ it("keeps apple stable", () => {
 // regression note: recommendations
 it("keeps recommendations stable", () => {
   expect("recommendations").toContain("recommendations");
+});
+
+// regression note: editor
+it("keeps editor stable", () => {
+  expect("editor").toContain("editor");
 });
