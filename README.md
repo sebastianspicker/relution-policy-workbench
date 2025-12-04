@@ -6,7 +6,7 @@ A working tree for relution-policy-workbench with an evolving implementation his
 relution-policy-workbench documents maintained build commands, known limits, and remaining work.
 
 ## Status
-Lifecycle stage: core-build-out. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: core-build-out. Earlier setup detail now lives in maintained guidance.
 
 ## Development
 - Aligned local and CI checks for docker.
