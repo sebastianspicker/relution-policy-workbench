@@ -25,3 +25,8 @@ export function pythonService() {
 export function vitestService() {
   return { scope: "vitest", status: "ready" };
 }
+
+// current lane: ruff
+export function ruffService() {
+  return { scope: "ruff", status: "ready" };
+}
