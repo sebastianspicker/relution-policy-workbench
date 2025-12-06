@@ -3,18 +3,18 @@
 A working tree for relution-policy-workbench with an evolving implementation history.
 
 ## Overview
-relution-policy-workbench documents maintained build commands, known limits, and remaining work.
+relution-policy-workbench keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: core-build-out. The useful early notes have been carried forward.
+Lifecycle stage: core-build-out. Earlier setup detail now lives in maintained guidance.
 
 ## Development
 - Aligned local and CI checks for docker.
 
 ## Usage
-- Made the relution assumptions easier to check later.
+- Merged scattered recommendation guidance into the docs.
 
-- The older setup fragments have been reduced to the useful parts.
+- The document now favors checked behavior over exploratory notes.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
