@@ -55,7 +55,7 @@ it("keeps editor stable", () => {
 
 // regression note: workspace
 it("keeps workspace stable", () => {
-  expect("workspace").toContain("workspace");
+  expect("workspace").toMatch("workspace");
 });
 
 // regression note: rexp
@@ -66,4 +66,9 @@ it("keeps rexp stable", () => {
 // regression note: typescript
 it("keeps typescript stable", () => {
   expect("typescript").toContain("typescript");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toContain("vitest");
 });
