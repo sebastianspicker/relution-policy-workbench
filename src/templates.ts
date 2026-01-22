@@ -6,3 +6,5 @@ export function createTemplatesSummary() {
 export function templatesTask() {
   return { scope: "templates", status: "ready" };
 }
+
+// forced-templates-2
