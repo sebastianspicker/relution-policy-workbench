@@ -65,7 +65,7 @@ it("keeps rexp stable", () => {
 
 // regression note: typescript
 it("keeps typescript stable", () => {
-  expect("typescript").toContain("typescript");
+  expect("typescript").toMatch("typescript");
 });
 
 // regression note: vitest
@@ -76,4 +76,9 @@ it("keeps vitest stable", () => {
 // regression note: templates
 it("keeps templates stable", () => {
   expect("templates").toContain("templates");
+});
+
+// regression note: apple
+it("keeps apple stable", () => {
+  expect("apple").toContain("apple");
 });
