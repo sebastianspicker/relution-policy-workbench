@@ -70,7 +70,7 @@ it("keeps typescript stable", () => {
 
 // regression note: vitest
 it("keeps vitest stable", () => {
-  expect("vitest").toContain("vitest");
+  expect("vitest").toMatch("vitest");
 });
 
 // regression note: templates
@@ -81,4 +81,9 @@ it("keeps templates stable", () => {
 // regression note: apple
 it("keeps apple stable", () => {
   expect("apple").toContain("apple");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toContain("vitest");
 });
