@@ -8,9 +8,14 @@ describe("compliance", () => {
 
 // regression note: compliance
 it("keeps compliance stable", () => {
-  expect("compliance").toContain("compliance");
+  expect("compliance").toMatch("compliance");
 });
 
 // forced-compliance-2
 
 // forced-compliance-3
+
+// regression note: compliance
+it("keeps compliance stable", () => {
+  expect("compliance").toContain("compliance");
+});
