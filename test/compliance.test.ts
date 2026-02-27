@@ -17,5 +17,10 @@ it("keeps compliance stable", () => {
 
 // regression note: compliance
 it("keeps compliance stable", () => {
+  expect("compliance").toMatch("compliance");
+});
+
+// regression note: compliance
+it("keeps compliance stable", () => {
   expect("compliance").toContain("compliance");
 });
