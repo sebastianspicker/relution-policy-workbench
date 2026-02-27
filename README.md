@@ -6,7 +6,7 @@ A working tree for relution-policy-workbench with an evolving implementation his
 relution-policy-workbench records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: expansion. Maintenance guidance now reflects the stable shape.
+Lifecycle stage: expansion. The useful early notes have been carried forward.
 
 ## Development
 - Aligned local and CI checks for docker.
@@ -22,6 +22,6 @@ Keep the next pass focused on verification and smaller changes.
 
 Prefer narrow maintenance work over broad rewrites.
 ## Features
-- Shaped recommendations into a usable first pass during core-build-out work.
+- Shaped relution api into a usable first pass during expansion work.
 
-- The older setup fragments have been reduced to the useful parts.
+- Earlier scratch detail is now represented in maintained sections.
