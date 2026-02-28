@@ -6,7 +6,7 @@ A working tree for relution-policy-workbench with an evolving implementation his
 relution-policy-workbench keeps setup, verification, and known limitations in one place.
 
 ## Status
-Lifecycle stage: expansion. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: expansion. Maintenance guidance now reflects the stable shape.
 
 ## Development
 - Aligned local and CI checks for docker.
@@ -22,6 +22,6 @@ Keep the next pass focused on verification and smaller changes.
 
 Prefer narrow maintenance work over broad rewrites.
 ## Features
-- Shaped relution api into a usable first pass during expansion work.
+- Shaped recommendations into a usable first pass during expansion work.
 
 - Earlier scratch detail is now represented in maintained sections.
