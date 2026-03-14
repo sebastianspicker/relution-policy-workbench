@@ -12,7 +12,7 @@ Lifecycle stage: publication. Maintenance guidance now reflects the stable shape
 - Aligned local and CI checks for docker.
 
 ## Usage
-- Rewrote the the main flow explanation around the maintained behavior.
+- Rewrote the recommendations explanation around the maintained behavior.
 
 - The document now favors checked behavior over exploratory notes.
 
