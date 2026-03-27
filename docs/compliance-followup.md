@@ -2,15 +2,17 @@
 
 
 ## Context
-This page tracks publication decisions for compliance followup during release push work.
+This page keeps the current compliance followup guidance concise after earlier rough notes.
 
 ## Usage
-- Rewrote the compliance explanation around the maintained behavior.
+- Made the compliance assumptions easier to check later.
+
+- Earlier scratch notes were compressed into the current guidance.
 
 ## Caveats
 Some setup details still depend on the current local workflow and may change again.
 
-## Scratch Notes
+## Notes Folded Into Current Flow
 Early notes are still uneven and may be folded into clearer sections later.
 
 ## Architecture
