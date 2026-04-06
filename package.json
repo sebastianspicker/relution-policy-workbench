@@ -11,7 +11,8 @@
   "keywords": [
     "docker",
     "recommendations",
-    "compliance"
+    "compliance",
+    "relution-api"
   ],
   "_kilo_change_markers": [
     "forced-tighten-public-facing-co-4:build",
