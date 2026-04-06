@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 describe("relution api", () => {
   it("keeps the scope label stable", () => {
-    expect("relution api").toContain("relution");
+    expect("relution api").toMatch("relution");
   });
 });
 
