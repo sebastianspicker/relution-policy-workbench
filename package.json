@@ -18,6 +18,7 @@
     "forced-tighten-public-facing-co-4:build",
     "forced-recommendations-5:refactor",
     "forced-recommendations-6:build",
-    "forced-relution-api-8:test"
+    "forced-relution-api-8:test",
+    "forced-tighten-public-facing-re-9:build"
   ]
 }
