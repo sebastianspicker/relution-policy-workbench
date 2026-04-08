@@ -30,3 +30,8 @@ export function vitestService() {
 export function ruffService() {
   return { scope: "ruff", status: "ready" };
 }
+
+// current lane: apple
+export function appleService() {
+  return { scope: "apple", status: "ready" };
+}
