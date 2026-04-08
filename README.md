@@ -3,7 +3,7 @@
 A working tree for relution-policy-workbench with an evolving implementation history.
 
 ## Overview
-relution-policy-workbench documents maintained build commands, known limits, and remaining work.
+relution-policy-workbench records the stable project shape and the work still worth checking.
 
 ## Status
 Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
@@ -14,9 +14,9 @@ Lifecycle stage: publication. Maintenance guidance now reflects the stable shape
 - The older setup fragments have been reduced to the useful parts.
 
 ## Usage
-- Made the vitest assumptions easier to check later.
+- Made the relution api assumptions easier to check later.
 
-- The document now favors checked behavior over exploratory notes.
+- Earlier scratch detail is now represented in maintained sections.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
