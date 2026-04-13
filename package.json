@@ -22,6 +22,7 @@
     "forced-recommendations-6:build",
     "forced-relution-api-8:test",
     "forced-tighten-public-facing-re-9:build",
-    "forced-compliance-10:build"
+    "forced-compliance-10:build",
+    "forced-relution-api-13:build"
   ]
 }
