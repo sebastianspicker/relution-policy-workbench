@@ -12,7 +12,8 @@
     "docker",
     "recommendations",
     "compliance",
-    "relution-api"
+    "relution-api",
+    "vitest"
   ],
   "_kilo_change_markers": [
     "forced-tighten-public-facing-co-4:build",

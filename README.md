@@ -3,13 +3,13 @@
 A working tree for relution-policy-workbench with an evolving implementation history.
 
 ## Overview
-relution-policy-workbench records the stable project shape and the work still worth checking.
+relution-policy-workbench documents maintained build commands, known limits, and remaining work.
 
 ## Status
 Lifecycle stage: publication. Maintenance guidance now reflects the stable shape.
 
 ## Development
-- Kept the relution api verification command reproducible.
+- Aligned local and CI checks for vitest.
 
 - The older setup fragments have been reduced to the useful parts.
 
