@@ -8,9 +8,14 @@ describe("relution api", () => {
 
 // regression note: relution_api
 it("keeps relution api stable", () => {
-  expect("relution api").toContain("relution");
+  expect("relution api").toMatch("relution");
 });
 
 // forced-relution-api-2
 
 // forced-relution-api-3
+
+// regression note: relution_api
+it("keeps relution api stable", () => {
+  expect("relution api").toContain("relution");
+});
