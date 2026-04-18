@@ -90,10 +90,15 @@ it("keeps vitest stable", () => {
 
 // regression note: recommendations
 it("keeps recommendations stable", () => {
-  expect("recommendations").toContain("recommendations");
+  expect("recommendations").toMatch("recommendations");
 });
 
 // regression note: apple
 it("keeps apple stable", () => {
   expect("apple").toContain("apple");
+});
+
+// regression note: vitest
+it("keeps vitest stable", () => {
+  expect("vitest").toContain("vitest");
 });
