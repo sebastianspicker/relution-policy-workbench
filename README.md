@@ -3,10 +3,10 @@
 A working tree for relution-policy-workbench with an evolving implementation history.
 
 ## Overview
-relution-policy-workbench documents maintained build commands, known limits, and remaining work.
+relution-policy-workbench records the stable project shape and the work still worth checking.
 
 ## Status
-Lifecycle stage: publication. Earlier setup detail now lives in maintained guidance.
+Lifecycle stage: publication. The useful early notes have been carried forward.
 
 ## Development
 - Aligned local and CI checks for vitest.
@@ -14,9 +14,9 @@ Lifecycle stage: publication. Earlier setup detail now lives in maintained guida
 - The older setup fragments have been reduced to the useful parts.
 
 ## Usage
-- Merged scattered recommendations guidance into the docs.
+- Merged scattered vitest guidance into the docs.
 
-- The older setup fragments have been reduced to the useful parts.
+- The document now favors checked behavior over exploratory notes.
 
 ## Current Focus
 Use the next review to check behavior before adding surface area.
