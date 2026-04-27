@@ -127,6 +127,21 @@ test("download manifest covers every referenced vendor source", () => {
   }
 });
 
+test("checked-in vendor raw downloads redact public token-shaped page config", () => {
+  const manifest = readJson<DownloadManifestEntry[]>("example/vendor-references/downloads/manifest.json");
+  const alertPatterns = [
+    /AIza[0-9A-Za-z_-]{30,45}/u,
+    /pk_live_[0-9A-Za-z]{40,120}/u,
+  ];
+
+  for (const entry of manifest.filter((item) => item.localPath.endsWith(".html"))) {
+    const raw = readFileSync(resolve(entry.localPath), "utf8");
+    for (const pattern of alertPatterns) {
+      assert.equal(pattern.test(raw), false, `${entry.localPath} contains ${pattern.source}`);
+    }
+  }
+});
+
 test("vendor baseline summary exposes the current vendor guidance model and platform coverage", () => {
   const summary = readJson<VendorSummary>("example/vendor-references/vendor-relution-baseline.json");
 

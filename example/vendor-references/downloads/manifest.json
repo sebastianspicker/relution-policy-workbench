@@ -51,8 +51,8 @@
     "headersPath": "example/vendor-references/downloads/headers/microsoft-windows-11-25h2-security-baseline.headers.txt",
     "textPath": "example/vendor-references/downloads/text/microsoft-windows-11-25h2-security-baseline.txt",
     "contentType": "text/html",
-    "sizeBytes": 373441,
-    "sha256": "99514bcfa146779cc7c94be0ef6c30f5b1238568654dc973fc8761c7c77d8a02"
+    "sizeBytes": 373427,
+    "sha256": "6d7febe8f8c6d30301d3de087524a0c0d46e977f4228e9e17c1da8f08c30ab65"
   },
   {
     "id": "microsoft-intune-windows-mdm-baseline-settings",
@@ -84,8 +84,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-android-enterprise-feature-list.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-android-enterprise-feature-list.txt",
     "contentType": "text/html",
-    "sizeBytes": 259640,
-    "sha256": "3e5b5a07f06d923ea8b91448e2a99331fd60a609cf29e989d31e177508a2c158"
+    "sizeBytes": 259440,
+    "sha256": "d339810eea909c8505d818c47353272ec0289d8c9825e5f6d110035843cfe456"
   },
   {
     "id": "google-android-management-security-posture",
@@ -95,8 +95,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-android-management-security-posture.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-android-management-security-posture.txt",
     "contentType": "text/html",
-    "sizeBytes": 85595,
-    "sha256": "7496a23d633dadffc204079ea2330de42bded67ed5d1d58d45a9545d976a5a08"
+    "sizeBytes": 85395,
+    "sha256": "0d3e637f2c171688d68214075fb8b3dbe97a2c35ac0e582382b7008968bd7a31"
   },
   {
     "id": "google-android-enterprise-system-updates",
@@ -106,8 +106,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-android-enterprise-system-updates.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-android-enterprise-system-updates.txt",
     "contentType": "text/html",
-    "sizeBytes": 1385026,
-    "sha256": "4860906e113d2072670df6a0c91b6c750ae8dcec1fe54d7750f9854a361375a7"
+    "sizeBytes": 1384970,
+    "sha256": "7c4daaa58fad82fe6e353a4c99aa090f554c1abca4281dc34df2519368917340"
   },
   {
     "id": "google-play-protect-managed-devices",
@@ -117,8 +117,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-play-protect-managed-devices.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-play-protect-managed-devices.txt",
     "contentType": "text/html",
-    "sizeBytes": 1385903,
-    "sha256": "dfb1f9a47bde0a9b4f9f60ed3f236330f703e0d88ed8683436abfdd45f6cc55b"
+    "sizeBytes": 1385847,
+    "sha256": "b47de2fc701bbca29cc7f1f24d07e33e15a1980377dc71fc1a89b07211b11202"
   },
   {
     "id": "google-android-enterprise-feature-drop-2025",
@@ -128,8 +128,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-android-enterprise-feature-drop-2025.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-android-enterprise-feature-drop-2025.txt",
     "contentType": "text/html",
-    "sizeBytes": 1377624,
-    "sha256": "d2c80c0900460138cdd30e0ec8af0673bad48fc28e2efa868913313aaa4bfa57"
+    "sizeBytes": 1377568,
+    "sha256": "9682a488e6d42a687c93c8ca23d3e9122315c379adf145b68000507dc270d09b"
   },
   {
     "id": "google-android-security-best-practices",
@@ -139,8 +139,8 @@
     "headersPath": "example/vendor-references/downloads/headers/google-android-security-best-practices.headers.txt",
     "textPath": "example/vendor-references/downloads/text/google-android-security-best-practices.txt",
     "contentType": "text/html",
-    "sizeBytes": 254314,
-    "sha256": "7c30a4c7731e728b55fc7769ed7c370d71111c94fa7c85bb2d76a2132688d27b"
+    "sizeBytes": 254114,
+    "sha256": "80dd6cb9a857cd9a3b7dca8be89b94e1b994bba7a2598efe2035879d7399d667"
   },
   {
     "id": "apple-platform-deployment",

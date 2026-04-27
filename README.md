@@ -50,6 +50,36 @@ pnpm rexp serve --workspace example/sample-workspace --platform IOS --name "Exam
 
 Do not start the editor with raw `pnpm exec vite preview`; that command serves only static frontend assets and has no `/api/*` editor backend. Use `pnpm rexp serve ...` or `pnpm rexp edit ...` so the local API and web UI are served together.
 
+## Product Tour
+
+### Editor Overview
+
+![Relution Policy Workbench editor overview](docs/readme-tour/01-editor-overview.png)
+
+### Guided Baseline Builder
+
+![Guided baseline builder for selecting a policy baseline](docs/readme-tour/02-baseline-guided.png)
+
+### Expert Baseline Selection
+
+![Expert baseline selection with BSI and CIS source controls](docs/readme-tour/03-baseline-expert.png)
+
+### Policy Editor
+
+![Policy editor with iOS passcode settings](docs/readme-tour/04-policy-editor.png)
+
+### Compliance Review
+
+![Compliance review panel with actionable baseline findings](docs/readme-tour/05-compliance.png)
+
+### Settings Import and Export
+
+![Settings panel for encryption key, ruleset import, and rexp build](docs/readme-tour/06-settings-import-export.png)
+
+### Read-Only Relution Dashboard
+
+![Read-only Relution dashboard with device audit summary](docs/readme-tour/07-relution-dashboard.png)
+
 ## Architecture
 
 ```mermaid

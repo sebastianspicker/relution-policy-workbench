@@ -39,6 +39,10 @@ WINDOWS_REXP_EVIDENCE_PATH = VENDOR_DIR / "downloads" / "derived" / "windows-rel
 
 VENDOR_VERIFIED_AS_OF = "2026-04-23"
 WINDOWS_BASELINE_NAME = "Windows 11 version 25H2 Intune MDM security baseline"
+PUBLIC_TOKEN_REDACTIONS: tuple[tuple[bytes, bytes], ...] = (
+    (rb"AIza[0-9A-Za-z_-]{30,45}", b"[REDACTED_GOOGLE_API_KEY]"),
+    (rb"pk_live_[0-9A-Za-z]{40,120}", b"[REDACTED_STRIPE_PUBLISHABLE_KEY]"),
+)
 
 CURATED_PLATFORM_GUIDANCE: list[dict[str, Any]] = [
     {
@@ -509,6 +513,8 @@ def refresh_downloads(output_vendor_dir: Path) -> None:
             body = response.read()
             headers = dict(response.headers.items())
             final_url = response.url
+        if raw_suffix == ".html":
+            body = redact_public_tokens(body)
         raw_path.write_bytes(body)
         headers_path.write_text("".join(f"{key}: {value}\n" for key, value in sorted(headers.items())), encoding="utf8")
         text_path.write_text(extract_text(raw_path, body), encoding="utf8")
@@ -526,6 +532,13 @@ def refresh_downloads(output_vendor_dir: Path) -> None:
             }
         )
     write_json(output_vendor_dir / "downloads" / "manifest.json", manifest)
+
+
+def redact_public_tokens(body: bytes) -> bytes:
+    redacted = body
+    for pattern, replacement in PUBLIC_TOKEN_REDACTIONS:
+        redacted = re.sub(pattern, replacement, redacted)
+    return redacted
 
 
 def extract_text(path: Path, body: bytes) -> str:

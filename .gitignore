@@ -31,8 +31,6 @@ example/roundtrip.rexp
 example/sample-edited.rexp
 example/sample-roundtrip.rexp
 
-docs/readme-tour/*.png
-
 # Local audit, agent, and review artifacts.
 AUDIT*.md
 FUNCTION_AUDIT*.md
