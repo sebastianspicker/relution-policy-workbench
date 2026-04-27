@@ -1,0 +1,399 @@
+Manage FileVault with device management - Apple Support
+Apple
+Store
+Mac
+iPad
+iPhone
+Watch
+Vision
+AirPods
+TV & Home
+Entertainment
+Accessories
+Support
+0 +
+Apple Platform Deployment
+Open Menu Close Menu
+Communities
+Search this guide Clear Search
+Table of Contents
+Apple Platform Deployment
+Welcome
+Intro to Apple Platform Deployment
+What’s new
+Plan the deployment
+Intro to device management
+Declarative device management
+Intro to declarative device management
+Use declarative device management to manage Apple devices
+Device management
+Intro to device management profiles
+Intro to device management payloads
+About device supervision
+Choose a deployment model
+Device enrollment methods
+Enrollment methods for Apple devices
+Account-driven enrollment methods
+User Enrollment and device management
+Device Enrollment and device management
+Automated Device Enrollment and device management
+Deploy Apple TV
+Deploy Apple Vision Pro
+Deploy Apple Watch
+Deploy shared devices
+Shared device overview
+Use Return to Service for Apple devices
+Deploy Shared iPad
+Shared iPad overview
+Prepare Shared iPad
+Choose a device management service
+Device management migration
+Plan your device management migration
+Configure your new device management service
+Migrate managed devices
+Back up and restore managed devices
+Use standards-based services
+Prepare your environment
+Deploy devices with Apple School Manager or Apple Business
+Use Apple Configurator
+Configure devices
+Install apps with Apple Configurator
+Add Apple devices to Apple School Manager or Apple Business
+Configure your network for device management
+Configure devices to work with APNs
+Configure devices with cellular connections
+Prepare to use eSIMs with Apple devices
+Use a device management service to deploy devices with cellular connections
+Support for private 5G and LTE networks
+Support for 5G Network Slicing
+Prepare your Wi-Fi networks
+Optimize your Wi-Fi networks
+Review aggregate throughput for Wi-Fi networks
+Speed up downloads
+Intro to content caching
+Set up content caching
+Use DNS TXT records
+Advanced content caching settings
+Content caching from the command line
+Content caching metrics
+Set up a shared internet connection
+Use identity services
+Intro to Apple identity services
+Extensible Single Sign-on on Apple devices
+Intro to Single Sign-on
+Enrollment SSO for iPhone, iPad, and Apple Vision Pro
+Platform SSO for macOS
+Kerberos SSO extension
+Integrate Apple devices with Microsoft services
+Integrate with Microsoft Entra ID
+Integrate with Microsoft Exchange
+Use Microsoft Exchange to identify an iPhone, iPad, or Apple Vision Pro
+Integrate Mac computers with Active Directory
+About Managed Apple Accounts
+About Managed Apple Accounts
+iCloud for Managed Apple Accounts
+Review the setup process
+Manage Setup Assistant
+Managed Migration Assistant for macOS
+Set up local macOS accounts
+Device management configuration options
+Review declarative configurations
+Plan your configuration profiles
+Review device management payloads
+Review device management restrictions
+Manage software updates
+About software updates
+Software update process
+Install and enforce software updates
+Use device management to deploy software updates
+Phases of Apple software update enforcement
+Test software updates with the AppleSeed for IT beta program
+Distribute content
+Intro to content distribution
+Content distribution methods
+Distribute apps
+Distribute managed apps
+Distribute Custom Apps
+Distribute unlisted apps
+Distribute proprietary in-house apps
+Distribute packages to Mac computers
+Get app bundle IDs
+Bundle IDs for iPhone and iPad Apple apps
+Bundle IDs for Apple TV Apple apps
+Get the bundle ID for a Mac app
+Manage organizational data
+Manage login items and background tasks on Mac
+Integrate with networks
+How Apple devices join Wi-Fi networks
+Connect to 802.1X networks
+Wi-Fi roaming support
+Cisco network enhancements
+Wi-Fi and Ethernet specifications for Apple devices
+Use VPN for secure access
+VPN overview
+Cisco IPsec VPN setup
+Use a VPN proxy and certificate configuration
+Use network relays
+Filter content
+Use AirPlay
+Ensure device security
+Intro to device management security
+Background Security Improvements
+Lock and locate devices
+Erase devices
+Activation Lock
+Manage accessory access
+Enforce password policies
+Use persistent tokens
+Use built-in network security features
+Managed Device Attestation
+Managed Device Attestation
+Deploy Managed Device Attestation
+Manage certificates
+Intro to certificate management
+Distribute certificates
+Smart card integration
+Intro to smart card integration
+Smart card support on iPhone and iPad
+Supported smart card functions on iPhone and iPad
+Use a smart card on iPhone and iPad
+Smart card support on Mac
+Supported smart card functions on Mac
+Use a smart card on Mac
+Configure a Mac for smart card–only authentication
+FileVault and smart card usage
+Advanced smart card options
+macOS system security
+Startup security
+System extensions in macOS
+FileVault
+Intro to FileVault
+Use secure and bootstrap tokens
+Manage FileVault with device management
+Mac app security enhancements
+Device management settings
+Declarative configurations and status reports
+Declarative status reports
+Declarative app configuration
+Authentication credentials and identity asset declaration
+Background task management declarative
+Calendar declarative configuration
+Certificates declarative configuration
+Contacts declarative configuration
+Exchange declarative configuration
+Google Accounts declarative configuration
+LDAP declarative configuration
+Legacy interactive profile declarative configuration
+Legacy profile declarative configuration
+Mail declarative configuration
+Math and Calculator app declarative configuration
+Managed Migration Assistant declarative configuration
+Passcode declarative configuration
+Passkey Attestation declarative configuration
+Safari browsing management declarative configuration
+Safari extensions management declarative configuration
+Screen Sharing declarative configuration
+Service configuration files declarative configuration
+Software Update declarative configuration
+Software Update settings declarative configuration
+Storage management declarative configuration
+Subscribed Calendars declarative configuration
+Device management lists
+Device management service enrollment information
+Device management service User Enrollment information
+Device management payloads for Device Enrollment
+Device management payloads for Automated Device Enrollment
+Device management payload lists
+Payload list for iPhone and iPad
+Payload list for Mac
+Payload list for Apple TV
+Payload list for Apple Watch
+Payload list for Apple Vision Pro
+Payload list for Shared iPad
+Payload list available in Apple Configurator for Mac
+Device management restriction lists
+Restrictions for iPhone and iPad
+Restrictions for Mac
+Restrictions for Apple TV
+Restrictions for Apple Watch
+Restrictions for Apple Vision Pro
+Restrictions for supervised devices
+Restrictions available in Apple Configurator for Mac
+Device management command lists
+Device management command list
+Device management command settings options list
+Device management query lists
+Device information queries
+Device network information queries
+Operating system queries
+Installed app queries
+Security queries
+Device management payload settings
+Accessibility payload settings
+Active Directory Certificate payload settings
+AirPlay payload settings
+AirPlay Security payload settings
+AirPrint payload settings
+App Lock payload settings
+Associated Domains payload settings
+Automated Certificate Management Environment (ACME) payload settings
+Autonomous Single App Mode payload settings
+Calendar payload settings
+Cellular payload settings
+Cellular Private Network payload settings
+Certificate Preference payload settings
+Certificate Revocation payload settings
+Certificate Transparency payload settings
+Certificates payload settings
+Conference Room Display payload settings
+Contacts payload settings
+Content Caching payload settings
+Directory Service payload settings
+DNS Proxy payload settings
+DNS Settings payload settings
+Dock payload settings
+Domains payload settings
+Energy Saver payload settings
+Exchange ActiveSync (EAS) payload settings
+Exchange Web Services (EWS) payload settings
+Extensible Single Sign-on payload settings
+Extensible Single Sign-on Kerberos payload settings
+Extensions payload settings
+FileVault payload settings
+Finder payload settings
+Firewall payload settings
+Fonts payload settings
+Global HTTP Proxy payload settings
+Google Accounts payload settings
+Home Screen Layout payload settings
+Identification payload settings
+Identity Preference payload settings
+Kernel Extension Policy payload settings
+LDAP payload settings
+Lights Out Management payload settings
+Lock Screen Message payload settings
+Login Window payload settings
+Managed Login Items payload settings
+Mail payload settings
+Network settings
+Wi-Fi settings
+Ethernet settings
+WEP, WPA, WPA2, WPA2/WPA3 settings
+Dynamic WEP, WPA Enterprise, and WPA2 Enterprise settings
+EAP settings
+HotSpot 2.0 settings
+Legacy Hotspot settings
+Cisco Fastlane settings
+Network Proxy Configuration settings
+Network Usage Rules payload settings
+Notifications payload settings
+Parental Controls payload settings
+Passcode payload settings
+Printing payload settings
+Privacy Preferences Policy Control payload settings
+Relay payload settings
+SCEP payload settings
+Security payload settings
+Setup Assistant payload settings
+Single Sign-on payload settings
+Smart Card payload settings
+Subscribed Calendars payload settings
+System Extensions payload settings
+System Migration payload settings
+Time Machine payload settings
+TV Remote payload settings
+VPN device management settings
+VPN device management settings overview
+AppLayerVPN payload settings
+IKEv2 settings
+IPsec settings
+L2TP settings
+VPN Proxy settings
+Web Clips payload settings
+Web Content Filter payload settings
+Xsan payload settings
+Additional resources
+Join AppleSeed for IT
+AppleCare support
+Professional services
+Deployment and management training
+Apple Consultants Network
+Apple web resources
+Glossary
+Document revision history
+Copyright and trademarks
+Manage FileVault with device management
+Organizations can manage FireVault full-disk encryption using a device management service or, for some advanced deployments and configurations, the fdesetup command-line tool. Managing FileVault using a device management service is referred to as deferred enablement , and requires a logout or login event from the user. A device management service can also customize options such as:
+The number of times a user can defer the enablement of FileVault
+Whether to prompt the user at logout in addition to prompting them at login
+Whether to show the recovery key to the user
+Which certificate to use to asymmetrically encrypt the recovery key for escrow to the device management service
+Having a user be enabled to unlock the storage on APFS volumes requires that they have a secure token and, on a Mac with Apple silicon, that they be volume owners. For more information on secure tokens and volume ownership, see Use secure token, bootstrap token, and volume ownership in deployments . Information on how and when users are granted a secure token in specific workflows is provided below.
+Enforce FileVault in Setup Assistant
+Using the ForceEnableInSetupAssistant key, Mac computers can be required to turn on FileVault during Setup Assistant. This ensures that the internal storage in managed Mac computers is always encrypted before being used. Organizations can decide whether to show the FileVault recovery key to the user or to escrow the personal recovery key. To use this feature, ensure that await_device_configured is set.
+Note: Prior to macOS 14.4 , this feature required the user account created interactively during Setup Assistant to have the role of Administrator.
+When a user sets up a Mac on their own
+Note: The device management service needs to support specific features for secure tokens and bootstrap tokens to work with a Mac.
+When a user sets up a Mac on their own, IT departments don’t perform any provisioning tasks on the actual device. You provide all policies and configurations using a device management service or configuration management tools. Setup Assistant creates the initial local account and grants the user a secure token, and the Mac generates a bootstrap token and escrows it to the device management service.
+If the Mac enrolls in a device management service, the initial account may not be a local administrator account, but rather a local standard user account. If you downgrade the user to a standard user using a service, it automatically grants the user a secure token. On a Mac with macOS 10.15.4 or later, if you downgrade the user, macOS automatically generates a bootstrap token and escrows it to the device management service.
+If you skip local user account creation in Setup Assistant using a device management service and use a directory service with mobile accounts instead, the service grants the mobile account user a secure token during login. On a Mac with macOS 10.15.4 or later, after enabling the user with a mobile account, macOS automatically generates a bootstrap token during the user’s second login and escrows it to the device management service.
+If a device management service skips creating a local user account in Setup Assistant and uses a directory service with mobile accounts instead, the device management service grants the user a secure token when they log in. On a Mac with macOS 10.15.4 or later, if the mobile user has a secure token, macOS automatically generates a bootstrap token and escrows it to the device management service.
+In any of the above scenarios, because macOS grants the first and primary user a secure token, the user can enable FileVault using deferred enablement, which allows you to turn on FileVault but defer enabling it until a user logs in to or out of a Mac. You can also choose whether the user can skip turning on FileVault (optionally a defined number of times). This allows the primary user of the Mac—whether a local user of any type or a mobile account—to unlock the FileVault volume.
+On a Mac where macOS generates a bootstrap token and escrows it to a device management service, if another user logs in to the Mac in the future, macOS uses the bootstrap token to automatically grant them a secure token. This means that the account is also enabled for FileVault and able to unlock the FileVault volume. To remove a user’s ability to unlock the storage device, use fdesetup remove -user .
+When an organization provisions a Mac
+When an organization provisions a Mac before giving it to the user, the IT department sets up the device. You use the local administrative account, which you create either in the Setup Assistant or by provisioning one with a device management service, to provision or set up the Mac, and the operating system grants it the first secure token during login. If the service supports the bootstrap token feature, the operating system also generates a bootstrap token and escrows it.
+If the Mac is joined to a directory service and configured to create mobile accounts, and if there is no bootstrap token, directory service users are prompted at first login for an existing secure token administratorʼs user name and password to grant their account a secure token. They need to enter a secure token–enabled local administrator’s credentials. If a secure token isnʼt required, the user can click Bypass. For a Mac with macOS 10.13.5 or later, itʼs possible to suppress the secure token dialog completely if you’re not going to use FileVault with the mobile accounts. To suppress the secure token dialog, apply a custom settings configuration profile from the device management service with the following keys and values:
+Setting
+Value
+Domain
+com.apple.MCX
+Key
+cachedaccounts.askForSecureTokenAuthBypass
+Value
+True
+If the device management service supports the bootstrap token feature and the Mac generates one and escrows it to the service, mobile account users don’t see this prompt. Instead, macOS automatically grants them a secure token during login.
+If additional local users are required on the Mac instead of user accounts from a directory service, macOS automatically grants them a secure token when a secure token-enabled administrator creates those local users in Users & Groups (in System Settings in macOS 13 or later, or in System Preferences in macOS 12.0.1 or earlier). When creating local users using the command line, the administrator can use the sysadminctl command-line tool, and can optionally enable them for a secure token. On a Mac with macOS 11 or later, if macOS doesn’t grant a secure token at creation, and if a bootstrap token is available from the device management service, it grants a secure token to the local user when they log in.
+In these scenarios, the following users can unlock the FileVault-encrypted volume:
+The original local administrator used for provisioning
+Any additional directory service users granted secure token during the login process, either interactively using the dialog prompt or automatically with the bootstrap token
+Any new local users
+To remove a user’s ability to unlock the storage device, use fdesetup remove -user .
+When using one of the above described workflows, secure token is managed by macOS without any additional configuration or scripting being needed; it becomes an implementation detail and not something that needs to be actively managed or manipulated.
+fdesetup command-line tool
+You can use device management configurations or the fdesetup command-line tool to configure FileVault. For a Mac with macOS 10.15 or later, using fdesetup to turn on FileVault by providing the user name and password is deprecated and won’t be available in a future release. The command continues to function, but remains deprecated in macOS 11 and macOS 12.0.1 . Consider using deferred enablement from a device management service instead. For more information about the fdesetup command-line tool, launch the Terminal app and enter man fdesetup or fdesetup help .
+Institutional versus personal recovery keys
+FileVault on both CoreStorage and APFS volumes supports using an institutional recovery key (IRK, previously known as a FileVault Master identity ) to unlock the volume. Though an IRK is useful for command-line operations to unlock a volume or prevent FileVault altogether, its utility for organizations is limited, especially in recent versions of macOS. And on a Mac with Apple silicon, IRKs provide no functional value for two primary reasons: First, IRKs can’t be used to access recoveryOS; and second, because target disk mode is no longer supported, the volume can’t be unlocked by connecting it to another Mac. For those reasons and more, the use of an IRK is no longer recommended for institutional management of FileVault on Mac computers . Instead, a personal recovery key (PRK) should be used. A PRK provides:
+An extremely robust recovery and operating system access mechanism
+Unique encryption per volume
+Escrow to device management service
+Easy key rotation after use
+For a Mac with Apple silicon with macOS 12.0.1 or later, a PRK can be used either in recoveryOS or to start up an encrypted Mac to macOS directly. In recoveryOS, the PRK can be used if prompted by Recovery Assistant, or with the Forgot All Passwords option, to gain access to the recovery environment, which then also unlocks the volume. When using the Forgot All Passwords option, resetting a password for a user isn’t required; the exit button can be clicked to start up directly into recoveryOS. To start up macOS directly on Intel-based Mac computers, click the question mark next to the password field, then choose the option to “reset it using your Recovery Key.” Enter the PRK, then press Return or click the arrow. After macOS starts up, press Cancel on the password change dialog.
+Also, for a Mac with Apple silicon with macOS 12.0.1 or later, press Option-Shift-Return to reveal the entry field for the PRK, then press Return (or click the arrow).
+There is only one PRK per encrypted volume, and during FileVault enablement from a device management service, you can optionally hide it from the user. When configuring it for escrow to a device management service, it provides a public key in the form of a certificate to a Mac, which it then uses to asymmetrically encrypt the PRK in a CMS envelope format. The encrypted PRK returns to the service in the security information query, which an organization can then decrypt for viewing. Because the encryption is asymmetrical, the service itself may not be able to decrypt the PRK (which might require additional steps by an administrator). However, many device management service developers provide the option to manage these keys to allow for viewing directly in their products. The device management service can also optionally rotate PRKs as often as required to help maintain a strong security posture—for example, after using a PRK to unlock a volume.
+A PRK can be used in target disk mode on Mac computers without Apple silicon to unlock a volume:
+1. Connect the Mac in target disk mode to another Mac using the same or a newer version of macOS.
+2. Open Terminal, then run the following command and look for the name of the volume (usually “Macintosh HD”). It should say “Mount Point: Not Mounted” and “FileVault: Yes (Locked).” Make note of the APFS Volume Disk ID for the volume, which look like disk3s2 but with likely different numbers—for example, disk4s5.
+diskutil apfs list
+3. Run the following command, then look for the personal recovery key user and make note of the UUID listed:
+diskutil apfs listUsers /dev/<diskXsN>
+4. Run this command:
+diskutil apfs unlockVolume /dev/<diskXsN> -user <PRK UUID>
+5. At the passphrase prompt, paste or enter the PRK, then press Return. The volume is mounted in the Finder.
+Published Date: October 27, 2021
+See also Intro to FileVault FileVault device management payload settings for Apple devices Apple Platform Security: Volume encryption with FileVault in macOS
+Previous Use secure and bootstrap tokens Next Mac app security enhancements
+Helpful?
+Yes No
+Character limit: 250
+Please don’t include any personal information in your comment.
+Maximum character limit is 250.
+Submit
+Thanks for your feedback.
+Apple Footer
+ Apple
+Support
+Apple Platform Deployment
+Manage FileVault with device management
+United States
+Copyright © 2026 Apple Inc. All rights reserved.
+Privacy Policy Terms of Use Sales and Refunds Site Map

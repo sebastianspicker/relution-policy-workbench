@@ -1,0 +1,379 @@
+Managed Device Attestation for Apple devices - Apple Support
+Apple
+Store
+Mac
+iPad
+iPhone
+Watch
+Vision
+AirPods
+TV & Home
+Entertainment
+Accessories
+Support
+0 +
+Apple Platform Deployment
+Open Menu Close Menu
+Communities
+Search this guide Clear Search
+Table of Contents
+Apple Platform Deployment
+Welcome
+Intro to Apple Platform Deployment
+What’s new
+Plan the deployment
+Intro to device management
+Declarative device management
+Intro to declarative device management
+Use declarative device management to manage Apple devices
+Device management
+Intro to device management profiles
+Intro to device management payloads
+About device supervision
+Choose a deployment model
+Device enrollment methods
+Enrollment methods for Apple devices
+Account-driven enrollment methods
+User Enrollment and device management
+Device Enrollment and device management
+Automated Device Enrollment and device management
+Deploy Apple TV
+Deploy Apple Vision Pro
+Deploy Apple Watch
+Deploy shared devices
+Shared device overview
+Use Return to Service for Apple devices
+Deploy Shared iPad
+Shared iPad overview
+Prepare Shared iPad
+Choose a device management service
+Device management migration
+Plan your device management migration
+Configure your new device management service
+Migrate managed devices
+Back up and restore managed devices
+Use standards-based services
+Prepare your environment
+Deploy devices with Apple School Manager or Apple Business
+Use Apple Configurator
+Configure devices
+Install apps with Apple Configurator
+Add Apple devices to Apple School Manager or Apple Business
+Configure your network for device management
+Configure devices to work with APNs
+Configure devices with cellular connections
+Prepare to use eSIMs with Apple devices
+Use a device management service to deploy devices with cellular connections
+Support for private 5G and LTE networks
+Support for 5G Network Slicing
+Prepare your Wi-Fi networks
+Optimize your Wi-Fi networks
+Review aggregate throughput for Wi-Fi networks
+Speed up downloads
+Intro to content caching
+Set up content caching
+Use DNS TXT records
+Advanced content caching settings
+Content caching from the command line
+Content caching metrics
+Set up a shared internet connection
+Use identity services
+Intro to Apple identity services
+Extensible Single Sign-on on Apple devices
+Intro to Single Sign-on
+Enrollment SSO for iPhone, iPad, and Apple Vision Pro
+Platform SSO for macOS
+Kerberos SSO extension
+Integrate Apple devices with Microsoft services
+Integrate with Microsoft Entra ID
+Integrate with Microsoft Exchange
+Use Microsoft Exchange to identify an iPhone, iPad, or Apple Vision Pro
+Integrate Mac computers with Active Directory
+About Managed Apple Accounts
+About Managed Apple Accounts
+iCloud for Managed Apple Accounts
+Review the setup process
+Manage Setup Assistant
+Managed Migration Assistant for macOS
+Set up local macOS accounts
+Device management configuration options
+Review declarative configurations
+Plan your configuration profiles
+Review device management payloads
+Review device management restrictions
+Manage software updates
+About software updates
+Software update process
+Install and enforce software updates
+Use device management to deploy software updates
+Phases of Apple software update enforcement
+Test software updates with the AppleSeed for IT beta program
+Distribute content
+Intro to content distribution
+Content distribution methods
+Distribute apps
+Distribute managed apps
+Distribute Custom Apps
+Distribute unlisted apps
+Distribute proprietary in-house apps
+Distribute packages to Mac computers
+Get app bundle IDs
+Bundle IDs for iPhone and iPad Apple apps
+Bundle IDs for Apple TV Apple apps
+Get the bundle ID for a Mac app
+Manage organizational data
+Manage login items and background tasks on Mac
+Integrate with networks
+How Apple devices join Wi-Fi networks
+Connect to 802.1X networks
+Wi-Fi roaming support
+Cisco network enhancements
+Wi-Fi and Ethernet specifications for Apple devices
+Use VPN for secure access
+VPN overview
+Cisco IPsec VPN setup
+Use a VPN proxy and certificate configuration
+Use network relays
+Filter content
+Use AirPlay
+Ensure device security
+Intro to device management security
+Background Security Improvements
+Lock and locate devices
+Erase devices
+Activation Lock
+Manage accessory access
+Enforce password policies
+Use persistent tokens
+Use built-in network security features
+Managed Device Attestation
+Managed Device Attestation
+Deploy Managed Device Attestation
+Manage certificates
+Intro to certificate management
+Distribute certificates
+Smart card integration
+Intro to smart card integration
+Smart card support on iPhone and iPad
+Supported smart card functions on iPhone and iPad
+Use a smart card on iPhone and iPad
+Smart card support on Mac
+Supported smart card functions on Mac
+Use a smart card on Mac
+Configure a Mac for smart card–only authentication
+FileVault and smart card usage
+Advanced smart card options
+macOS system security
+Startup security
+System extensions in macOS
+FileVault
+Intro to FileVault
+Use secure and bootstrap tokens
+Manage FileVault with device management
+Mac app security enhancements
+Device management settings
+Declarative configurations and status reports
+Declarative status reports
+Declarative app configuration
+Authentication credentials and identity asset declaration
+Background task management declarative
+Calendar declarative configuration
+Certificates declarative configuration
+Contacts declarative configuration
+Exchange declarative configuration
+Google Accounts declarative configuration
+LDAP declarative configuration
+Legacy interactive profile declarative configuration
+Legacy profile declarative configuration
+Mail declarative configuration
+Math and Calculator app declarative configuration
+Managed Migration Assistant declarative configuration
+Passcode declarative configuration
+Passkey Attestation declarative configuration
+Safari browsing management declarative configuration
+Safari extensions management declarative configuration
+Screen Sharing declarative configuration
+Service configuration files declarative configuration
+Software Update declarative configuration
+Software Update settings declarative configuration
+Storage management declarative configuration
+Subscribed Calendars declarative configuration
+Device management lists
+Device management service enrollment information
+Device management service User Enrollment information
+Device management payloads for Device Enrollment
+Device management payloads for Automated Device Enrollment
+Device management payload lists
+Payload list for iPhone and iPad
+Payload list for Mac
+Payload list for Apple TV
+Payload list for Apple Watch
+Payload list for Apple Vision Pro
+Payload list for Shared iPad
+Payload list available in Apple Configurator for Mac
+Device management restriction lists
+Restrictions for iPhone and iPad
+Restrictions for Mac
+Restrictions for Apple TV
+Restrictions for Apple Watch
+Restrictions for Apple Vision Pro
+Restrictions for supervised devices
+Restrictions available in Apple Configurator for Mac
+Device management command lists
+Device management command list
+Device management command settings options list
+Device management query lists
+Device information queries
+Device network information queries
+Operating system queries
+Installed app queries
+Security queries
+Device management payload settings
+Accessibility payload settings
+Active Directory Certificate payload settings
+AirPlay payload settings
+AirPlay Security payload settings
+AirPrint payload settings
+App Lock payload settings
+Associated Domains payload settings
+Automated Certificate Management Environment (ACME) payload settings
+Autonomous Single App Mode payload settings
+Calendar payload settings
+Cellular payload settings
+Cellular Private Network payload settings
+Certificate Preference payload settings
+Certificate Revocation payload settings
+Certificate Transparency payload settings
+Certificates payload settings
+Conference Room Display payload settings
+Contacts payload settings
+Content Caching payload settings
+Directory Service payload settings
+DNS Proxy payload settings
+DNS Settings payload settings
+Dock payload settings
+Domains payload settings
+Energy Saver payload settings
+Exchange ActiveSync (EAS) payload settings
+Exchange Web Services (EWS) payload settings
+Extensible Single Sign-on payload settings
+Extensible Single Sign-on Kerberos payload settings
+Extensions payload settings
+FileVault payload settings
+Finder payload settings
+Firewall payload settings
+Fonts payload settings
+Global HTTP Proxy payload settings
+Google Accounts payload settings
+Home Screen Layout payload settings
+Identification payload settings
+Identity Preference payload settings
+Kernel Extension Policy payload settings
+LDAP payload settings
+Lights Out Management payload settings
+Lock Screen Message payload settings
+Login Window payload settings
+Managed Login Items payload settings
+Mail payload settings
+Network settings
+Wi-Fi settings
+Ethernet settings
+WEP, WPA, WPA2, WPA2/WPA3 settings
+Dynamic WEP, WPA Enterprise, and WPA2 Enterprise settings
+EAP settings
+HotSpot 2.0 settings
+Legacy Hotspot settings
+Cisco Fastlane settings
+Network Proxy Configuration settings
+Network Usage Rules payload settings
+Notifications payload settings
+Parental Controls payload settings
+Passcode payload settings
+Printing payload settings
+Privacy Preferences Policy Control payload settings
+Relay payload settings
+SCEP payload settings
+Security payload settings
+Setup Assistant payload settings
+Single Sign-on payload settings
+Smart Card payload settings
+Subscribed Calendars payload settings
+System Extensions payload settings
+System Migration payload settings
+Time Machine payload settings
+TV Remote payload settings
+VPN device management settings
+VPN device management settings overview
+AppLayerVPN payload settings
+IKEv2 settings
+IPsec settings
+L2TP settings
+VPN Proxy settings
+Web Clips payload settings
+Web Content Filter payload settings
+Xsan payload settings
+Additional resources
+Join AppleSeed for IT
+AppleCare support
+Professional services
+Deployment and management training
+Apple Consultants Network
+Apple web resources
+Glossary
+Document revision history
+Copyright and trademarks
+Managed Device Attestation for Apple devices
+Managed Device Attestation is a feature for devices with iOS 16 , iPadOS 16.1 , macOS 14 , tvOS 16 , or later. Managed Device Attestation provides strong evidence about which properties of a device can be used as part of a trust evaluation. This cryptographic declaration of device properties is based on the security of the Secure Enclave and the Apple attestation servers.
+Managed device attestation helps protect against the following threats:
+A compromised device lying about its properties
+A compromised device providing an outdated attestation
+A compromised device sending a different device’s identifiers
+Private key extraction for use on a rogue device
+An attacker hijacking a certificate request to trick the CA into issuing the attacker a certificate
+For more information, see the WWDC22 video What’s new in device management .
+Supported hardware for Managed Device Attestation
+Attestations are issued to only devices that meet the following hardware requirements:
+iPhone, iPad, and Apple TV devices: With the A11 Bionic chip or later.
+Mac computers: With Apple silicon.
+There are no changes to Managed Device Attestation for Apple Watch and Apple Vision Pro .
+Managed Device Attestation with ACME certificate enrollment requests
+An organization’s issuing Certification Authority (CA) ACME service can request an attestation of the enrolling device’s properties. This attestation provides strong assurances that the properties of the device (for example, the serial number) are legitimate and not spoofed. The issuing CA’s ACME service can cryptographically validate the integrity of the attested device properties and optionally cross-reference them against the organization’s device inventory and, upon successful verification, confirm that the device is the organization’s device.
+If you use attestation, the operating system generates a hardware-bound private key inside the device’s Secure Enclave as part of the certificate-signing request. For this request, the ACME-issuing CA can then issue a client certificate. This key is tied to the Secure Enclave and is therefore available only on a specific device. You can use it on iPhone, iPad, Apple TV , and Apple Watch with configurations supporting specification of a certificate identity. On a Mac, you can use hardware-bound keys for authentication with a device management service, Microsoft Exchange, Kerberos, 802.1X networks, the built-in VPN client, and built-in network relay.
+Note: The Secure Enclave has very strong protections against key extraction, even in the case of a compromised Application Processor.
+These hardware-bound keys are automatically removed when erasing or restoring a device. Because the keys are removed, any configuration profiles relying on those keys won’t work after a restore. The profile needs to be applied again to get the keys recreated.
+Using ACME payload attestation, a device management service can enroll a client certificate identity using the ACME protocol, which can cryptographically validate that:
+The device is a genuine Apple device
+The device is a specific device
+The device is managed by the organization’s device management service
+The device has certain properties (for example, the serial number)
+The private key is hardware bound to the device
+Managed Device Attestation with device management service requests
+In addition to using managed device attestation during ACME certificate enrollment requests, a device management service can issue a DeviceInformation query requesting a DevicePropertiesAttestation property. If the device management service wants to help ensure a fresh attestation, it can send an optional DeviceAttestationNonce key, which forces a fresh attestation. If you omit this key, the device returns a cached attestation. The device attestation response then returns a leaf certificate with its properties in custom OIDs.
+Note: Serial number and UDID are both omitted when using User Enrollment to protect the user’s privacy. The other values are anonymous and include properties such as the sepOS version and the freshness code.
+The device management service can then validate the response by evaluating that the certificate chain is rooted with the expected Apple Certificate Authority (available from the Apple Private PKI Repository), and whether the hash of the freshness code is the same as the hash of the freshness code that the DeviceInformation query provides.
+Because defining a freshness code generates a new attestation—which consumes resources on the device and Apple’s servers—usage is limited currently to one DeviceInformation attestation per device every seven days. A device management service doesn’t need to request a fresh attestation every seven days. It isn’t necessary to request a fresh attestation unless a device’s properties change; for example, an update or upgrade to the operating system version. Besides, an occasional random request for a fresh attestation may help catch a compromised device that is trying to lie about those properties.
+Handle failed attestations
+Requesting an attestation may fail. When that happens, the device still responds to the DeviceInformation query or ACME server’s device-attest-01 challenge, but some information is omitted. Either the an expected OID or its value is omitted, or the attestation is omitted entirely. There are many potential reasons for a failure, such as:
+A network issue reaching the Apple attestation servers
+The device hardware or software may be compromised
+The device isn’t genuine Apple hardware
+In the last two cases, the Apple attestation servers refuse to issue an attestation for properties that they can’t verify. There is no trustworthy way for the device management service to know the exact cause of a failed attestation. This is because the only source of information about the failure is the device itself, which may be a compromised device that’s lying. For this reason, responses from the device don’t indicate the reason for the failure.
+However, when Managed Device Attestation is used as part of a zero trust architecture, the organization can calculate a trust score for the device, with a failed or unexpectedly stale attestation lowering that score. A lowered trust score triggers different actions, such as denying access to services, flagging the device for manual investigation, or compliance escalations by wiping it and revoking its certificates when necessary. This ensures an appropriate response to a failed attestation.
+Published Date: July 29, 2024
+See also Automated Certificate Management Environment (ACME) device management payload settings for Apple devices Apple Platform Security: Managed device attestation security RFC 8555: Automatic Certificate Management Environment (ACME)
+Previous Use built-in network security features Next Deploy Managed Device Attestation
+Helpful?
+Yes No
+Character limit: 250
+Please don’t include any personal information in your comment.
+Maximum character limit is 250.
+Submit
+Thanks for your feedback.
+Apple Footer
+ Apple
+Support
+Apple Platform Deployment
+Managed Device Attestation for Apple devices
+United States
+Copyright © 2026 Apple Inc. All rights reserved.
+Privacy Policy Terms of Use Sales and Refunds Site Map

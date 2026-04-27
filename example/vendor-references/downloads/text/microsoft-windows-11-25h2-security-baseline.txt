@@ -1,0 +1,169 @@
+Windows 11, version 25H2 security baseline | Microsoft Community Hub
+Open Side Menu
+Skip to content
+Tech Community Community Hubs
+Products
+Topics
+Blogs Events
+Skills Hub
+Community
+Register Sign In
+Microsoft Community Hub
+Communities Products Microsoft Security
+Security Baselines
+Microsoft Security Baselines Blog
+Blog Post
+Microsoft Security Baselines Blog
+6 MIN READ
+Windows 11, version 25H2 security baseline
+Rick_Munck
+Microsoft
+Sep 30, 2025
+Microsoft is pleased to announce the release of the security baseline package for Windows 11, version 25H2!
+Microsoft is pleased to announce the security baseline package for Windows 11, version 25H2 ! You can download the baseline package from the Microsoft Security Compliance Toolkit , test the recommended configurations in your environment, and customize / implement them as appropriate.
+Summary of changes
+This release includes several changes made since the Windows 11, version 24H2 security baseline to further assist in the security of enterprise customers, to include better alignment with the latest capabilities and standards. The changes include what is depicted in the table below.
+Security Policy
+Change Summary
+Printer: Impersonate a client after authentication
+Add “RESTRICTED SERVICES\PrintSpoolerService” to allow the Print Spooler’s restricted service identity to impersonate clients securely
+NTLM Auditing Enhancements
+Enable by default to improve visibility into NTLM usage within your environment
+MDAV: Attack Surface Reduction (ASR)
+Add "Block process creations originating from PSExec and WMI commands" (d1e49aac-8f56-4280-b9ba-993a6d77406c) with a recommended value of 2 (Audit) to improve visibility into suspicious activity
+MDAV: Control whether exclusions are visible to local users
+Move to Not Configured as it is overridden by the parent setting
+MDAV: Scan packed executables
+Remove from the baseline because the setting is no longer functional - Windows always scans packed executables by default
+Network: Configure NetBIOS settings
+Disable NetBIOS name resolution on all network adapters to reduce legacy protocol exposure
+Disable Internet Explorer 11 Launch Via COM Automation
+Disable to prevent legacy scripts and applications from programmatically launching Internet Explorer 11 using COM automation interfaces
+Include command line in process creation events
+Enable to improve visibility into how processes are executed across the system
+WDigest Authentication
+Remove from the baseline because the setting is obsolete - WDigest is disabled by default and no longer needed in modern Windows environments
+Printer
+Improving Print Security with IPPS and Certificate Validation
+To enhance the security of network printing, Windows introduces two new policies focused on controlling the use of IPP (Internet Printing Protocol) printers and enforcing encrypted communications.
+The setting, "Require IPPS for IPP printers" , ( Administrative Templates\Printers ) determines whether printers that do not support TLS are allowed to be installed. When this policy is disabled (default), both IPP and IPPS transport printers can be installed - although IPPS is preferred when both are available. When enabled, only IPPS printers will be installed; attempts to install non-compliant printers will fail and generate an event in the Application log, indicating that installation was blocked by policy.
+The second policy, "Set TLS/SSL security policy for IPP printers" (same policy path) requires that printers present valid and trusted TLS/SSL certificates before connections can be established. Enabling this policy defends against spoofed or unauthorized printers, reducing the risk of credential theft or redirection of sensitive print jobs.
+While these policies significantly improve security posture, enabling them may introduce operational challenges in environments where IPP and self-signed or locally issued certificates are still commonly used. For this reason, neither policy is enforced in the security baseline, at this time.
+We recommend that you assess your printers, and if they meet the requirements, consider enabling those policies with a remediation plan to address any non-compliant printers in a controlled and predictable manner.
+User Rights Assignment Update: Impersonate a client after authentication
+We have added RESTRICTED SERVICES\PrintSpoolerService in the “Impersonate a client after authentication” User Rights Assignment policy.
+The baseline already includes Administrators , SERVICE , LOCAL SERVICE , and NETWORK SERVICE for this user right. Adding the restricted Print Spooler supports Microsoft’s ongoing effort to apply least privilege to system services. It enables Print Spooler to securely impersonate user tokens in modern print scenarios using a scoped, restricted service identity.
+Although this identity is associated with functionality introduced as part of Windows Protected Print (WPP), it is required to support proper print operations even if WPP is not currently enabled. The system manifests the identity by default, and its presence ensures forward compatibility with WPP-based printing.
+Note : This account may appear as a raw SID (e.g., S-1-5-99-...) in Group Policy or local policy tools before the service is fully initialized. This is expected and does not indicate a misconfiguration.
+Warning : Removing this entry will result in print failures in environments where WPP is enabled. We recommend retaining this entry in any custom security configuration that defines this user right.
+NTLM Auditing Enhancements
+Windows 11, version 25H2 includes enhanced NTLM auditing capabilities, enabled by default, which significantly improves visibility into NTLM usage within your environment. These enhancements provide detailed audit logs to help security teams monitor and investigate authentication activity, identify insecure practices, and prepare for future NTLM restrictions. Since these auditing improvements are enabled by default, no additional configuration is required, and thus the baseline does not explicitly enforce them. For more details, see Overview of NTLM auditing enhancements in Windows 11 and Windows Server 2025 .
+Microsoft Defender Antivirus
+Attack Surface Reduction (ASR)
+In this release, we've updated the Attack Surface Reduction (ASR) rules to add the policy Block process creations originating from PSExec and WMI commands (d1e49aac-8f56-4280-b9ba-993a6d77406c) with a recommended value of 2 (Audit) . By auditing this rule, you can gain essential visibility into potential privilege escalation attempts via tools such as PSExec or persistence mechanisms using WMI. This enhancement helps organizations proactively identify suspicious activities without impacting legitimate administrative workflows.
+Control whether exclusions are visible to local users
+We have removed the configuration for the policy "Control whether exclusions are visible to local users" ( Windows Components\Microsoft Defender Antivirus ) from the baseline in this release. This change was made because the parent policy "Control whether or not exclusions are visible to Local Admins" is already set to Enabled , which takes precedence and effectively overrides the behavior of the former setting. As a result, explicitly configuring the child policy is unnecessary.
+You can continue to manage exclusion visibility through the parent policy, which provides the intended control over whether local administrators can view exclusion lists.
+Scan packed executables
+The “Scan packed executables” setting ( Windows Components\Microsoft Defender Antivirus\Scan ) has been removed from the security baseline because it is no longer functional in modern Windows releases. Microsoft Defender Antivirus always scans packed executables by default, therefore configuring this policy has no effect on the system.
+Disable NetBIOS Name Resolution on All Networks
+In this release, we start disabling NetBIOS name resolution on all network adapters in the security baseline, including those connected to private and domain networks. The change is reflected in the policy setting “ Configure NetBIOS settings ” ( Network\DNS Client ). We are trying to eliminate the legacy name resolution protocol that is vulnerable to spoofing and credential theft. NetBIOS is no longer needed in modern environments where DNS is fully deployed and supported.
+To mitigate potential compatibility issues, you should ensure that all internal systems and applications use DNS for name resolution. We recommend the following; test critical workflows in a staging environment prior to deployment, monitor for any resolution failures or fallback behavior, and inform support staff of the change to assist with troubleshooting as needed. This update aligns with our broader efforts to phase out legacy protocols and improve security.
+Disable Internet Explorer 11 Launch Via COM Automation
+To enhance the security posture of enterprise environments, we recommend disabling Internet Explorer 11 Launch Via COM Automation ( Windows Components\Internet Explorer ) to prevent legacy scripts and applications from programmatically launching Internet Explorer 11 using COM automation interfaces such as CreateObject("InternetExplorer.Application"). Allowing such behavior poses a significant risk by exposing systems to the legacy MSHTML and ActiveX components, which are vulnerable to exploitation.
+Include command line in process creation events
+We have enabled the setting "Include command line in process creation events" ( System\Audit Process Creation ) in the baseline to improve visibility into how processes are executed across the system. Capturing command-line arguments allows defenders to detect and investigate malicious activity that may otherwise appear legitimate, such as abuse of scripting engines, credential theft tools, or obfuscated payloads using native binaries. This setting supports modern threat detection techniques with minimal performance overhead and is highly recommended.
+WDigest Authentication
+We removed the policy "WDigest Authentication (disabling may require KB2871997)" from the security baseline because it is no longer necessary for Windows. This policy was originally enforced to prevent WDigest from storing user’s plaintext passwords in memory, which posed a serious credential theft risk. However, starting with 24H2 update, the engineering teams deprecated this policy. As a result, there is no longer a need to explicitly enforce this setting, and the policy has been removed from the baseline to reflect the current default behavior. Since the setting does not write to the normal policies location in the registry it will not be cleaned up automatically for any existing deployments.
+Please let us know your thoughts by commenting on this post or through the Security Baseline Community .
+Updated Sep 30, 2025
+Version 1.0
+compliance
+final
+guides
+security
+security baseline
+security compliance toolkit
+updates
+windows
+Comment
+Rick_Munck
+Microsoft
+Joined January 26, 2019
+Send Message
+View Profile
+Microsoft Security Baselines Blog
+Learn more: aka.ms/baselines |    Download the Security Compliance Toolkit: aka.ms/SCT
+Share this page
+What's new
+Surface Pro
+Surface Laptop
+Surface Laptop Studio 2
+Copilot for organizations
+Copilot for personal use
+AI in Windows
+Explore Microsoft products
+Windows 11 apps
+Microsoft Store
+Account profile
+Download Center
+Microsoft Store support
+Returns
+Order tracking
+Certified Refurbished
+Microsoft Store Promise
+Flexible Payments
+Education
+Microsoft in education
+Devices for education
+Microsoft Teams for Education
+Microsoft 365 Education
+How to buy for your school
+Educator training and development
+Deals for students and parents
+AI for education
+Business
+Microsoft AI
+Microsoft Security
+Dynamics 365
+Microsoft 365
+Microsoft Power Platform
+Microsoft Teams
+Microsoft 365 Copilot
+Small Business
+Developer & IT
+Azure
+Microsoft Developer
+Microsoft Learn
+Support for AI marketplace apps
+Microsoft Tech Community
+Microsoft Marketplace
+Marketplace Rewards
+Visual Studio
+Company
+Careers
+About Microsoft
+Company news
+Privacy at Microsoft
+Investors
+Diversity and inclusion
+Accessibility
+Sustainability
+Your Privacy Choices Consumer Health Privacy
+Sitemap
+Contact Microsoft
+Privacy
+Manage cookies
+Terms of use
+Trademarks
+Safety & eco
+Recycling
+About our ads
+© Microsoft
+Share on LinkedIn
+Share on Facebook
+Share on X
+Share on Reddit
+Share on Bluesky
+Share on RSS
+Share on Email

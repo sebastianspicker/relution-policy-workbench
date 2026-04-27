@@ -1,0 +1,177 @@
+Understanding Security Posture  |  Android Management API  |  Google for Developers Skip to main content
+Android Management API
+/
+English
+Deutsch
+Español
+Español – América Latina
+Français
+Indonesia
+Italiano
+Polski
+Português – Brasil
+Tiếng Việt
+Türkçe
+Русский
+עברית
+العربيّة
+فارسی
+हिंदी
+বাংলা
+ภาษาไทย
+中文 – 简体
+中文 – 繁體
+日本語
+한국어
+Sign in
+Home Guides Reference Sample
+Android Management API
+Home
+Guides
+Reference
+Sample
+Introduction
+Quickstart
+Use the Android Management API MCP server
+Developer's guide
+Create a service account
+Create an enterprise binding
+Upgrade an enterprise
+Upgrade user accounts on devices
+Create a policy
+Set up policy compliance rules
+Provision a device
+Wipe and deprovision a device
+Set up Pub/Sub notifications
+Zero-touch iframe
+Lost Mode
+5G network slicing
+Work profile detection
+Password policies quality
+Default application settings
+Manage app roles
+AMAPI SDK
+Integrating with AMAPI SDK
+Extension apps and local commands
+Migrate existing devices to AMAPI
+Environment preparation and user enrollment
+Device Trust from Android Enterprise
+Available device trust signals
+Register for device trust signals access
+Manage custom apps
+AMAPI SDK Release notes
+Manage apps
+Support app management
+Control app updates
+Support web apps
+Support managed configurations
+Retrieve feedback from apps
+Debug app installs and updates
+Example policies
+Devices with work profiles
+Fully managed devices
+Dedicated devices
+Network configurations
+Additional information
+Release notes
+Understanding Security Posture
+Guide for existing EMMs
+Feedback and support
+Permissible usage
+Terms of Service
+Join the EMM Community
+Home
+Products
+Android Management API
+Guides
+Send feedback
+Understanding Security Posture Stay organized with collections Save and categorize content based on your preferences.
+Page Summary
+outlined_flag
+securityPosture provides a security evaluation of a device based on its current status, considering factors like root access or custom ROMs.
+The securityPosture includes devicePosture and postureDetails , where securityRisk indicates why a device isn't fully secure and advice suggests ways to improve security.
+By default, securityPosture is evaluated using hardware-backed key attestation (HBKA) for a trustworthy verdict, though software-based evaluation is used if HBKA fails.
+Understanding combinations of devicePosture and securityRisk helps interpret a device's overall security, including cases where HBKA fails or the device is potentially compromised.
+The Android Management API provides mappings between its security posture verdicts and those of the Play Integrity API.
+securityPosture is the security evaluation of a device, determined by the current device status.
+Current device status is determined by factors such as if the device has been rooted, if it is running a custom ROM, and more.
+securityPosture is broken down in the response into devicePosture and an additional list of postureDetails which contains the field securityRisk .
+The securityRisk field gives an idea of why the device is not considered to be in the most secure state, while the advice list can help perform actions to improve the security posture of the device.
+For example:
+{ "devicePosture" : "POTENTIALLY_COMPROMISED" , "postureDetails" : [ { "securityRisk" : "UNKNOWN_OS" , "advice" : [ { "defaultMessage" : "The user should lock their device's bootloader." } ] }, { "securityRisk" : "HARDWARE_BACKED_EVALUATION_FAILED" } ] }
+Evaluating Security Posture
+By default, securityPosture is evaluated using key attestation, specifically hardware-backed key attestation (HBKA) if applicable, providing a trustworthy security verdict as it generates and signs the attestation in secure hardware.
+It may sometimes be the case that HBKA cannot be used for this evaluation. To reflect this, securityRisk will return "HARDWARE_BACKED_EVALUATION_FAILED". This means that securityPosture can be evaluated but not with HBKA, meaning that the device's boot integrity state could be compromised (e.g. the device could be rooted) and go undetected by software-based detection.
+Understanding Security Posture Verdicts
+Different combinations of devicePosture and securityRisk can be interpreted to understand the overall security of the device. Please be aware that the list below is not exhaustive:
+If devicePosture returns "SECURE" and securityRisk returns "HARDWARE_BACKED_EVALUATION_FAILED" the device's integrity is secure, but this could not be confirmed by HBKA.
+If devicePosture returns "POTENTIALLY_COMPROMISED" and no securityRisk result is returned, then HBKA is used in the evaluation and considers the device as compromised.
+If devicePosture returns "POTENTIALLY_COMPROMISED" and securityRisk returns "HARDWARE_BACKED_EVALUATION_FAILED" then only software based checks could be performed, yet the integrity threat signals are strong enough to consider the device as compromised.
+If devicePosture returns "POSTURE_UNSPECIFIED" then the security evaluation could not be completed. We recommend waiting for the re-issuance of the HBKA, which occurs when a new verdict is returned, to see if it can return a specific value. However, it is expected for "POSTURE_UNSPECIFIED" to occur on initial install for a short period of time.
+Android Management API to Play Integrity API mappings
+The following table provides the mapping equivalence between AM API verdict and
+the Play Integrity API verdict response.
+AM API DevicePosture AM API Posture.Detail.SecurityRisk Play Integrity API verdict equivalent
+SECURE SECURITY_RISK_UNSPECIFIED MEETS_STRONG_INTEGRITY
+SECURE contains: HARDWARE_BACKED_EVALUATION_FAILED MEETS_DEVICE_INTEGRITY
+AT_RISK contains: HARDWARE_BACKED_EVALUATION_FAILED MEETS_DEVICE_INTEGRITY
+POTENTIALLY_COMPROMISED contains: UNKNOWN_OS MEETS_BASIC_INTEGRITY
+POTENTIALLY_COMPROMISED contains: COMPROMISED_OS <unset>
+POSTURE_UNSPECIFIED <any> <unset>
+Send feedback
+Except as otherwise noted, the content of this page is licensed under the Creative Commons Attribution 4.0 License , and code samples are licensed under the Apache 2.0 License . For details, see the Google Developers Site Policies . Java is a registered trademark of Oracle and/or its affiliates.
+Last updated 2025-03-21 UTC.
+Need to tell us more? [[["Easy to understand","easyToUnderstand","thumb-up"],["Solved my problem","solvedMyProblem","thumb-up"],["Other","otherUp","thumb-up"]],[["Missing the information I need","missingTheInformationINeed","thumb-down"],["Too complicated / too many steps","tooComplicatedTooManySteps","thumb-down"],["Out of date","outOfDate","thumb-down"],["Samples / code issue","samplesCodeIssue","thumb-down"],["Other","otherDown","thumb-down"]],["Last updated 2025-03-21 UTC."],[],["`securityPosture` evaluates device security based on factors like rooting or custom ROMs. It breaks down into `devicePosture` and `postureDetails`, the latter including `securityRisk` and `advice`. `securityRisk` highlights potential security issues. Evaluations use hardware-backed key attestation (HBKA) when possible; failures are marked by `HARDWARE_BACKED_EVALUATION_FAILED` in `securityRisk`. Different `devicePosture` and `securityRisk` combinations indicate varying security levels, such as \"SECURE\" with HBKA failure, or \"POTENTIALLY_COMPROMISED\". It also maps the AM API verdicts to the Play Integrity API.\n"]]
+Connect
+Blog
+Bluesky
+Instagram
+LinkedIn
+X (Twitter)
+YouTube
+Programs
+Google Developer Program
+Google Developer Groups
+Google Developer Experts
+Accelerators
+Google Cloud & NVIDIA
+Developer consoles
+Google API Console
+Google Cloud Platform Console
+Google Play Console
+Firebase Console
+Actions on Google Console
+Cast SDK Developer Console
+Chrome Web Store Dashboard
+Google Home Developer Console
+Android
+Chrome
+Firebase
+Google Cloud Platform
+Google AI
+All products
+Terms
+Privacy
+Manage cookies
+English
+Deutsch
+Español
+Español – América Latina
+Français
+Indonesia
+Italiano
+Polski
+Português – Brasil
+Tiếng Việt
+Türkçe
+Русский
+עברית
+العربيّة
+فارسی
+हिंदी
+বাংলা
+ภาษาไทย
+中文 – 简体
+中文 – 繁體
+日本語
+한국어

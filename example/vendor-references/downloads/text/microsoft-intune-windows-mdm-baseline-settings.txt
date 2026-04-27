@@ -1,0 +1,5258 @@
+Default configuration of Intune's Windows security baselines - Microsoft Intune | Microsoft Learn
+Skip to main content Skip to Ask Learn chat experience
+This browser is no longer supported.
+Upgrade to Microsoft Edge to take advantage of the latest features, security updates, and technical support.
+Download Microsoft Edge More info about Internet Explorer and Microsoft Edge
+Table of contents Exit editor mode
+Ask Learn Ask Learn
+Reading mode Table of contents Read in English Add Add to plan Edit
+Share via
+Facebook x.com LinkedIn Email Copy Markdown Print
+Note
+Access to this page requires authorization. You can try signing in or changing directories .
+Access to this page requires authorization. You can try changing directories .
+Windows MDM security baseline settings reference for Microsoft Intune
+Feedback
+Summarize this article for me
+In this article
+This article is a reference for the settings that are available in the Windows Mobile Device Management (MDM) security baseline for Microsoft Intune.
+About this reference article
+Each security baseline is a group of preconfigured Windows settings that help you apply and enforce granular security settings that the relevant security teams recommend. You can also customize each baseline you deploy to enforce only those settings and values you require. When you create a security baseline profile in Intune, you're creating a template that consists of multiple device configuration settings.
+The details that display in this article are based on baseline version you select at the top of the article. For each version, this article displays:
+A list of each setting with its configuration as found in the default instance of that baseline version.
+When available, a link to the underlying configuration service provider (CSP) documentation or other related content from the relevant product group that provides context and possibly additional details for a settings use.
+When a new version of a baseline becomes available, it replaces the previous version. Profile instances that you’ve created prior to the availability of a new version:
+Become read-only. You can continue to use those profiles but can't edit them to change their configuration.
+Can be updated to the current version. After you update a profile to the current baseline version, you can edit the profile to modify settings.
+To learn more about using security baselines, see:
+Use security baselines
+Change the baseline version for a profile
+Manage security baselines
+Security Baseline for Windows, version 25H2
+The settings in this baseline are taken from the Windows 11 version 25H2 security baseline as found in the Security Compliance Toolkit and Baselines from the Microsoft Download Center, and include only the settings that apply to Windows devices managed through Intune. When available, the setting name links to the source Configuration Service Provider (CSP), and then displays that settings default configuration in the baseline.
+Administrative Templates
+Control Panel > Personalization
+Prevent enabling lock screen camera
+Baseline default: Enabled
+Learn more
+Prevent enabling lock screen slide show
+Baseline default: Enabled
+Learn more
+MS Security Guide
+Apply UAC restrictions to local accounts on network logons
+Baseline default: Enabled
+Learn more
+Configure SMB v1 client driver
+Baseline default: Enabled
+Learn more
+Configure MrxSmb10 driver
+Baseline default: Disable driver (recommended)
+Configure SMB v1 server
+Baseline default: Disabled
+Learn more
+Enable Structured Exception Handling Overwrite Protection (SEHOP)
+Baseline default: Enabled
+Learn more
+MSS (Legacy)
+MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting IPv6 (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
+Baseline default: Disabled
+Learn more
+MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
+Baseline default: Enabled
+Learn more
+Network > DNS Client
+Turn off multicast name resolution
+Baseline default: Enabled
+Learn more
+Network > Network Connections
+Prohibit use of Internet Connection Sharing on your DNS domain network
+Baseline default: Enabled
+Learn more
+Network > Network Provider
+Hardened UNC Paths
+Baseline default: Enabled
+Learn more
+Hardened UNC Paths: (Device)
+Baseline defaults:
+Name Value
+\\*\SYSVOL RequireMutualAuthentication=1,RequireIntegrity=1
+\\*\NETLOGON RequireMutualAuthentication=1,RequireIntegrity=1
+Network > Windows Connection Manager
+Prohibit connection to non-domain networks when connected to domain authenticated network
+Baseline default: Enabled
+Learn more
+Printers
+Configure Redirection Guard
+Baseline default: Enabled Learn more
+Redirection Guard Options (Device)
+Baseline default: Redirection Guard Enabled
+Configure RPC connection settings
+Baseline default: Enabled
+Learn more
+Use authentication for outgoing RPC connections: (Device)
+Baseline default: Default
+Protocol to use for outgoing RPC connections: (Device)
+Baseline default: RPC over TCP
+Configure RPC listener settings
+Baseline default: Enabled
+Learn more
+Protocols to allow for incoming RPC connections: (Device)
+Baseline default: RPC over TCP
+Authentication protocol to use for incoming RPC connections: (Device)
+Baseline default: Negotiate
+Configure RPC over TCP port
+Baseline default: Enabled
+Learn more
+RPC over TCP port (Device)
+Baseline default: 0
+Limits print driver installation to Administrators
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-specific files
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-Specific files: (Device)
+Baseline default: Limit Queue-specific files to Color profiles
+Start Menu and Taskbar > Notifications
+Turn off toast notifications on the lock screen (User)
+Baseline default: Enabled
+Learn more
+System > Audit Process Creation
+Include command line in process creation events
+Baseline default: Enabled
+Learn more
+System > Credentials Delegation
+Encryption Oracle Remediation
+Baseline default: Enabled
+Learn more
+Protection Level: (Device)
+Baseline default: Force Updated Clients
+Remote host allows delegation of non-exportable credentials
+Baseline default: Enabled
+Learn more
+System > Device Installation > Device Installation Restrictions
+Prevent installation of devices using drivers that match these device setup classes
+Baseline default: Enabled
+Learn more
+Also apply to matching devices that are already installed
+Baseline default: True
+Prevented Classes
+Baseline default: {d48179be-ec20-11d1-b6b8-00c04fa372a7}
+System > Early Launch Antimalware
+Boot-Start Driver Initialization Policy
+Baseline default: Enabled
+Learn more
+Choose the boot-start drivers that can be initialized:
+Baseline default: Good, unknown and bad but critical
+System > Group Policy
+Configure registry policy processing
+Baseline default: Enabled
+Learn more
+Do not apply during periodic background processing (Device)
+Baseline default: False
+Process even if the Group Policy objects have not changed (Device)
+Baseline default: True
+System > Internet Communication Management > Internet Communication settings
+Turn off downloading of print drivers over HTTP
+Baseline default: Enabled
+Learn more
+Turn off Internet download for Web publishing and online ordering wizards
+Baseline default: Enabled
+Learn more
+System > Local Security Authority
+Allow Custom SSPs and APs to be loaded into LSASS
+Baseline default: Disabled
+Learn more
+System > Power Management > Sleep Settings
+Allow standby states (S1-S3) when sleeping (on battery)
+Baseline default: Disabled
+Learn more
+Allow standby states (S1-S3) when sleeping (plugged in)
+Baseline default: Disabled
+Learn more
+Require a password when a computer wakes (on battery)
+Baseline default: Enabled
+Learn more
+Require a password when a computer wakes (plugged in)
+Baseline default: Enabled
+Learn more
+System > Remote Assistance
+Configure Solicited Remote Assistance
+Baseline default: Disabled
+Learn more
+System > Remote Procedure Call
+Restrict Unauthenticated RPC clients
+Baseline default: Enabled
+Learn more
+RPC Runtime Unauthenticated Client Restriction to Apply:
+Baseline default: Authenticated
+Windows Components > App runtime
+Allow Microsoft accounts to be optional
+Baseline default: Enabled
+Learn more
+Windows Components > AutoPlay Policies
+Disallow Autoplay for non-volume devices
+Baseline default: Enabled
+Learn more
+Set the default behavior for AutoRun
+Baseline default: Enabled
+Learn more
+Default AutoRun Behavior
+Baseline default: Do not execute any autorun commands
+Turn off Autoplay
+Baseline default: Enabled
+Learn more
+Turn off Autoplay on:
+Baseline default: All drives
+Windows Components > BitLocker Drive Encryption > Fixed Data Drives
+Deny write access to fixed drives not protected by BitLocker
+Baseline default: Disabled
+Learn more
+Windows Components > BitLocker Drive Encryption > Removable Data Drives
+Deny write access to removable drives not protected by BitLocker
+Baseline default: Enabled
+Learn more
+Do not allow write access to devices configured in another organization
+Baseline default: False
+Windows Components > Credential User Interface
+Enumerate administrator accounts on elevation
+Baseline default: Disabled
+Learn more
+Windows Components > Event Log Service > Application
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > Event Log Service > Security
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 196608
+Windows Components > Event Log Service > System
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > File Explorer
+Configure Windows Defender SmartScreen
+Baseline default: Enabled
+Learn more
+Pick one of the following settings: (Device)
+Baseline default: Warn and prevent bypass
+Turn off Data Execution Prevention for Explorer
+Baseline default: Disabled
+Learn more
+Turn off heap termination on corruption
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer
+Prevent bypassing SmartScreen Filter warnings
+Baseline default: Enabled
+Learn more
+Prevent bypassing SmartScreen Filter warnings about files that are not commonly downloaded from the Internet
+Baseline default: Enabled
+Learn more
+Prevent managing SmartScreen Filter
+Baseline default: Enabled
+Learn more
+Select SmartScreen Filter mode
+Baseline default: On
+Prevent per-user installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to add/delete sites
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to change policies
+Baseline default: Enabled
+Learn more
+Security Zones: Use only machine settings
+Baseline default: Enabled
+Learn more
+Specify use of ActiveX Installer Service for installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Turn off Crash Detection
+Baseline default: Enabled
+Learn more
+Turn off the Security Settings Check feature
+Baseline default: Disabled
+Learn more
+Turn on the auto-complete feature for user names and passwords on forms (User)
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel
+Prevent ignoring certificate errors
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Advanced Page
+Allow software to run or install even if the signature is invalid
+Baseline default: Disabled
+Learn more
+Check for server certificate revocation
+Baseline default: Enabled
+Learn more
+Check for signatures on downloaded programs
+Baseline default: Enabled
+Learn more
+Do not allow ActiveX controls to run in Protected Mode when Enhanced Protected Mode is enabled
+Baseline default: Enabled
+Learn more
+Turn off encryption support
+Baseline default: Enabled
+Learn more
+Secure Protocol combinations
+Baseline default: Use TLS 1.1 and TLS 1.2
+Turn on 64-bit tab processes when running in Enhanced Protected Mode on 64-bit versions of Windows
+Baseline default: Enabled
+Learn more
+Turn on Enhanced Protected Mode
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page
+Intranet Sites: Include all network paths (UNCs)
+Baseline default: Disabled
+Learn more
+Turn on certificate address mismatch warning
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Internet Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local directory path when uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Prompt for user name and password
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Prompt
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enable
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enable
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Use Pop-up Blocker
+Baseline default: Enable
+Learn more
+Use Pop-up Blocker
+Baseline default: Enable
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Intranet Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Local Machine Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Internet Zone
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Intranet Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Local Machine Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Restricted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Trusted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Restricted Sites Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow active scripting
+Baseline default: Enabled
+Learn more
+Allow active scripting
+Baseline default: Disable
+Allow binary and script behaviors
+Baseline default: Enabled
+Learn more
+Allow binary and script Behaviors
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow file downloads
+Baseline default: Enabled
+Learn more
+Allow file downloads
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow META REFRESH
+Baseline default: Enabled
+Learn more
+Allow META REFRESH
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local directory path when uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Anonymous logon
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Run ActiveX controls and plugins
+Baseline default: Enabled
+Learn more
+Run ActiveX controls and plugins
+Baseline default: Disable
+Script ActiveX controls marked safe for scripting
+Baseline default: Enabled
+Learn more
+Script ActiveX controls marked safe for scripting
+Baseline default: Disable
+Scripting of Java applets
+Baseline default: Enabled
+Learn more
+Scripting of Java applets
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Disable
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enabled
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enabled
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enabled
+Use Pop-up Blocker
+Baseline default: Enabled
+Learn more
+Use Pop-up Blocker
+Baseline default: Enabled
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Trusted Sites Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer > Security Features
+Allow fallback to SSL 3.0 (Internet Explorer)
+Baseline default: Enabled
+Learn more
+Allow insecure fallback for:
+Baseline default: No Sites
+Windows Components > Internet Explorer > Security Features > Add-on Management
+Remove "Run this time" button for outdated ActiveX controls in Internet Explorer
+Baseline default: Enabled
+Learn more
+Turn off blocking of outdated ActiveX controls for Internet Explorer
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Consistent Mime Handling
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Mime Sniffing Safety Feature
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > MK Protocol Security Restriction
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Notification bar
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Protection From Zone Elevation
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict ActiveX Install
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict File Download
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Scripted Window Security Restrictions
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus
+Turn off routine remediation
+Baseline default: Disabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > MAPS
+Configure the 'Block at First Sight' feature
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > Real-time Protection
+Turn on process scanning whenever real-time protection is enabled
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Connection Client
+Do not allow passwords to be saved
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Device and Resource Redirection
+Do not allow drive redirection
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Security
+Always prompt for password upon connection
+Baseline default: Enabled
+Learn more
+Require secure RPC communication
+Baseline default: Enabled
+Learn more
+Set client connection encryption level
+Baseline default: Enabled
+Learn more
+Encryption Level
+Baseline default: High Level
+Windows Components > RSS Feeds
+Prevent downloading of enclosures
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Logon Options
+Configure the transmission of the user's password in the content of MPR notifications sent by winlogon
+Baseline default: Disabled
+Learn more
+Sign-in and lock last interactive user automatically after a restart
+Baseline default: Disabled
+Learn more
+Windows Components > Windows PowerShell
+Turn on PowerShell Script Block Logging
+Baseline default: Enabled
+Learn more
+Log script block invocation start / stop events:
+Baseline default: False
+Windows Components > Windows Remote Management (WinRM) > WinRM Client
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow Digest authentication
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Remote Management (WinRM) > WinRM Service
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow WinRM from storing RunAs credentials
+Baseline default: Enabled
+Learn more
+Auditing
+Account Logon Audit Credential Validation
+Baseline default: Success+ Failure
+Learn more
+Account Logon Logoff Audit Account Lockout
+Baseline default: Failure
+Learn more
+Account Logon Logoff Audit Group Membership
+Baseline default: Success
+Learn more
+Account Logon Logoff Audit Logon
+Baseline default: Success+ Failure
+Learn more
+Audit Authentication Policy Change
+Baseline default: Success
+Learn more
+Audit Changes to Audit Policy
+Baseline default: Success
+Learn more
+Audit File Share Access
+Baseline default: Success+ Failure
+Learn more
+Audit Other Logon Logoff Events
+Baseline default: Success+ Failure
+Learn more
+Audit Security Group Management
+Baseline default: Success
+Learn more
+Audit Security System Extension
+Baseline default: Success
+Learn more
+Audit Special Logon
+Baseline default: Success
+Learn more
+Audit User Account Management
+Baseline default: Success+ Failure
+Learn more
+Detailed Tracking Audit PNP Activity
+Baseline default: Success
+Learn more
+Detailed Tracking Audit Process Creation
+Baseline default: Success
+Learn more
+Object Access Audit Detailed File Share
+Baseline default: Failure
+Learn more
+Object Access Audit Other Object Access Events
+Baseline default: Success+ Failure
+Learn more
+Object Access Audit Removable Storage
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit MPSSVC Rule Level Policy Change
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit Other Policy Change Events
+Baseline default: Failure
+Learn more
+Privilege Use Audit Sensitive Privilege Use
+Baseline default: Success
+Learn more
+System Audit Other System Events
+Baseline default: Success+ Failure
+Learn more
+System Audit Security State Change
+Baseline default: Success
+Learn more
+System Audit System Integrity
+Baseline default: Success+ Failure
+Learn more
+Browser
+Allow Password Manager
+Baseline default: Block
+Learn more
+Allow Smart Screen
+Baseline default: Allow
+Learn more
+Prevent Cert Error Overrides
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override For Files
+Baseline default: Enabled
+Learn more
+Data Protection
+Allow Direct Memory Access
+Baseline default: Block
+Learn more
+Defender
+Allow Archive Scanning
+Baseline default: Allowed. Scans the archive files.
+Learn more
+Allow Behavior Monitoring
+Baseline default: Allowed. Turns on real-time behavior monitoring.
+Learn more
+Allow Cloud Protection
+Baseline default: Allowed. Turns on Cloud Protection.
+Learn more
+Allow Full Scan Removable Drive Scanning
+Baseline default: Allowed. Scans removable drives.
+Learn more
+Allow On Access Protection
+Baseline default: Allowed.
+Learn more
+Allow Realtime Monitoring
+Baseline default: Allowed. Turns on and runs the real-time monitoring service.
+Learn more
+Allow scanning of all downloaded files and attachments
+Baseline default: Allowed.
+Learn more
+Allow Script Scanning
+Baseline default: Allowed.
+Learn more
+Block execution of potentially obfuscated scripts
+Baseline default: Block
+Learn more
+Block Win32 API calls from Office macros
+Baseline default: Block
+Learn more
+Block Office communication application from creating child processes
+Baseline default: Block
+Learn more
+Block all Office applications from creating child processes
+Baseline default: Block
+Learn more
+Block JavaScript or VBScript from launching downloaded executable content
+Baseline default: Block
+Learn more
+Block untrusted and unsigned processes that run from USB
+Baseline default: Block
+Learn more
+Block Adobe Reader from creating child processes
+Baseline default: Block
+Learn more
+Block credential stealing from the Windows local security authority subsystem
+Baseline default: Block
+Learn more
+Block process creations originating from PSExec and WMI commands Baseline default: Audit
+Learn more
+Block Office applications from creating executable content
+Baseline default: Block
+Learn more
+Block Office applications from injecting code into other processes
+Baseline default: Block
+Learn more
+Block executable content from email client and webmail
+Baseline default: Block
+Learn more
+Cloud Block Level
+Baseline default: High
+Learn more
+Cloud Extended Timeout
+Baseline default: Configured
+Value: 50
+Learn more
+Disable Local Admin Merge
+Baseline default: Disable Local Admin Merge
+Learn more
+Enable Convert Warn To Block
+Baseline default: Warn verdicts are converted to block
+Learn more
+Enable File Hash Computation
+Baseline default: Enable
+Learn more
+Enable Network Protection
+Baseline default: Enabled (block mode)
+Learn more
+Hide Exclusions From Local Admins
+Baseline default: If you enable this setting, local admins will no longer be able to see the exclusion list in Windows Security App or via PowerShell.
+Learn more
+Oobe Enable Rtp And Sig Update
+Baseline default: If you enable this setting, real-time protection and Security Intelligence Updates are enabled during OOBE.
+Learn more
+Passive Remediation
+Baseline default: Configured
+Value: PASSIVEREMEDIATIONFLAGSENSEAUTOREMEDIATION: Passive Remediation Sense AutoRemediation
+Learn more
+PUA Protection
+Baseline default: PUA Protection on. Detected items are blocked. They will show in history along with other threats.
+Learn more
+Quick Scan Include Exclusions
+Baseline default: If you set this setting to 1, all files and directories that are excluded from real-time protection using contextual exclusions are scanned during a quick scan.
+Learn more
+Real Time Scan Direction
+Baseline default: Monitor all files (bi-directional).
+Learn more
+Submit Samples Consent
+Baseline default: Send all samples automatically.
+Learn more
+Device Guard
+Configure System Guard Launch
+Baseline default: Unmanaged Enables Secure Launch if supported by hardware
+Learn more
+Credential Guard
+Baseline default: (Enabled with UEFI lock) Turns on Credential Guard with UEFI lock.
+Learn more
+Enable Virtualization Based Security
+Baseline default: Enable virtualization based security.
+Learn more
+Machine Identity Isolation
+Baseline default: (Disabled) Machine password is only LSASS-bound and stored in $MACHINE.ACC registry key.
+Learn more
+Require Platform Security Features
+Baseline default: Turns on VBS with Secure Boot.
+Learn more
+Device Lock
+Device Password Enabled
+Baseline default: Enabled
+Learn more
+Device Password History
+Baseline default: Configured
+Value: 24
+Learn more
+Min Device Password Length
+Baseline default: Configured
+Value: 14
+Learn more
+Dma Guard
+Device Enumeration Policy
+Baseline default: Block all (Most restrictive)
+Learn more
+Experience
+Allow Windows Spotlight (User)
+Baseline default: Allow
+Learn more
+Allow Windows Consumer Features
+Baseline default: Block
+Learn more
+Allow Third Party Suggestions In Windows Spotlight (User)
+Baseline default: Block
+Learn more
+Firewall
+Enable Domain Network Firewall
+Baseline default: True
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: Configured
+Value: 16384
+Learn more
+Default Inbound Action for Domain Profile
+Baseline default: Block
+Learn more
+Enable Private Network Firewall
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: Configured
+Value: 16384
+Learn more
+Default Inbound Action for Private Profile
+Baseline default: Block
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Enable Public Network Firewall
+Baseline default: True
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Log Max File Size
+Baseline default: Configured
+Value: 16384
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Default Inbound Action for Public Profile
+Baseline default: Block
+Learn more
+Allow Local Policy Merge
+Baseline default: False
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Allow Local Ipsec Policy Merge
+Baseline default: False
+Learn more
+Kerberos
+PK Init Hash Algorithm Configuration
+Baseline default: Enabled
+Learn more
+PK Init Hash Algorithm SHA256
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA384
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA512
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA1 PK Init Hash Algorithm SHA1
+Baseline default: Not Supported
+Learn more
+Lanman Server
+Audit Client Does Not Support Encryption
+Baseline default: Enabled
+Learn more
+Audit Client Does Not Support Signing
+Baseline default: Enabled
+Learn more
+Audit Insecure Guest Logon
+Baseline default: Enabled
+Learn more
+Auth Rate Limiter Delay In Ms
+Baseline default: Configured
+Value: 2000
+Learn more
+Enable Auth Rate Limiter
+Baseline default: Enabled
+Learn more
+Enable Mailslots
+Baseline default: Disabled
+Learn more
+Max Smb2 Dialect
+Baseline default: SMB 3.1.1
+Learn more
+Min Smb2 Dialect
+Baseline default: SMB 3.0.0
+Learn more
+Lanman Workstation
+Audit Insecure Guest Logon
+Baseline default: Enabled
+Learn more
+Audit Server Does Not Support Encryption
+Baseline default: Enabled
+Learn more
+Audit Server Does Not Support Signing
+Baseline default: Enabled
+Learn more
+Enable Insecure Guest Logons
+Baseline default: Disabled
+Learn more
+Enable Mailslots
+Baseline default: Disabled
+Learn more
+Max SMB 2 Dialect
+Baseline default: SMB 3.1.1
+Learn more
+Min SMB 2 Dialect
+Baseline default: SMB 3.0.0
+Learn more
+Require Encryption
+Baseline default: Disabled
+Learn more
+LAPS
+Backup Directory
+Baseline default: Backup the password to Microsoft Entra ID only
+Learn more
+Local Policies Security Options
+Accounts Limit Local Account Use Of Blank Passwords To Console Logon Only
+Baseline default: Enabled
+Learn more
+Interactive Logon Machine Inactivity Limit
+Baseline default: Configured
+Value: 900
+Learn more
+Interactive Logon Smart Card Removal Behavior
+Baseline default: Lock Workstation
+Learn more
+Microsoft Network Client Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Microsoft Network Client Send Unencrypted Password To Third Party SMB Servers
+Baseline default: Disable
+Learn more
+Microsoft Network Server Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of SAM Accounts
+Baseline default: Enabled
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of Sam Accounts And Shares
+Baseline default: Enabled
+Learn more
+Network Access Restrict Anonymous Access To Named Pipes And Shares
+Baseline default: Enable
+Learn more
+Network Access Restrict Clients Allowed To Make Remote Calls To SAM
+Baseline default: Configured
+Value: O:BAG:BAD:(A;;RC;;;BA)
+Learn more
+Network Security Do Not Store LAN Manager Hash Value On Next Password Change
+Baseline default: Enable
+Learn more
+Network Security LAN Manager Authentication Level
+Baseline default: Send NTLMv2 responses only. Refuse LM and NTLM
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Clients
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Servers
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Administrators
+Baseline default: Prompt for consent on the secure desktop
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Standard Users
+Baseline default: Automatically deny elevation requests
+Learn more
+User Account Control Detect Application Installations And Prompt For Elevation
+Baseline default: Enable
+Learn more
+User Account Control Only Elevate UI Access Applications That Are Installed In Secure Locations
+Baseline default: Enabled: Application runs with UIAccess integrity only if it resides in secure location.
+Learn more
+User Account Control Run All Administrators In Admin Approval Mode
+Baseline default: Enabled
+Learn more
+User Account Control Use Admin Approval Mode
+Baseline default: Enable
+Learn more
+User Account Control Virtualize File And Registry Write Failures To Per User Locations
+Baseline default: Enabled
+Learn more
+Local Security Authority
+Configure Lsa Protected Process
+Baseline default: Enabled with UEFI lock. LSA will run as protected process and this configuration is UEFI locked.
+Learn more
+Microsoft App Store
+Allow Game DVR
+Baseline default: Block
+Learn more
+MSI Allow User Control Over Install
+Baseline default: Disabled
+Learn more
+MSI Always Install With Elevated Privileges
+Baseline default: Disabled
+Learn more
+Microsoft Edge
+SmartScreen settings
+Configure Microsoft Defender SmartScreen
+Baseline default: Enabled
+Prevent bypassing Microsoft Defender SmartScreen prompts for sites
+Baseline default: Enabled
+Privacy
+Let Apps Activate With Voice Above Lock
+Baseline default: Force deny. Windows apps cannot be activated by voice while the screen is locked, and users cannot change it.
+Learn more
+Search
+Allow Indexing Encrypted Stores Or Items
+Baseline default: Block
+Learn more
+Smart Screen
+Enable Smart Screen In Shell
+Baseline default: Enabled
+Learn more
+Prevent Override For Files In Shell
+Baseline default: Enabled
+Learn more
+Enhanced Phishing Protection
+Notify Malicious
+Baseline default: Enabled
+Notify Password Reuse
+Baseline default: Enabled
+Notify Unsafe App
+Baseline default: Enabled
+Service Enabled
+Baseline default: Enabled
+Sudo
+Enable Sudo
+Baseline default: Sudo is disabled.
+Learn more
+System Services
+Configure Xbox Accessory Management Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Auth Manager Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Game Save Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Networking Service Startup Mode
+Baseline default: Disabled
+Learn more
+Task Scheduler
+Enable Xbox Game Save Task
+Baseline default: Disabled
+Learn more
+User Rights
+Access From Network
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Remote Desktop Users (*S-1-5-32-555)
+Learn more
+Allow Local Log On
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Users (*S-1-5-32-545)
+Learn more
+Backup Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Create Global Objects
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Local Service (*S-1-5-19), Network Service (*S-1-5-20), Service (*S-1-5-6)
+Learn more
+Create Page File
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Debug Programs
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Deny Access From Network
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113)
+Learn more
+Deny Remote Desktop Services Log On
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113)
+Learn more
+Impersonate Client
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Service (*S-1-5-6), Local Service (*S-1-5-19), Network Service (*S-1-5-20), Windows restricted services (*S-1-5-99-216390572-1995538116-3857911515-2404958512-2623887229)
+Learn more
+Load Unload Device Drivers
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Manage Auditing And Security Log
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Manage Volume
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Modify Firmware Environment
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Profile Single Process
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Remote Shutdown
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Restore Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Take Ownership
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544)
+Learn more
+Virtualization Based Technology
+Hypervisor Enforced Code Integrity
+Baseline default: (Enabled with UEFI lock) Turns on Hypervisor-Protected Code Integrity with UEFI lock.
+Learn more
+Wi-Fi Settings
+Allow Auto Connect To Wi Fi Sense Hotspots
+Baseline default: Block
+Learn more
+Allow Internet Sharing
+Baseline default: Block
+Learn more
+Windows Hello For Business
+Facial Features Use Enhanced Anti Spoofing
+Baseline default: true
+Learn more
+Windows Ink Workspace
+Allow Windows Ink Workspace
+Baseline default: Ink workspace is enabled (feature is turned on), but the user cannot access it above the lock screen.
+Learn more
+Security Baseline for Windows, version 24H2
+The settings in this baseline are taken from the Windows 11 version 24H2 security baseline as found in the Security Compliance Toolkit and Baselines from the Microsoft Download Center, and include only the settings that apply to Windows devices managed through Intune. When available, the setting name links to the source Configuration Service Provider (CSP), and then displays that settings default configuration in the baseline.
+Administrative Templates
+Control Panel > Personalization
+Prevent enabling lock screen camera
+Baseline default: Enabled
+Learn more
+Prevent enabling lock screen slide show
+Baseline default: Enabled
+Learn more
+MS Security Guide
+Apply UAC restrictions to local accounts on network logons
+Baseline default: Enabled
+Learn more
+Configure SMB v1 client driver
+Baseline default: Enabled
+Learn more
+Configure MrxSmb10 driver
+Baseline default: Disable driver (recommended)
+Configure SMB v1 server
+Baseline default: Disabled
+Learn more
+Enable Structured Exception Handling Overwrite Protection (SEHOP)
+Baseline default: Enabled
+Learn more
+WDigest Authentication (disabling may require KB2871997)
+Baseline default: Disabled
+Learn more
+MSS (Legacy)
+MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting IPv6 (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (EnableICMPRedirect) Allow ICMP redirects to override OSPF generated routes
+Baseline default: Disabled
+Learn more
+MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
+Baseline default: Enabled
+Learn more
+Network > DNS Client
+Turn off multicast name resolution
+Baseline default: Enabled
+Learn more
+Network > Network Connections
+Prohibit use of Internet Connection Sharing on your DNS domain network
+Baseline default: Enabled
+Learn more
+Network > Network Provider
+Hardened UNC Paths
+Baseline default: Enabled
+Learn more
+Hardened UNC Paths: (Device)
+Baseline defaults:
+Name Value
+\\*\SYSVOL RequireMutualAuthentication=1,RequireIntegrity=1
+\\*\NETLOGON RequireMutualAuthentication=1,RequireIntegrity=1
+Network > Windows Connection Manager
+Prohibit connection to non-domain networks when connected to domain authenticated network
+Baseline default: Enabled
+Learn more
+Printers
+Configure Redirection Guard
+Baseline default: Enabled Learn more
+Redirection Guard Options (Device)
+Baseline default: Redirection Guard Enabled
+Configure RPC connection settings
+Baseline default: Enabled
+Learn more
+Use authentication for outgoing RPC connections: (Device)
+Baseline default: Default
+Protocol to allow for incoming RPC connections: (Device)
+Baseline default: RPC over TCP
+Configure RPC listener settings
+Baseline default: Enabled
+Learn more
+Protocols to allow for incoming RPC connections: (Device)
+Baseline default: RCP over TCP
+Authentication protocol to use for incoming RPC connections: (Device)
+Baseline default: Negotiate
+Configure RPC over TPC port
+Baseline default: Enabled
+Learn more
+RPC over TCP port (Device)
+Baseline default: 0
+Limits print driver installation to Administrators
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-specific files
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-specific files: (Device)
+Baseline default: Limit Queue-specific files to Color profiles
+Start Menu and Taskbar > Notifications
+Turn off toast notifications on the lock screen (User)
+Baseline default: Enabled
+Learn more
+System > Credentials Delegation
+Encryption Oracle Remediation
+Baseline default: Enabled
+Learn more
+Protection Level: (Device)
+Baseline default: Force Updated Clients
+Remote host allows delegation of non-exportable credentials
+Baseline default: Enabled
+Learn more
+System > Device Installation > Device Installation Restrictions
+Prevent installation of devices using drivers that match these device setup classes
+Baseline default: Enabled
+Learn more
+Also apply to matching devices that are already installed
+Baseline default: True
+Prevented Classes
+Baseline default: {d48179be-ec20-11d1-b6b8-00c04fa372a7}
+System > Early Launch Antimalware
+Boot-Start Driver Initialization Policy
+Baseline default: Enabled
+Learn more
+Choose the boot-start drivers that can be initialized:
+Baseline default: Good, unknown and bad but critical
+System > Group Policy
+Configure registry policy processing
+Baseline default: Enabled
+Learn more
+Do not apply during periodic background processing (Device)
+Baseline default: False
+Process even if the Group Policy objects have not changed (Device)
+Baseline default: True
+System > Internet Communication Management > Internet Communication settings
+Turn off downloading of print drivers
+Baseline default: Enabled
+Learn more
+Turn off Internet download for Web publishing and online ordering wizards
+Baseline default: Enabled
+Learn more
+System > Local Security Authority
+Allow Custom SSPs and APs to be loaded into LSASS
+Baseline default: Disabled
+Learn more
+System > Power Management > Sleep Settings
+Allow standby states (S1-S3) when sleeping (on battery)
+Baseline default: Disabled
+Learn more
+Allow standby states (S1-S3) when sleeping (plugged in)
+Baseline default: Disabled
+Learn more
+Require a password when a computer wakes (on battery)
+Baseline default: Enabled
+Learn more
+Require a password when a computer wakes (plugged in)
+Baseline default: Enabled
+Learn more
+System > Remote Assistance
+Configure Solicited Remote Assistance
+Baseline default: Disabled
+Learn more
+System > Remote Procedure Call
+Restrict Unauthenticated RPC clients
+Baseline default: Enabled
+Learn more
+RPC Runtime Unauthenticated Client Restriction to Apply:
+Baseline default: Authenticated
+Windows Components > App runtime
+Allow Microsoft accounts to be optional
+Baseline default: Enabled
+Learn more
+Windows Components > AutoPlay Policies
+Disallow Autoplay for non-volume devices
+Baseline default: Enabled
+Learn more
+Set the default behavior for AutoRun
+Baseline default: Enabled
+Learn more
+Default AutoRun Behavior
+Baseline default: Do not execute any autorun commands
+Turn off Autoplay
+Baseline default: Enabled
+Learn more
+Turn off Autoplay on:
+Baseline default: All drives
+Windows Components > BitLocker Drive Encryption > Fixed Data Drives
+Deny write access to fixed drives not protected by BitLocker
+Baseline default: Disabled
+Learn more
+Windows Components > BitLocker Drive Encryption > Removable Data Drives
+Deny write access to removable drives not protected by BitLocker
+Baseline default: Enabled
+Learn more
+Do not allow write access to devices configured in another organization
+Baseline default: False
+Windows Components > Credential User Interface
+Enumerate administrator accounts on elevation
+Baseline default: Disabled
+Learn more
+Windows Components > Event Log Service > Application
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > Event Log Service > Security
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 196608
+Windows Components > Event Log Service > System
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > File Explorer
+Configure Windows Defender SmartScreen
+Baseline default: Enabled
+Learn more
+Pick one of the following settings: (Device)
+Baseline default: Warn and prevent bypass
+Turn off Data Execution Prevention for Explorer
+Baseline default: Disabled
+Learn more
+Turn off heap termination on corruption
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Advanced Page
+Allow software to run or install even if the signature is invalid
+Baseline default: Disabled
+Learn more
+Check for server certificate revocation
+Baseline default: Enabled
+Learn more
+Check for signatures on downloaded programs
+Baseline default: Enabled
+Learn more
+Do not allow ActiveX controls to run in Protected Mode when Enhanced Protected Mode is enabled
+Baseline default: Enabled
+Learn more
+Turn off encryption support
+Baseline default: Enabled
+Learn more
+Secure Protocol combinations
+Baseline default: Use TLS 1.1 and TLS 1.2
+Turn on 64-bit tab processes when running in Enhanced Protected Mode on 64-bit versions of Windows
+Baseline default: Enabled
+Learn more
+Turn on Enhanced Protected Mode
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel
+Prevent ignoring certificate errors
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Internet Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local path when user is uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Prompt for user name and password
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Prompt
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enable
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enable
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Use Pop-up Blocker
+Baseline default: Enable
+Learn more
+Use Pop-up Blocker
+Baseline default: Enable
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page
+Intranet Sites: Include all network paths (UNCs)
+Baseline default: Disabled
+Learn more
+Turn on certificate address mismatch warning
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Intranet Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Local Machine Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Internet Zone
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Intranet Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Local Machine Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Restricted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Trusted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Restricted Sites Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow active scripting
+Baseline default: Enabled
+Learn more
+Allow active scripting
+Baseline default: Disable
+Allow binary and script behaviors
+Baseline default: Enabled
+Learn more
+Allow binary and script behaviors
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow file downloads
+Baseline default: Enabled
+Learn more
+Allow file downloads
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow META REFRESH
+Baseline default: Enabled
+Learn more
+Allow META REFRESH
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local directory path when uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Anonymous logon
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Run ActiveX controls and plugins
+Baseline default: Enabled
+Learn more
+Run ActiveX controls and plugins
+Baseline default: Disable
+Script ActiveX controls marked safe for scripting
+Baseline default: Enabled
+Learn more
+Script ActiveX controls marked safe for scripting
+Baseline default: Disable
+Scripting of Java applets
+Baseline default: Enabled
+Learn more
+Scripting of Java applets
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Disable
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enabled
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enabled
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enabled
+Use Pop-up Blocker
+Baseline default: Enabled
+Learn more
+Use Pop-up Blocker
+Baseline default: Enabled
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Trusted Sites Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer
+Prevent bypassing SmartScreen Filter warnings
+Baseline default: Enabled
+Learn more
+Prevent bypassing SmartScreen Filter warnings about files that are not commonly downloaded from the Internet
+Baseline default: Enabled
+Learn more
+Prevent managing SmartScreen Filter
+Baseline default: Enabled
+Learn more
+Select SmartScreen Filter mode
+Baseline default: On
+Prevent per-user installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to add/delete sites
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to change policies
+Baseline default: Enabled
+Learn more
+Security Zones: Use only machine settings
+Baseline default: Enabled
+Learn more
+Specify use of ActiveX Installer Service for installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Turn off Crash Detection
+Baseline default: Enabled
+Learn more
+Turn off the Security Settings Check feature
+Baseline default: Disabled
+Learn more
+Turn on the auto-complete feature for user names and passwords on forms (User)
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Add-on Management
+Remove "Run this time" button for outdated ActiveX controls in Internet Explorer
+Baseline default: Enabled
+Learn more
+Turn off blocking of outdated ActiveX controls for Internet Explorer
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Security Features
+Allow fallback to SSL 3.0 (Internet Explorer)
+Baseline default: Enabled
+Learn more
+Allow insecure fallback for:
+Baseline default: No Sites
+Windows Components > Internet Explorer > Security Features > Consistent Mime Handling
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Mime Sniffing Safety Feature
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > MK Protocol Security Restriction
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Notification bar
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Protection From Zone Elevation
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict ActiveX Install
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict File Download
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Scripted Window Security Restrictions
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > MAPS
+Configure the 'Block at First Sight' feature
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > Real-time Protection
+Turn on process scanning whenever real-time protection is enabled
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > Scan
+Scan packed executables
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus
+Turn off routine remediation
+Baseline default: Disabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Connection Client
+Do not allow passwords to be saved
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Device and Resource Redirection
+Do not allow drive redirection
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Security
+Always prompt for password upon connection
+Baseline default: Enabled
+Learn more
+Require secure RPC communication
+Baseline default: Enabled
+Learn more
+Set client connection encryption level
+Baseline default: Enabled
+Learn more
+Encryption Level
+Baseline default: High Level
+Windows Components > RSS Feeds
+Prevent downloading of enclosures
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Logon Options
+Enable MPR notifications for the system
+Baseline default: Disabled
+Learn more
+Sign-in and lock last interactive user automatically after a restart
+Baseline default: Disabled
+Learn more
+Windows Components > Windows PowerShell
+Turn on PowerShell Script Block Logging
+Baseline default: Enabled
+Learn more
+Log script block invocation start / stop events:
+Baseline default: False
+Windows Components > Windows Remote Management (WinRM) > WinRM Client
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow Digest authentication
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Remote Management (WinRM) > WinRM Service
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow WinRM from storing RunAs credentials
+Baseline default: Enabled
+Learn more
+Auditing
+Account Logon Audit Credential Validation
+Baseline default: Success+ Failure
+Learn more
+Account Logon Logoff Audit Account Lockout
+Baseline default: Failure
+Learn more
+Account Logon Logoff Audit Group Membership
+Baseline default: Success
+Learn more
+Account Logon Logoff Audit Logon
+Baseline default: Success+ Failure
+Learn more
+Audit Authentication Policy Change
+Baseline default: Success
+Learn more
+Audit Changes to Audit Policy
+Baseline default: Success
+Learn more
+Audit File Share Access
+Baseline default: Success+ Failure
+Learn more
+Audit Other Logon Logoff Events
+Baseline default: Success+ Failure
+Learn more
+Audit Security Group Management
+Baseline default: Success
+Learn more
+Audit Security System Extension
+Baseline default: Success
+Learn more
+Audit Special Logon
+Baseline default: Success
+Learn more
+Audit User Account Management
+Baseline default: Success+ Failure
+Learn more
+Detailed Tracking Audit PNP Activity
+Baseline default: Success
+Learn more
+Detailed Tracking Audit Process Creation
+Baseline default: Success
+Learn more
+Object Access Audit Detailed File Share
+Baseline default: Failure
+Learn more
+Object Access Audit Other Object Access Events
+Baseline default: Success+ Failure
+Learn more
+Object Access Audit Removable Storage
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit MPSSVC Rule Level Policy Change
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit Other Policy Change Events
+Baseline default: Failure
+Learn more
+Privilege Use Audit Sensitive Privilege Use
+Baseline default: Success
+Learn more
+System Audit Other System Events
+Baseline default: Success+ Failure
+Learn more
+System Audit Security State Change
+Baseline default: Success
+Learn more
+System Audit System Integrity
+Baseline default: Success+ Failure
+Learn more
+Browser
+Allow Password Manager
+Baseline default: Block
+Learn more
+Allow Smart Screen
+Baseline default: Allow
+Learn more
+Prevent Cert Error Overrides
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override For Files
+Baseline default: Enabled
+Learn more
+Data Protection
+Allow Direct Memory Access
+Baseline default: Block
+Learn more
+Defender
+Allow Archive Scanning
+Baseline default: Allowed. Scans the archive files.
+Learn more
+Allow Behavior Monitoring
+Baseline default: Allowed. Turns on real-time behavior monitoring.
+Learn more
+Allow Cloud Protection
+Baseline default: Allowed. Turns on Cloud Protection.
+Learn more
+Allow Full Scan Removable Drive Scanning
+Baseline default: Allowed. Scans removable drives.
+Learn more
+Allow On Access Protection
+Baseline default: Allowed.
+Learn more
+Allow Realtime Monitoring
+Baseline default: Allowed. Turns on and runs the real-time monitoring service.
+Learn more
+Allow scanning of all downloaded files and attachments
+Baseline default: Allowed.
+Learn more
+Allow Script Scanning
+Baseline default: Allowed.
+Learn more
+Block execution of potentially obfuscated scripts
+Baseline default: Block
+Learn more
+Block Win32 API calls from Office macros
+Baseline default: Block
+Learn more
+Block Office communication application from creating child processes
+Baseline default: Block
+Learn more
+Block all Office applications from creating child processes
+Baseline default: Block
+Learn more
+Block JavaScript or VBScript from launching downloaded executable content
+Baseline default: Block
+Learn more
+Block untrusted and unsigned processes that run from USB
+Baseline default: Block
+Learn more
+Block Adobe Reader from creating child processes
+Baseline default: Block
+Learn more
+Block credential stealing from the Windows local security authority subsystem
+Baseline default: Block
+Learn more
+Block process creations originating from PSExec and WMI commands Baseline default: Audit
+Learn more
+Block Office applications from creating executable content
+Baseline default: Block
+Learn more
+Block Office applications from injecting code into other processes
+Baseline default: Block
+Learn more
+Block executable content from email client and webmail
+Baseline default: Block
+Learn more
+Cloud Block Level
+Baseline default: High
+Learn more
+Cloud Extended Timeout
+Baseline default: Configured
+Value: 50
+Learn more
+Disable Local Admin Merge
+Baseline default: Disable Local Admin Merge
+Learn more
+Enable File Hash Computation
+Baseline default: Enable
+Learn more
+Enable Network Protection
+Baseline default: Enabled (block mode)
+Learn more
+Hide Exclusions From Local Admins
+Baseline default: If you enable this setting, local admins will no longer be able to see the exclusion list in Windows Security App or via PowerShell.
+Learn more
+PUA Protection
+Baseline default: PUA Protection on. Detected items are blocked. They will show in history along with other threats.
+Learn more
+Real Time Scan Direction
+Baseline default: Monitor all files (bi-directional).
+Learn more
+Submit Samples Consent
+Baseline default: Send all samples automatically.
+Learn more
+Enable Convert Warn To Block
+Baseline default: Warn verdicts are converted to block
+Learn more
+Oobe Enable Rtp And Sig Update
+Baseline default: If you enable this setting, real-time protection and Security Intelligence Updates are enabled during OOBE.
+Learn more
+Passive Remediation
+Baseline default: Configured
+Value: PASSIVEREMEDIATIONFLAGSENSEAUTOREMEDIATION: Passive Remediation Sense AutoRemediation
+Learn more
+Quick Scan Include Exclusions
+Baseline default: If you set this setting to 1, all files and directories that are excluded from real-time protection using contextual exclusions are scanned during a quick scan.
+Learn more
+Device Guard
+Configure System Guard Launch
+Baseline default: Unmanaged Enables Secure Launch if supported by hardware
+Learn more
+Credential Guard
+Baseline default: (Enabled with UEFI lock) Turns on Credential Guard with UEFI lock.
+Learn more
+Enable Virtualization Based Security
+Baseline default: Enable virtualization based security.
+Learn more
+Require Platform Security Features
+Baseline default: Turns on VBS with Secure Boot.
+Learn more
+Machine Identity Isolation
+Baseline default: (Disabled) Machine password is only LSASS-bound and stored in $MACHINE.ACC registry key.
+Learn more
+Device Lock
+Device Password Enabled
+Baseline default: Enabled
+Learn more
+Device Password History
+Baseline default: Configured
+Value: 24
+Learn more
+Min Device Password Length
+Baseline default: Configured
+Value: 14
+Learn more
+Dma Guard
+Device Enumeration Policy
+Baseline default: Block all (Most restrictive)
+Learn more
+Experience
+Allow Windows Spotlight (User)
+Baseline default: Allow
+Learn more
+Allow Windows Consumer Features
+Baseline default: Block
+Learn more
+Allow Third Party Suggestions In Windows Spotlight (User)
+Baseline default: Block
+Learn more
+Firewall
+Enable Domain Network Firewall
+Baseline default: True
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Inbound Action for Domain Profile
+Baseline default: Block
+Learn more
+Enable Private Network Firewall
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Inbound Action for Private Profile
+Baseline default: Block
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Enable Public Network Firewall
+Baseline default: True
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Default Inbound Action for Public Profile
+Baseline default: Block
+Learn more
+Allow Local Policy Merge
+Baseline default: False
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Allow Local Ipsec Policy Merge
+Baseline default: False
+Learn more
+Lanman Server
+Audit Client Does Not Support Encryption
+Baseline default: Enabled
+Learn more
+Audit Client Does Not Support Signing
+Baseline default: Enabled
+Learn more
+Audit Insecure Guest Logon
+Baseline default: Enabled
+Learn more
+Auth Rate Limiter Delay In Ms
+Baseline default: 2000
+Learn more
+Enable Auth Rate Limiter
+Baseline default: Enabled
+Learn more
+Max SMB 2 Dialect
+Baseline default: SMB 3.1.1
+Learn more
+Min SMB 2 Dialect
+Baseline default: 3.0.0
+Learn more
+Enable Mailslots
+Baseline default: Disabled
+Learn more
+Lanman Workstation
+Enable Insecure Guest Logons
+Baseline default: Disabled
+Learn more
+Audit Insecure Guest Logon
+Baseline default: Enabled
+Learn more
+Audit Server Does Not Support Encryption
+Baseline default: Enabled
+Learn more
+Audit Server Does Not Support Signing
+Baseline default: Enabled
+Learn more
+Max SMB 2 Dialect
+Baseline default: SMB 3.1.1
+Learn more
+Min SMB 2 Dialect
+Baseline default: SMB 3.0.0
+Learn more
+Require Encryption
+Baseline default: Disabled
+Learn more
+Enable Mailslots
+Baseline default: Disabled
+Learn more
+Local Policies Security Options
+Accounts Limit Local Account Use Of Blank Passwords To Console Logon Only
+Baseline default: Enabled
+Learn more
+Interactive Logon Machine Inactivity Limit
+Baseline default: Configured
+Value: 900
+Learn more
+Interactive Logon Smart Card Removal Behavior
+Baseline default: Lock Workstation
+Learn more
+Microsoft Network Client Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Microsoft Network Client Send Unencrypted Password To Third Party SMB Servers
+Baseline default: Disable
+Learn more
+Microsoft Network Server Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of SAM Accounts
+Baseline default: Enabled
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of Sam Accounts And Shares
+Baseline default: Enabled
+Learn more
+Network Access Restrict Anonymous Access To Named Pipes And Shares
+Baseline default: Enable
+Learn more
+Network Access Restrict Clients Allowed To Make Remote Calls To SAM
+Baseline default: Configured
+Value: O:BAG:BAD:(A;;RC;;;BA)
+Learn more
+Network Security Do Not Store LAN Manager Hash Value On Next Password Change
+Baseline default: Enable
+Learn more
+Network Security LAN Manager Authentication Level
+Baseline default: Send LM and NTLMv2 responses only. Refuse LM and NTLM
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Clients
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Servers
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Administrators
+Baseline default: Prompt for consent on the secure desktop
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Standard Users
+Baseline default: Automatically deny elevation requests
+Learn more
+User Account Control Detect Application Installations And Prompt For Elevation
+Baseline default: Enable
+Learn more
+User Account Control Only Elevate UI Access Applications That Are Installed In Secure Locations
+Baseline default: Enabled: Application runs with UIAccess integrity only if it resides in secure location.
+Learn more
+User Account Control Run All Administrators In Admin Approval Mode
+Baseline default: Enabled
+Learn more
+User Account Control Use Admin Approval Mode
+Baseline default: Enable
+Learn more
+User Account Control Virtualize File And Registry Write Failures To Per User Locations
+Baseline default: Enabled
+Learn more
+Local Security Authority
+Configure Lsa Protected Process
+Baseline default: Enabled with UEFI lock. LSA will run as protected process and this configuration is UEFI locked.
+Learn more
+Microsoft App Store
+Allow Game DVR
+Baseline default: Block
+Learn more
+MSI Allow User Control Over Install
+Baseline default: Disabled
+Learn more
+MSI Always Install With Elevated Privileges
+Baseline default: Disabled
+Learn more
+Microsoft Edge
+SmartScreen settings
+Configure Microsoft Defender SmartScreen
+Baseline default: Enabled
+Prevent bypassing Microsoft Defender SmartScreen prompts for sites
+Baseline default: Enabled
+Privacy
+Let Apps Activate With Voice Above Lock
+Baseline default: Force deny. Windows apps cannot be activated by voice while the screen is locked, and users cannot change it.
+Learn more
+Search
+Allow Indexing Encrypted Stores Or Items
+Baseline default: Block
+Learn more
+Smart Screen
+Enable Smart Screen In Shell
+Baseline default: Enabled
+Learn more
+Prevent Override For Files In Shell
+Baseline default: Enabled
+Learn more
+Enhanced Phishing Protection
+Notify Malicious
+Baseline default: Enabled
+Notify Password Reuse
+Baseline default: Enabled
+Notify Unsafe App
+Baseline default: Enabled
+Service Enabled
+Baseline default: Enabled
+System Services
+Configure Xbox Accessory Management Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Auth Manager Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Game Save Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Networking Service Startup Mode
+Baseline default: Disabled
+Learn more
+Task Scheduler
+Enable Xbox Game Save Task
+Baseline default: Disabled
+Learn more
+User Rights
+Access From Network
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Remote Desktop Users (*S-1-5-32-555) Learn more
+Allow Local Log On
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Users (*S-1-5-32-545) Learn more
+Backup Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Create Global Objects
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Local Service (*S-1-5-19), Network Service (*S-1-5-20), Service (*S-1-5-6) Learn more
+Create Page File
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Debug Programs
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Deny Access From Network
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113) Learn more
+Deny Remote Desktop Services Log On
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113) Learn more
+Impersonate Client
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Service (*S-1-5-6), Local Service (*S-1-5-19), Network Service (*S-1-5-20) Learn more
+Load Unload Device Drivers
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Manage Auditing And Security Log
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Manage Volume
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Modify Firmware Environment
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Profile Single Process
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Remote Shutdown
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Restore Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Take Ownership
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Virtualization Based Technology
+Hypervisor Enforced Code Integrity
+Baseline default: (Enabled with UEFI lock) Turns on Hypervisor-Protected Code Integrity with UEFI lock.
+Learn more
+Wi-Fi Settings
+Allow Auto Connect To Wi Fi Sense Hotspots
+Baseline default: Block
+Learn more
+Allow Internet Sharing
+Baseline default: Block
+Learn more
+Windows Hello For Business
+Facial Features Use Enhanced Anti Spoofing
+Baseline default: true
+Learn more
+Windows Ink Workspace
+Allow Windows Ink Workspace
+Baseline default: Ink workspace is enabled (feature is turned on), but the user cannot access it above the lock screen.
+Learn more
+LAPS
+Backup Directory
+Baseline default: Backup the password to Azure AD only
+Learn more
+Kerberos
+PK Init Hash Algorithm Configuration
+Baseline default: Enabled
+Learn more
+PK Init Hash Algorithm SHA256
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA384
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA512
+Baseline default: Supported
+Learn more
+PK Init Hash Algorithm SHA1 PK Init Hash Algorithm SHA1
+Baseline default: Not Supported
+Learn more
+Sudo
+Enable Sudo
+Baseline default: Sudo is disabled.
+Learn more
+Security Baseline for Windows, version 23H2
+The settings in this baseline are taken from the version 23H2 of the Group Policy security baseline as found in the Security Compliance Toolkit and Baselines from the Microsoft Download Center, and include only the settings that apply to Windows devices managed through Intune. When available, the setting name links to the source Configuration Service Provider (CSP), and then displays that settings default configuration in the baseline.
+Administrative Templates
+Control Panel > Personalization
+Prevent enabling lock screen camera
+Baseline default: Enabled
+Learn more
+Prevent enabling lock screen slide show
+Baseline default: Enabled
+Learn more
+MS Security Guide
+Apply UAC restrictions to local accounts on network logons
+Baseline default: Enabled
+Learn more
+Configure SMB v1 client driver
+Baseline default: Enabled
+Learn more
+Configure MrxSmb10 driver
+Baseline default: Disable driver (recommended)
+Configure SMB v1 server
+Baseline default: Disabled
+Learn more
+Enable Structured Exception Handling Overwrite Protection (SEHOP)
+Baseline default: Enabled
+Learn more
+WDigest Authentication (disabling may require KB2871997)
+Baseline default: Disabled
+Learn more
+MSS (Legacy)
+MSS: (DisableIPSourceRouting IPv6) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting IPv6 (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (DisableIPSourceRouting) IP source routing protection level (protects against packet spoofing)
+Baseline default: Enabled
+Learn more
+DisableIPSourceRouting (Device)
+Baseline default: Highest protection, source routing is completely disabled
+MSS: (EnableCMPRedirect) Allow ICMP redirects to override OSPF generated routes
+Baseline default: Disabled
+Learn more
+MSS: (NoNameReleaseOnDemand) Allow the computer to ignore NetBIOS name release requests except from WINS servers
+Baseline default: Enabled
+Learn more
+Network > DNS Client
+Turn off multicast name resolution
+Baseline default: Enabled
+Learn more
+Network > Network Connections
+Prohibit use of Internet Connection Sharing on your DNS domain network
+Baseline default: Enabled
+Learn more
+Network > Network Provider
+Hardened UNC Paths
+Baseline default: Enabled
+Learn more
+Hardened UNC Paths: (Device)
+Baseline defaults:
+Name Value
+\\*\SYSVOL RequireMutualAuthentication=1,RequireIntegrity=1
+\\*\NETLOGON RequireMutualAuthentication=1,RequireIntegrity=1
+Network > Windows Connection Manager
+Prohibit connection to non-domain networks when connected to domain authenticated network
+Baseline default: Enabled
+Learn more
+Printers
+Configure Redirection Guard
+Baseline default: Enabled
+Learn more
+Redirection Guard Options (Device)
+Baseline default: Redirection Guard Enabled
+Configure RPC connection settings
+Baseline default: Enabled
+Learn more
+Use authentication for outgoing RPC connections: (Device)
+Baseline default: Default
+Protocol to allow for incoming RPC connections: (Device)
+Baseline default: RPC over TCP
+Configure RPC listener settings
+Baseline default: Enabled
+Learn more
+Protocols to allow for incoming RPC connections: (Device)
+Baseline default: RCP over TCP
+Authentication protocol to use for incoming RPC connections: (Device)
+Baseline default: Negotiate
+Configure RPC over TPC port
+Baseline default: Enabled
+Learn more
+RPC over TCP port (Device)
+Baseline default: 0
+Limits print driver installation to Administrators
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-specific files
+Baseline default: Enabled
+Learn more
+Manage processing of Queue-specific files: (Device)
+Baseline default: Limit Queue-specific files to Color profiles
+Start Menu and Taskbar > Notifications
+Turn off toast notifications on the lock screen (User)
+Baseline default: Enabled
+Learn more
+System > Credentials Delegation
+Encryption Oracle Remediation
+Baseline default: Enabled
+Learn more
+Protection Level: (Device)
+Baseline default: Force Updated Clients
+Remote host allows delegation of non-exportable credentials
+Baseline default: Enabled
+Learn more
+System > Device Installation > Device Installation Restrictions
+Prevent installation of devices using drivers that match these device setup classes
+Baseline default: Enabled
+Learn more
+Also apply to matching devices that are already installed
+Baseline default: True
+Prevented Classes
+Baseline default: {d48179be-ec20-11d1-b6b8-00c04fa372a7}
+System > Early Launch Antimalware
+Boot-Start Driver Initialization Policy
+Baseline default: Enabled
+Learn more
+Choose the boot-start drivers that can be initialized:
+Baseline default: Good, unknown and bad but critical
+System > Group Policy
+Configure registry policy processing
+Baseline default: Enabled
+Learn more
+Do not apply during periodic background processing (Device)
+Baseline default: False
+Process even if the Group Policy objects have not changed (Device)
+Baseline default: True
+System > Internet Communication Management > Internet Communication settings
+Turn off downloading of print drivers
+Baseline default: Enabled
+Learn more
+Turn off Internet download for Web publishing and online ordering wizards
+Baseline default: Enabled
+Learn more
+System > Local Security Authority
+Allow Custom SSPs and APs to be loaded into LSASS
+Baseline default: Disabled
+Learn more
+System > Power Management > Sleep Settings
+Allow standby states (S1-S3) when sleeping (on battery)
+Baseline default: Disabled
+Learn more
+Allow standby states (S1-S3) when sleeping (plugged in)
+Baseline default: Disabled
+Learn more
+Require a password when a computer wakes (on battery)
+Baseline default: Enabled
+Learn more
+Require a password when a computer wakes (plugged in)
+Baseline default: Enabled
+Learn more
+System > Remote Assistance
+Configure Solicited Remote Assistance
+Baseline default: Disabled
+Learn more
+System > Remote Procedure Call
+Restrict Unauthenticated RPC clients
+Baseline default: Enabled
+Learn more
+RPC Runtime Unauthenticated Client Restriction to Apply:
+Baseline default: Authenticated
+Windows Components > App runtime
+Allow Microsoft accounts to be optional
+Baseline default: Enabled
+Learn more
+Windows Components > AutoPlay Policies
+Disallow Autoplay for non-volume devices
+Baseline default: Enabled
+Learn more
+Set the default behavior for AutoRun
+Baseline default: Enabled
+Learn more
+Default AutoRun Behavior
+Baseline default: Do not execute any autorun commands
+Turn off Autoplay
+Baseline default: Enabled
+Learn more
+Turn off Autoplay on:
+Baseline default: All drives
+Windows Components > BitLocker Drive Encryption > Fixed Data Drives
+Deny write access to fixed drives not protected by BitLocker
+Baseline default: Disabled
+Learn more
+Windows Components > BitLocker Drive Encryption > Removable Data Drives
+Deny write access to removable drives not protected by BitLocker
+Baseline default: Enabled
+Learn more
+Do not allow write access to devices configured in another organization
+Baseline default: False
+Windows Components > Credential User Interface
+Enumerate administrator accounts on elevation
+Baseline default: Disabled
+Learn more
+Windows Components > Event Log Service > Application
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > Event Log Service > Security
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 196608
+Windows Components > Event Log Service > System
+Specify the maximum log file size (KB)
+Baseline default: Enabled
+Learn more
+Maximum Log Size (KB)
+Baseline default: 32768
+Windows Components > File Explorer
+Configure Windows Defender SmartScreen
+Baseline default: Enabled
+Learn more
+Pick one of the following settings: (Device)
+Baseline default: Warn and prevent bypass
+Turn off Data Execution Prevention for Explorer
+Baseline default: Disabled
+Learn more
+Turn off heap termination on corruption
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Advanced Page
+Allow software to run or install even if the signature is invalid
+Baseline default: Disabled
+Learn more
+Check for server certificate revocation
+Baseline default: Enabled
+Learn more
+Check for signatures on downloaded programs
+Baseline default: Enabled
+Learn more
+Do not allow ActiveX controls to run in Protected Mode when Enhanced Protected Mode is enabled
+Baseline default: Enabled
+Learn more
+Turn off encryption support
+Baseline default: Enabled
+Learn more
+Secure Protocol combinations
+Baseline default: Use TLS 1.1 and TLS 1.2
+Turn on 64-bit tab processes when running in Enhanced Protected Mode on 64-bit versions of Windows
+Baseline default: Enabled
+Learn more
+Turn on Enhanced Protected Mode
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel
+Prevent ignoring certificate errors
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Internet Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local path when user is uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Prompt for user name and password
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Prompt
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enable
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enable
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Use Pop-up Blocker
+Baseline default: Enable
+Learn more
+Use Pop-up Blocker
+Baseline default: Enable
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page
+Intranet Sites: Include all network paths (UNCs)
+Baseline default: Disabled
+Learn more
+Turn on certificate address mismatch warning
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Intranet Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Local Machine Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Internet Zone
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Intranet Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Local Machine Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Restricted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Locked-Down Trusted Sites Zone
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Restricted Sites Zone
+Access data sources across domains
+Baseline default: Enabled
+Learn more
+Access data sources across domains
+Baseline default: Disable
+Allow active scripting
+Baseline default: Enabled
+Learn more
+Allow active scripting
+Baseline default: Disable
+Allow binary and script behaviors
+Baseline default: Enabled
+Learn more
+Allow binary and script behaviors
+Baseline default: Disable
+Allow cut, copy or paste operations from the clipboard via script
+Baseline default: Enabled
+Learn more
+Allow paste operations via script
+Baseline default: Disable
+Allow drag and drop or copy and paste files
+Baseline default: Enabled
+Learn more
+Allow drag and drop or copy and paste files
+Baseline default: Disable
+Allow file downloads
+Baseline default: Enabled
+Learn more
+Allow file downloads
+Baseline default: Disable
+Allow loading of XAML files
+Baseline default: Enabled
+Learn more
+XAML Files
+Baseline default: Disable
+Allow META REFRESH
+Baseline default: Enabled
+Learn more
+Allow META REFRESH
+Baseline default: Disable
+Allow only approved domains to use ActiveX controls without prompt
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use ActiveX controls without prompt
+Baseline default: Enable
+Allow only approved domains to use the TDC ActiveX control
+Baseline default: Enabled
+Learn more
+Only allow approved domains to use the TDC ActiveX control
+Baseline default: Enable
+Allow script-initiated windows without size or position constraints
+Baseline default: Enabled
+Learn more
+Allow script-initiated windows without size or position constraints
+Baseline default: Disable
+Allow scripting of Internet Explorer WebBrowser controls
+Baseline default: Enabled
+Learn more
+Internet Explorer web browser control
+Baseline default: Disable
+Allow scriptlets
+Baseline default: Enabled
+Learn more
+Scriptlets
+Baseline default: Disable
+Allow updates to status bar via script
+Baseline default: Enabled
+Learn more
+Status bar updates via script
+Baseline default: Disable
+Allow VBScript to run in Internet Explorer
+Baseline default: Enabled
+Learn more
+Allow VBScript to run in Internet Explorer
+Baseline default: Disable
+Automatic prompting for file downloads
+Baseline default: Enabled
+Learn more
+Automatic prompting for file downloads
+Baseline default: Disable
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Download signed ActiveX controls
+Baseline default: Enabled
+Learn more
+Download signed ActiveX controls
+Baseline default: Disable
+Download unsigned ActiveX controls
+Baseline default: Enabled
+Learn more
+Download unsigned ActiveX controls
+Baseline default: Disable
+Enable dragging of content from different domains across windows
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains across windows
+Baseline default: Disable
+Enable dragging of content from different domains within a window
+Baseline default: Enabled
+Learn more
+Enable dragging of content from different domains within a window
+Baseline default: Disable
+Include local path when user is uploading files to a server
+Baseline default: Enabled
+Learn more
+Include local directory path when uploading files to a server
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: Disable Java
+Launching applications and files in an IFRAME
+Baseline default: Enabled
+Learn more
+Launching applications and files in an IFRAME
+Baseline default: Disable
+Logon options
+Baseline default: Enabled
+Learn more
+Logon options
+Baseline default: Anonymous logon
+Navigate windows and frames across different domains
+Baseline default: Enabled
+Learn more
+Navigate windows and frames across different domains
+Baseline default: Disable
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components not signed with Authenticode
+Baseline default: Disable
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Enabled
+Learn more
+Run .NET Framework-reliant components signed with Authenticode
+Baseline default: Disable
+Run ActiveX controls and plugins
+Baseline default: Enabled
+Learn more
+Run ActiveX controls and plugins
+Baseline default: Disable
+Script ActiveX controls marked safe for scripting
+Baseline default: Enabled
+Learn more
+Script ActiveX controls marked safe for scripting
+Baseline default: Disable
+Scripting of Java applets
+Baseline default: Enabled
+Learn more
+Scripting of Java applets
+Baseline default: Disable
+Show security warning for potentially unsafe files
+Baseline default: Enabled
+Learn more
+Launching programs and unsafe files
+Baseline default: Disable
+Turn on Cross-Site Scripting Filter
+Baseline default: Enabled
+Learn more
+Turn on Cross-Site Scripting (XSS) Filter
+Baseline default: Enabled
+Turn on Protected Mode
+Baseline default: Enabled
+Learn more
+Protected Mode
+Baseline default: Enabled
+Turn on SmartScreen Filter scan
+Baseline default: Enabled
+Learn more
+Use SmartScreen Filter
+Baseline default: Enabled
+Use Pop-up Blocker
+Baseline default: Enabled
+Learn more
+Use Pop-up Blocker
+Baseline default: Enabled
+Userdata persistence
+Baseline default: Enabled
+Learn more
+Userdata persistence
+Baseline default: Disable
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Enabled
+Learn more
+Web sites in less privileged Web content zones can navigate into this zone
+Baseline default: Disable
+Windows Components > Internet Explorer > Internet Control Panel > Security Page > Trusted Sites Zone
+Don't run antimalware programs against ActiveX controls
+Baseline default: Enabled
+Learn more
+Don't run antimalware programs against ActiveX controls
+Baseline default: Disable
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Enabled
+Learn more
+Initialize and script ActiveX controls not marked as safe
+Baseline default: Disable
+Java permissions
+Baseline default: Enabled
+Learn more
+Java permissions
+Baseline default: High safety
+Windows Components > Internet Explorer
+Prevent bypassing SmartScreen Filter warnings
+Baseline default: Enabled
+Learn more
+Prevent bypassing SmartScreen Filter warnings about files that are not commonly downloaded from the Internet
+Baseline default: Enabled
+Learn more
+Prevent managing SmartScreen Filter
+Baseline default: Enabled
+Learn more
+Select SmartScreen Filter mode
+Baseline default: On
+Prevent per-user installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to add/delete sites
+Baseline default: Enabled
+Learn more
+Security Zones: Do not allow users to change policies
+Baseline default: Enabled
+Learn more
+Security Zones: Use only machine settings
+Baseline default: Enabled
+Learn more
+Specify use of ActiveX Installer Service for installation of ActiveX controls
+Baseline default: Enabled
+Learn more
+Turn off Crash Detection
+Baseline default: Enabled
+Learn more
+Turn off the Security Settings Check feature
+Baseline default: Disabled
+Learn more
+Turn on the auto-complete feature for user names and passwords on forms (User)
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Add-on Management
+Remove "Run this time" button for outdated ActiveX controls in Internet Explorer
+Baseline default: Enabled
+Learn more
+Turn off blocking of outdated ActiveX controls for Internet Explorer
+Baseline default: Disabled
+Learn more
+Windows Components > Internet Explorer > Security Features
+Allow fallback to SSL 3.0 (Internet Explorer)
+Baseline default: Enabled
+Learn more
+Allow insecure fallback for:
+Baseline default: No Sites
+Windows Components > Internet Explorer > Security Features > Consistent Mime Handling
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Mime Sniffing Safety Feature
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > MK Protocol Security Restriction
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Notification bar
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Protection From Zone Elevation
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict ActiveX Install
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Restrict File Download
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Internet Explorer > Security Features > Scripted Window Security Restrictions
+Internet Explorer Processes
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > MAPS
+Configure the 'Block at First Sight' feature
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > Real-time Protection
+Turn on process scanning whenever real-time protection is enabled
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus > Scan
+Scan packed executables
+Baseline default: Enabled
+Learn more
+Windows Components > Microsoft Defender Antivirus
+Turn off routine remediation
+Baseline default: Disabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Connection Client
+Do not allow passwords to be saved
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Device and Resource Redirection
+Do not allow drive redirection
+Baseline default: Enabled
+Learn more
+Windows Components > Remote Desktop Services > Remote Desktop Session Host > Security
+Always prompt for password upon connection
+Baseline default: Enabled
+Learn more
+Require secure RPC communication
+Baseline default: Enabled
+Learn more
+Set client connection encryption level
+Baseline default: Enabled
+Learn more
+Encryption Level
+Baseline default: High Level
+Windows Components > RSS Feeds
+Prevent downloading of enclosures
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Logon Options
+Enable MPR notifications for the system
+Baseline default: Disabled
+Learn more
+Sign-in and lock last interactive user automatically after a restart
+Baseline default: Disabled
+Learn more
+Windows Components > Windows PowerShell
+Turn on PowerShell Script Block Logging
+Baseline default: Enabled
+Learn more
+Log script block invocation start / stop events:
+Baseline default: False
+Windows Components > Windows Remote Management (WinRM) > WinRM Client
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow Digest authentication
+Baseline default: Enabled
+Learn more
+Windows Components > Windows Remote Management (WinRM) > WinRM Service
+Allow Basic authentication
+Baseline default: Disabled
+Learn more
+Allow unencrypted traffic
+Baseline default: Disabled
+Learn more
+Disallow WinRM from storing RunAs credentials
+Baseline default: Enabled
+Learn more
+Auditing
+Account Logon Audit Credential Validation
+Baseline default: Success+ Failure
+Learn more
+Account Logon Logoff Audit Account Lockout
+Baseline default: Failure
+Learn more
+Account Logon Logoff Audit Group Membership
+Baseline default: Success
+Learn more
+Account Logon Logoff Audit Logon
+Baseline default: Success+ Failure
+Learn more
+Audit Authentication Policy Change
+Baseline default: Success
+Learn more
+Audit Changes to Audit Policy
+Baseline default: Success
+Learn more
+Audit File Share Access
+Baseline default: Success+ Failure
+Learn more
+Audit Other Logon Logoff Events
+Baseline default: Success+ Failure
+Learn more
+Audit Security Group Management
+Baseline default: Success
+Learn more
+Audit Security System Extension
+Baseline default: Success
+Learn more
+Audit Special Logon
+Baseline default: Success
+Learn more
+Audit User Account Management
+Baseline default: Success+ Failure
+Learn more
+Detailed Tracking Audit PNP Activity
+Baseline default: Success
+Learn more
+Detailed Tracking Audit Process Creation
+Baseline default: Success
+Learn more
+Object Access Audit Detailed File Share
+Baseline default: Failure
+Learn more
+Object Access Audit Other Object Access Events
+Baseline default: Success+ Failure
+Learn more
+Object Access Audit Removable Storage
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit MPSSVC Rule Level Policy Change
+Baseline default: Success+ Failure
+Learn more
+Policy Change Audit Other Policy Change Events
+Baseline default: Failure
+Learn more
+Privilege Use Audit Sensitive Privilege Use
+Baseline default: Success
+Learn more
+System Audit Other System Events
+Baseline default: Success+ Failure
+Learn more
+System Audit Security State Change
+Baseline default: Success
+Learn more
+System Audit System Integrity
+Baseline default: Success+ Failure
+Learn more
+Browser
+Allow Password Manager
+Baseline default: Block
+Learn more
+Allow Smart Screen
+Baseline default: Allow
+Learn more
+Prevent Cert Error Overrides
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override
+Baseline default: Enabled
+Learn more
+Prevent Smart Screen Prompt Override For Files
+Baseline default: Enabled
+Learn more
+Data Protection
+Allow Direct Memory Access
+Baseline default: Block
+Learn more
+Defender
+Allow Archive Scanning
+Baseline default: Allowed. Scans the archive files.
+Learn more
+Allow Behavior Monitoring
+Baseline default: Allowed. Turns on real-time behavior monitoring.
+Learn more
+Allow Cloud Protection
+Baseline default: Allowed. Turns on Cloud Protection.
+Learn more
+Allow Full Scan Removable Drive Scanning
+Baseline default: Allowed. Scans removable drives.
+Learn more
+Allow On Access Protection
+Baseline default: Allowed.
+Learn more
+Allow Realtime Monitoring
+Baseline default: Allowed. Turns on and runs the real-time monitoring service.
+Learn more
+Allow scanning of all downloaded files and attachments
+Baseline default: Allowed.
+Learn more
+Allow Script Scanning
+Baseline default: Allowed.
+Learn more
+Block execution of potentially obfuscated scripts
+Baseline default: Block
+Learn more
+Block Win32 API calls from Office macros
+Baseline default: Block
+Learn more
+Block Office communication application from creating child processes
+Baseline default: Block
+Learn more
+Block all Office applications from creating child processes
+Baseline default: Block
+Learn more
+Block JavaScript or VBScript from launching downloaded executable content
+Baseline default: Block
+Learn more
+Block untrusted and unsigned processes that run from USB
+Baseline default: Block
+Learn more
+Block Adobe Reader from creating child processes
+Baseline default: Block
+Learn more
+Block credential stealing from the Windows local security authority subsystem
+Baseline default: Block
+Learn more
+Block Office applications from creating executable content
+Baseline default: Block
+Learn more
+Block Office applications from injecting code into other processes
+Baseline default: Block
+Learn more
+Block executable content from email client and webmail
+Baseline default: Block
+Learn more
+Cloud Block Level
+Baseline default: High
+Learn more
+Cloud Extended Timeout
+Baseline default: Configured
+Value: 50
+Learn more
+Disable Local Admin Merge
+Baseline default: Disable Local Admin Merge
+Learn more
+Enable File Hash Computation
+Baseline default: Enable
+Learn more
+Enable Network Protection
+Baseline default: Enabled (block mode)
+Learn more
+Hide Exclusions From Local Admins
+Baseline default: If you enable this setting, local admins will no longer be able to see the exclusion list in Windows Security App or via PowerShell.
+Learn more
+PUA Protection
+Baseline default: PUA Protection on. Detected items are blocked. They will show in history along with other threats.
+Learn more
+Real Time Scan Direction
+Baseline default: Monitor all files (bi-directional).
+Learn more
+Submit Samples Consent
+Baseline default: Send all samples automatically.
+Learn more
+Device Guard
+Configure System Guard Launch
+Baseline default: Unmanaged Enables Secure Launch if supported by hardware
+Learn more
+Credential Guard
+Baseline default: (Enabled with UEFI lock) Turns on Credential Guard with UEFI lock.
+Learn more
+Enable Virtualization Based Security
+Baseline default: Enable virtualization based security.
+Learn more
+Require Platform Security Features
+Baseline default: Turns on VBS with Secure Boot.
+Learn more
+Device Lock
+Device Password Enabled
+Baseline default: Enabled
+Learn more
+Device Password History
+Baseline default: Configured
+Value: 24
+Learn more
+Min Device Password Length
+Baseline default: Configured
+Value: 14
+Learn more
+Dma Guard
+Device Enumeration Policy
+Baseline default: Block all (Most restrictive)
+Learn more
+Experience
+Allow Windows Spotlight (User)
+Baseline default: Allow
+Learn more
+Allow Windows Consumer Features
+Baseline default: Block
+Learn more
+Allow Third Party Suggestions In Windows Spotlight (User)
+Baseline default: Block
+Learn more
+Firewall
+Enable Domain Network Firewall
+Baseline default: True
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Inbound Action for Domain Profile
+Baseline default: Block
+Learn more
+Enable Private Network Firewall
+Baseline default: True
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Inbound Action for Private Profile
+Baseline default: Block
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Enable Public Network Firewall
+Baseline default: True
+Learn more
+Enable Log Dropped Packets
+Baseline default: Enable Logging Of Dropped Packets
+Learn more
+Log Max File Size
+Baseline default: 16384
+Learn more
+Default Outbound Action
+Baseline default: Allow
+Learn more
+Disable Inbound Notifications
+Baseline default: True
+Learn more
+Default Inbound Action for Public Profile
+Baseline default: Block
+Learn more
+Allow Local Policy Merge
+Baseline default: False
+Learn more
+Enable Log Success Connections
+Baseline default: Enable Logging Of Successful Connections
+Learn more
+Allow Local Ipsec Policy Merge
+Baseline default: False
+Learn more
+Lanman Workstation
+Enable Insecure Guest Logons
+Baseline default: Disabled
+Learn more
+Local Policies Security Options
+Accounts Limit Local Account Use Of Blank Passwords To Console Logon Only
+Baseline default: Enabled
+Learn more
+Interactive Logon Machine Inactivity Limit
+Baseline default: Configured
+Value: 900
+Learn more
+Interactive Logon Smart Card Removal Behavior
+Baseline default: Lock Workstation
+Learn more
+Microsoft Network Client Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Microsoft Network Client Send Unencrypted Password To Third Party SMB Servers
+Baseline default: Disable
+Learn more
+Microsoft Network Server Digitally Sign Communications Always
+Baseline default: Enable
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of SAM Accounts
+Baseline default: Enabled
+Learn more
+Network Access Do Not Allow Anonymous Enumeration Of Sam Accounts And Shares
+Baseline default: Enabled
+Learn more
+Network Access Restrict Anonymous Access To Named Pipes And Shares
+Baseline default Enable
+Learn more
+Network Access Restrict Clients Allowed To Make Remote Calls To SAM
+Baseline default: Configured
+Value: O:BAG:BAD:(A;;RC;;;BA)
+Learn more
+Network Security Do Not Store LAN Manager Hash Value On Next Password Change
+Baseline default: Enable
+Learn more
+Network Security LAN Manager Authentication Level
+Baseline default: Send LM and NTLMv2 responses only. Refuse LM and NTLM
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Clients
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+Network Security Minimum Session Security For NTLMSSP Based Servers
+Baseline default: Require NTLM and 128-bit encryption
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Administrators
+Baseline default: Prompt for consent on the secure desktop
+Learn more
+User Account Control Behavior Of The Elevation Prompt For Standard Users
+Baseline default: Automatically deny elevation requests
+Learn more
+User Account Control Detect Application Installations And Prompt For Elevation
+Baseline default: Enable
+Learn more
+User Account Control Only Elevate UI Access Applications That Are Installed In Secure Locations
+Baseline default: Enabled: Application runs with UIAccess integrity only if it resides in secure location.
+Learn more
+User Account Control Run All Administrators In Admin Approval Mode
+Baseline default: Enabled
+Learn more
+User Account Control Use Admin Approval Mode
+Baseline default: Enable
+Learn more
+User Account Control Virtualize File And Registry Write Failures To Per User Locations
+Baseline default: Enabled
+Learn more
+Local Security Authority
+Configure Lsa Protected Process
+Baseline default: Enabled with UEFI lock. LSA will run as protected process and this configuration is UEFI locked.
+Learn more
+Microsoft App Store
+Allow Game DVR
+Baseline default: Block
+Learn more
+MSI Allow User Control Over Install
+Baseline default: Disabled
+Learn more
+MSI Always Install With Elevated Privileges
+Baseline default: Disabled
+Learn more
+Microsoft Edge
+SmartScreen settings
+Configure Microsoft Defender SmartScreen
+Baseline default: Enabled
+Prevent bypassing Microsoft Defender SmartScreen prompts for sites
+Baseline default: Enabled
+Privacy
+Let Apps Activate With Voice Above Lock
+Baseline default: Force deny. Windows apps cannot be activated by voice while the screen is locked, and users cannot change it.
+Learn more
+Search
+Allow Indexing Encrypted Stores Or Items
+Baseline default: Block
+Learn more
+Smart Screen
+Enable Smart Screen In Shell
+Baseline default: Enabled
+Learn more
+Prevent Override For Files In Shell
+Baseline default: Enabled
+Learn more
+Enhanced Phishing Protection
+Notify Malicious
+Baseline default: Enabled
+Notify Password Reuse
+Baseline default: Enabled
+Notify Unsafe App
+Baseline default: Enabled
+Service Enabled
+Baseline default: Enabled
+System Services
+Configure Xbox Accessory Management Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Auth Manager Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Game Save Service Startup Mode
+Baseline default: Disabled
+Learn more
+Configure Xbox Live Networking Service Startup Mode
+Baseline default: Disabled
+Learn more
+Task Scheduler
+Enable Xbox Game Save Task
+Baseline default: Disabled
+Learn more
+User Rights
+Access From Network
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Remote Desktop Users (*S-1-5-32-555) Learn more
+Allow Local Log On
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Users (*S-1-5-32-545) Learn more
+Backup Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Create Global Objects
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Local Service (*S-1-5-19), Network Service (*S-1-5-20), Service (*S-1-5-6) Learn more
+Create Page File
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Debug Programs
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Deny Access From Network
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113) Learn more
+Deny Remote Desktop Services Log On
+Baseline default: Configured
+Value: NT AUTHORITY\Local Account (*S-1-5-113) Learn more
+Impersonate Client
+Baseline default: Configured
+Values: Administrators (*S-1-5-32-544), Service (*S-1-5-6), Local Service (*S-1-5-19), Network Service (*S-1-5-20) Learn more
+Load Unload Device Drivers
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Manage Auditing And Security Log
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Manage Volume
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Modify Firmware Environment
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Profile Single Process
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Remote Shutdown
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Restore Files And Directories
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Take Ownership
+Baseline default: Configured
+Value: Administrators (*S-1-5-32-544) Learn more
+Virtualization Based Technology
+Hypervisor Enforced Code Integrity
+Baseline default: (Enabled with UEFI lock) Turns on Hypervisor-Protected Code Integrity with UEFI lock.
+Learn more
+Wi-Fi Settings
+Allow Auto Connect To Wi Fi Sense Hotspots
+Baseline default: Block
+Learn more
+Allow Internet Sharing
+Baseline default: Block
+Learn more
+Windows Hello For Business
+Facial Features Use Enhanced Anti Spoofing
+Baseline default: true
+Learn more
+Windows Ink Workspace
+Allow Windows Ink Workspace
+Baseline default: Ink workspace is enabled (feature is turned on), but the user cannot access it above the lock screen.
+Learn more
+LAPS
+Backup Directory
+Baseline default: Backup the password to Azure AD only
+Learn more
+Security Baseline for Windows, November 2021
+Security Baseline for Windows, December 2020
+Security Baseline for Windows, August 2020
+Above Lock
+Voice activate apps from locked screen
+Baseline default: Disabled
+Learn More
+Block display of toast notifications
+Baseline default: Yes
+Learn More
+App Runtime
+Microsoft accounts optional for Microsoft store apps
+Baseline default: Enabled
+Learn more
+Application Management
+Block app installations with elevated privileges
+Baseline default: Yes
+Learn more
+Block user control over installations
+Baseline default: Yes
+Learn more
+Block game DVR (desktop only)
+Baseline default: Yes
+Learn more
+Audit
+Audit settings configure the events that are generated for the conditions of the setting.
+Account Logon Audit Credential Validation (Device)
+Baseline default: Success and Failure
+Account Logon Audit Kerberos Authentication Service (Device)
+Baseline default: None
+Account Logon Logoff Audit Account Lockout (Device)
+Baseline default: Failure
+Account Logon Logoff Audit Group Membership (Device)
+Baseline default: Success
+Account Logon Logoff Audit Logon (Device)
+Baseline default: Success and Failure
+Audit Other Logon Logoff Events (Device)
+Baseline default: Success and Failure
+Audit Special Logon (Device)
+Baseline default: Success
+Audit Security Group Management (Device)
+Baseline default: Success
+Audit User Account Management (Device)
+Baseline default: Success and Failure
+Detailed Tracking Audit PNP Activity (Device)
+Baseline default: Success
+Detailed Tracking Audit Process Creation (Device)
+Baseline default: Success
+Object Access Audit Detailed File Share (Device)
+Baseline default: Failure
+Audit File Share Access (Device)
+Baseline default: Success and Failure
+Object Access Audit Other Object Access Events (Device)
+Baseline default: Success and Failure
+Object Access Audit Removable Storage (Device)
+Baseline default: Success and Failure
+Audit Authentication Policy Change (Device)
+Baseline default: Success
+Policy Change Audit MPSSVC Rule Level Policy Change (Device)
+Baseline default: Success and Failure
+Policy Change Audit Other Policy Change Events (Device)
+Baseline default: Failure
+Audit Changes to Audit Policy (Device)
+Baseline default: Success
+Privilege Use Audit Sensitive Privilege Use (Device)
+Baseline default: Success and Failure
+System Audit Other System Events (Device)
+Baseline default: Success and Failure
+System Audit Security State Change (Device)
+Baseline default: Success
+Audit Security System Extension (Device)
+Baseline default: Success
+System Audit System Integrity (Device)
+Baseline default: Success and Failure
+Auto Play
+Auto play default auto run behavior
+Baseline default: Do not execute
+Learn more
+Auto play mode
+Baseline default: Disabled
+Learn more
+Block auto play for non-volume devices
+Baseline default: Enabled
+Learn more
+BitLocker
+BitLocker removable drive policy
+Baseline default: Configure
+Learn more
+Block write access to removable data-drives not protected by BitLocker
+Baseline default: Yes
+Learn more
+Browser
+Block Password Manager
+Baseline default: Yes
+Learn more
+Require SmartScreen for Microsoft Edge Legacy
+Baseline default: Yes
+Learn more
+Block malicious site access
+Baseline default: Yes
+Learn more
+Block unverified file download
+Baseline default: Yes
+Learn more
+Prevent user from overriding certificate errors
+Baseline default: Yes
+Learn more
+Connectivity
+Configure secure access to UNC paths
+Baseline default: Configure Windows to only allow access to the specified UNC paths after fulfilling additional security requirements
+Learn more
+Hardened UNC path list
+Baseline default: Not configured by default. Manually add one or more hardened UNC paths.
+Block downloading of print drivers over HTTP
+Baseline default: Enabled
+Learn more
+Block Internet download for web publishing and online ordering wizards
+Baseline default: Enabled
+Learn more
+Credentials Delegation
+Remote host delegation of non-exportable credentials
+Baseline default: Enabled
+Learn more
+Credentials UI
+Enumerate administrators
+Baseline default: Disabled
+Learn more
+Data Protection
+Block direct memory access
+Baseline default: Yes Learn more
+Device Guard
+Virtualization based security
+Baseline default: Enable VBS with secure boot
+Enable virtualization based security
+Baseline default: Yes
+Learn more
+Launch system guard
+Baseline default: Enabled
+Turn on credential guard
+Baseline default: Enable with UEFI lock
+Learn more
+Device Installation
+Block hardware device installation by setup classes
+Baseline default: Yes
+Learn more
+Remove matching hardware devices
+Baseline default: Yes
+Block list
+Baseline default: Not configured by default. Manually add one or more Identifiers.
+Hardware device installation by device identifiers
+Baseline default: Block hardware device installation
+Learn more
+Remove matching hardware devices
+Baseline default: Yes
+Hardware device identifiers that are blocked
+Baseline default: Yes
+Hardware device installation by setup classes
+Baseline default: Block hardware device installation
+Learn more
+Remove matching hardware devices
+Baseline default: No default configuration
+Hardware device identifiers that are blocked
+Baseline default: No default configuration
+Device Lock
+Require password
+Baseline default: Yes
+Learn more
+Required password
+Baseline default: Alphanumeric
+Learn more
+Password expiration (days)
+Baseline default: 60
+Learn more
+Password minimum character set count
+Baseline default: 3
+Learn more
+Prevent reuse of previous passwords
+Baseline default: 24
+Learn more
+Minimum password length
+Baseline default: 8
+Learn more
+Number of sign-in failures before wiping device
+Baseline default: 10
+Learn more
+Block simple passwords
+Baseline default: Yes
+Learn more
+Password minimum age in days
+Baseline default: 1
+Learn more
+Prevent use of camera
+Baseline default: Enabled
+Learn more
+Prevent slide show
+Baseline default: Enabled
+Learn more
+DMA Guard
+Enumeration of external devices incompatible with Kernel DMA Protection
+Baseline default: Block all
+Event Log Service
+Application log maximum file size in KB
+Baseline default: 32768
+Learn more
+System log maximum file size in KB
+Baseline default: 32768
+Learn more
+Security log maximum file size in KB
+Baseline default: 196608
+Learn more
+Experience
+Block Windows Spotlight
+Baseline default: Yes
+Learn more
+Block third-party suggestions in Windows Spotlight
+Baseline default: Not configured
+Learn more
+Block consumer specific features
+Baseline default: Not configured
+Learn more
+Exploit Guard
+Upload XML
+Baseline default: Sample xml is provided
+Learn more
+File Explorer
+Block data execution prevention
+Baseline default: Disabled
+Learn more
+Block heap termination on corruption
+Baseline default: Disabled
+Learn more
+Firewall
+For more information, see 2.2.2 FW_PROFILE_TYPE in the Windows Protocols documentation.
+Firewall profile domain
+Baseline default: Configure
+Learn more
+Inbound connections blocked
+Baseline default: Yes
+Learn more
+Outbound connections required
+Baseline default: Yes
+Learn more
+Inbound notifications blocked
+Baseline default: Yes
+Learn more
+Firewall enabled
+Baseline default: Allowed
+Learn more
+Firewall profile private
+Baseline default: Configure
+Learn more
+Inbound connections blocked
+Baseline default: Yes
+Learn more
+Outbound connections required
+Baseline default: Yes
+Learn more
+Inbound notifications blocked
+Baseline default: Yes
+Learn more
+Firewall enabled
+Baseline default: Allowed
+Learn more
+Firewall profile public
+Baseline default: Configure
+Learn more
+Inbound connections blocked
+Baseline default: Yes
+Learn more
+Outbound connections required
+Baseline default: Yes
+Learn more
+Inbound notifications blocked
+Baseline default: Yes
+Learn more
+Firewall enabled
+Baseline default: Allowed
+Learn more
+Connection security rules from group policy not merged
+Baseline default: Yes
+Learn more
+Policy rules from group policy not merged
+Baseline default: Yes
+Learn more
+Internet Explorer
+Internet Explorer encryption support
+Baseline default: Two items: TLS v1.1 and TLS v1.2
+Learn more
+Internet Explorer prevent managing smart screen filter
+Baseline default: Enable
+Learn more
+Internet Explorer restricted zone script Active X controls marked safe for scripting
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone file downloads
+Baseline default: Disable
+Learn more
+Internet Explorer certificate address mismatch warning
+Baseline default: Enabled
+Learn more
+Internet Explorer enhanced protected mode
+Baseline default: Enabled
+Learn more
+Internet Explorer fallback to SSL3
+Baseline default: No sites
+Learn more
+Internet Explorer software when signature is invalid
+Baseline default: Disabled
+Learn more
+Internet Explorer check server certificate revocation
+Baseline default: Enabled
+Learn more
+Internet Explorer check signatures on downloaded programs
+Baseline default: Enabled
+Learn more
+Internet Explorer processes consistent MIME handling
+Baseline default: Enable
+Learn more
+Internet Explorer bypass smart screen warnings
+Baseline default: Disabled
+Learn more
+Internet Explorer bypass smart screen warnings about uncommon files
+Baseline default: Disable
+Learn more
+Internet Explorer crash detection
+Baseline default: Disabled
+Learn more
+Internet Explorer download enclosures
+Baseline default: Disabled
+Learn more
+Internet Explorer ignore certificate errors
+Baseline default: Disabled
+Learn more
+Internet Explorer disable processes in enhanced protected mode
+Baseline default: Enabled
+Learn more
+Internet Explorer security settings check
+Baseline default: Enabled
+Learn more
+Internet Explorer Active X controls in protected mode
+Baseline default: Disabled
+Learn more
+Internet Explorer users adding sites
+Baseline default: Disabled
+Learn more
+Internet Explorer users changing policies
+Baseline default: Disabled
+Learn more
+Internet Explorer block outdated Active X controls
+Baseline default: Enabled
+Learn more
+Internet Explorer include all network paths
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone access to data sources
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone automatic prompt for file downloads
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone copy and paste via script
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone drag and drop or copy and paste files
+Baseline default: Disabled . Learn more
+Internet Explorer internet zone less privileged sites
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone loading of XAML files
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone .NET Framework reliant components
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone allow only approved domains to use ActiveX controls
+Baseline default: Enabled
+Learn more
+Internet Explorer internet zone allow only approved domains to use tdc ActiveX controls
+Baseline default: Enabled
+Learn more
+Internet Explorer internet zone scripting of web browser controls
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone script initiated windows
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone scriptlets
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone smart screen
+Baseline default: Enabled
+Learn more
+Internet Explorer internet zone updates to status bar via script
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone user data persistence
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone allow VBscript to run
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone do not run antimalware against ActiveX controls
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone download signed ActiveX controls
+Baseline default: Disable Baseline default: Disable
+Learn more
+Internet Explorer internet zone download unsigned ActiveX controls
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone cross site scripting filter
+Baseline default: Enabled
+Learn more
+Internet Explorer internet zone drag content from different domains across windows
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone drag content from different domains within windows
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone protected mode
+Baseline default: Enable
+Learn more
+Internet Explorer internet zone include local path when uploading files to server
+Baseline default: Disabled
+Learn more
+Internet Explorer internet zone initialize and script Active X controls not marked as safe
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer internet zone launch applications and files in an iframe
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone logon options
+Baseline default: Prompt
+Learn more
+Internet Explorer internet zone navigate windows and frames across different domains
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone run .NET Framework reliant components signed with Authenticode
+Baseline default: Disable
+Learn more
+Internet Explorer internet zone security warning for potentially unsafe files
+Baseline default: Prompt
+Learn more
+Internet Explorer internet zone popup blocker
+Baseline default: Enable
+Learn more
+Internet Explorer intranet zone do not run antimalware against Active X controls
+Baseline default: Disabled
+Learn more
+Internet Explorer intranet zone initialize and script Active X controls not marked as safe
+Baseline default: Disable
+Learn more
+Internet Explorer intranet zone java permissions
+Baseline default: High safety
+Learn more
+Internet Explorer local machine zone do not run antimalware against Active X controls
+Baseline default: Disabled
+Learn more
+Internet Explorer local machine zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer locked down internet zone smart screen
+Baseline default: Enabled . Learn more
+Internet Explorer locked down intranet zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer locked down local machine zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer locked down restricted zone smart screen
+Baseline default: Enabled
+Learn more
+Internet Explorer locked down restricted zone java permissions
+Baseline default: Disable Java
+Learn more
+Internet Explorer locked down trusted zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer processes MIME sniffing safety feature
+Baseline default: Enable
+Learn more
+Internet Explorer processes MK protocol security restriction
+Baseline default: Enabled
+Learn more
+Internet Explorer processes notification bar
+Baseline default: Enabled
+Learn more
+Internet Explorer prevent per user installation of Active X controls
+Baseline default: Enabled
+Learn more
+Internet Explorer processes protection from zone elevation
+Baseline default: Enabled
+Learn more
+Internet Explorer remove run this time button for outdated Active X controls
+Baseline default: Enabled
+Learn more
+Internet Explorer processes restrict Active X install
+Baseline default: Enabled
+Learn more
+Internet Explorer restricted zone access to data sources
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone active scripting
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone automatic prompt for file downloads
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone binary and script behaviors
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone copy and paste via script
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone drag and drop or copy and paste files
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone less privileged sites
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone loading of XAML files
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone meta refresh
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone .NET Framework reliant components
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone allow only approved domains to use Active X controls
+Baseline default: Enabled
+Learn more
+Internet Explorer restricted zone allow only approved domains to use tdc Active X controls
+Baseline default: Enabled
+Learn more
+Internet Explorer restricted zone scripting of web browser controls
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone script initiated windows
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone scriptlets
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone smart screen
+Baseline default: Enabled
+Learn more
+Internet Explorer restricted zone updates to status bar via script
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone user data persistence
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone allow vbscript to run
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone do not run antimalware against Active X controls
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone download signed Active X controls
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone download unsigned Active X controls
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone cross site scripting filter
+Baseline default: Enabled
+Learn more
+Internet Explorer restricted zone drag content from different domains across windows
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone drag content from different domains within windows
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone include local path when uploading files to server
+Baseline default: Disabled
+Learn more
+Internet Explorer restricted zone initialize and script Active X controls not marked as safe
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone java permissions
+Baseline default: Disable java
+Learn more
+Internet Explorer restricted zone launch applications and files in an iFrame
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone logon options
+Baseline default: Anonymous
+Learn more
+Internet Explorer restricted zone navigate windows and frames across different domains
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone run Active X controls and plugins
+Baseline default: Disable . Learn more
+Internet Explorer restricted zone run .NET Framework reliant components signed with Authenticode
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone scripting of java applets
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone security warning for potentially unsafe files
+Baseline default: Disable
+Learn more
+Internet Explorer restricted zone protected mode
+Baseline default: Enable
+Learn more
+Internet Explorer restricted zone popup blocker
+Baseline default: Enable
+Learn more
+Internet Explorer processes restrict file download
+Baseline default: Enabled
+Learn more
+Internet Explorer processes scripted window security restrictions
+Baseline default: Enabled
+Learn more
+Internet Explorer security zones use only machine settings
+Baseline default: Enabled
+Learn more
+Internet Explorer use Active X installer service
+Baseline default: Enabled
+Learn more
+Internet Explorer trusted zone do not run antimalware against Active X controls
+Baseline default: Disabled
+Learn more
+Internet Explorer trusted zone initialize and script Active X controls not marked as safe
+Baseline default: Disable
+Learn more
+Internet Explorer trusted zone java permissions
+Baseline default: High safety
+Learn more
+Internet Explorer auto complete
+Baseline default: Disabled
+Learn more
+Local Policies Security Options
+Block remote logon with blank password
+Baseline default: Yes
+Learn more
+Minutes of lock screen inactivity until screen saver activates
+Baseline default: 15
+Learn more
+Smart card removal behavior
+Baseline default: Lock workstation
+Learn more
+Require client to always digitally sign communications
+Baseline default: Yes
+Learn more
+Prevent clients from sending unencrypted passwords to third party SMB servers
+Baseline default: Yes
+Learn more
+Require server digitally signing communications always
+Baseline default: Yes
+Learn more
+Prevent anonymous enumeration of SAM accounts
+Baseline default: Yes
+Learn more
+Block anonymous enumeration of SAM accounts and shares
+Baseline default: Yes
+Learn more
+Restrict anonymous access to named pipes and shares
+Baseline default: Yes
+Learn more
+Allow remote calls to security accounts manager
+Baseline default: O:BAG:BAD:(A;;RC;;;BA)
+Learn more
+Prevent storing LAN manager hash value on next password change
+Baseline default: Yes
+Learn more
+Authentication level
+Baseline default: Send NTLMv2 response only. Refuse LM and NTLM
+Learn more
+Minimum session security for NTLM SSP based clients
+Baseline default: Require NTLM V2 128 encryption
+Learn more
+Minimum session security for NTLM SSP based servers
+Baseline default: Require NTLM V2 and 128 bit encryption
+Learn more
+Administrator elevation prompt behavior
+Baseline default: Prompt for consent on the secure desktop
+Learn more
+Standard user elevation prompt behavior
+Baseline default: Automatically deny elevation requests
+Learn more
+Detect application installations and prompt for elevation
+Baseline default: Yes
+Learn more
+Only allow UI access applications for secure locations
+Baseline default: Yes
+Learn more
+Require admin approval mode for administrators
+Baseline default: Yes
+Learn more
+Use admin approval mode
+Baseline default: Yes
+Learn more
+Virtualize file and registry write failures to per user locations
+Baseline default: Yes
+Learn more
+Microsoft Defender
+Block Adobe Reader from creating child processes
+Baseline default: Enable
+Learn more
+Block Office communication apps launch in a child process
+Baseline default: Enable
+Learn more
+Enter how often (0-24 hours) to check for security intelligence updates
+Baseline default: 4
+Learn more
+Scan type
+Baseline default: Quick scan
+Learn more
+Defender schedule scan day
+Baseline default: Everyday
+Defender scan start time
+Baseline default: Not configured
+Cloud-delivered protection level
+Baseline default: Not Configured
+Learn more
+Scan network files
+Baseline default: Yes
+Learn more
+Turn on real-time protection
+Baseline default: Yes
+Learn more
+Scan scripts that are used in Microsoft browsers
+Baseline default: Yes
+Learn more
+Scan archive files
+Baseline default: Yes
+Learn more
+Turn on behavior monitoring
+Baseline default: Yes
+Learn more
+Turn on cloud-delivered protection
+Baseline default: Yes
+Learn more
+Scan incoming mail messages
+Baseline default: Yes
+Learn more
+Scan removable drives during a full scan
+Baseline default: Yes
+Learn more
+Block Office applications from injecting code into other processes
+Baseline default: Block
+Learn more
+Block Office applications from creating executable content
+Baseline default: Block
+Learn more
+Block all Office applications from creating child processes
+Baseline default: Block
+Learn more
+Block Win32 API calls from Office macro
+Baseline default: Block
+Learn more
+Block execution of potentially obfuscated scripts (js/vbs/ps)
+Baseline default: Block
+Learn more
+Block JavaScript or VBScript from launching downloaded executable content
+Baseline default: Block
+Learn more
+Block executable content download from email and webmail clients
+Baseline default: Block
+Learn more
+Block credential stealing from the Windows local security authority subsystem (lsass.exe)
+Baseline default: Enable
+Learn more
+Defender potentially unwanted app action
+Baseline default: Block
+Learn more
+Block untrusted and unsigned processes that run from USB
+Baseline default: Block
+Learn more
+Enable network protection
+Baseline default: Enable
+Learn more
+Defender sample submission consent type
+Baseline default: Send safe samples automatically
+Learn more
+Block Adobe Reader from creating child processes
+Baseline default: Enable
+Learn more
+Block Office communication apps launch in a child process
+Baseline default: Enable
+Learn more
+Enter how often (0-24 hours) to check for security intelligence updates
+Baseline default: 4
+Learn more
+Scan type
+Baseline default: Quick scan
+Learn more
+Defender schedule scan day
+Baseline default: Everyday
+Cloud-delivered protection level
+Baseline default: Not Configured
+Learn more
+Scan network files
+Baseline default: Yes
+Learn more
+Turn on real-time protection
+Baseline default: Yes
+Learn more
+Scan scripts that are used in Microsoft browsers
+Baseline default: Yes
+Learn more
+Scan archive files
+Baseline default: Yes
+Learn more
+Turn on behavior monitoring
+Baseline default: Yes
+Learn more
+Turn on cloud-delivered protection
+Baseline default: Yes
+Learn more
+Scan incoming mail messages
+Baseline default: Yes
+Learn more
+Scan removable drives during a full scan
+Baseline default: Yes
+Learn more
+Block Office applications from injecting code into other processes
+Baseline default: Block
+Learn more
+Block Office applications from creating executable content
+Baseline default: Block
+Learn more
+Block all Office applications from creating child processes
+Baseline default: Block
+Learn more
+Block Win32 API calls from Office macro
+Baseline default: Block
+Learn more
+Block execution of potentially obfuscated scripts (js/vbs/ps)
+Baseline default: Block
+Learn more
+Block JavaScript or VBScript from launching downloaded executable content
+Baseline default: Block
+Learn more
+Block executable content download from email and webmail clients
+Baseline default: Block
+Learn more
+Block credential stealing from the Windows local security authority subsystem (lsass.exe)
+Baseline default: Enable
+Learn more
+Defender potentially unwanted app action
+Baseline default: Block
+Learn more
+Block untrusted and unsigned processes that run from USB
+Baseline default: Block
+Learn more
+Enable network protection
+Baseline default: Enable
+Learn more
+Defender sample submission consent type
+Baseline default: Send safe samples automatically
+Learn more
+MS Security Guide
+SMB v1 client driver start configuration
+Baseline default: Disabled driver
+Learn more
+Apply UAC restrictions to local accounts on network logon
+Baseline default: Enabled
+Learn more
+Structured exception handling overwrite protection
+Baseline default: Enabled
+Learn more
+SMB v1 server
+Baseline default: Disabled
+Learn more
+Digest authentication
+Baseline default: Disabled
+Learn more
+MSS Legacy
+Network IPv6 source routing protection level
+Baseline default: Highest protection
+Learn more
+Network IP source routing protection level
+Baseline default: Highest protection
+Learn more
+Network ignore NetBIOS name release requests except from WINS servers
+Baseline default: Enabled
+Learn more
+Network ICMP redirects override OSPF generated routes
+Baseline default: Disabled
+Learn more
+Power
+Require password on wake while on battery
+Baseline default: Enabled
+Learn more
+Require password on wake while plugged in
+Baseline default: Enabled
+Learn more
+Standby states when sleeping while on battery
+Baseline default: Disabled
+Learn more
+Standby states when sleeping while plugged in
+Baseline default: Disabled
+Learn more
+Remote Assistance
+Remote Assistance solicited
+Baseline default: Disable Remote Assistance
+Learn more
+Remote Desktop Services
+Remote desktop services client connection encryption level
+Baseline default: High
+Learn more
+Block drive redirection
+Baseline default: Enabled
+Block password saving
+Baseline default: Enabled
+Learn more
+Prompt for password upon connection
+Baseline default: Enabled
+Learn more
+Secure RPC communication
+Baseline default: Enabled
+Learn more
+Remote Management
+Block client digest authentication
+Baseline default: Enabled
+Learn more
+Block storing run as credentials
+Baseline default: Enabled
+Learn more
+Client basic authentication
+Baseline default: Disabled
+Learn more
+Basic authentication
+Baseline default: Disabled
+Learn more
+Client unencrypted traffic
+Baseline default: Disabled
+Learn more
+Unencrypted traffic
+Baseline default: Disabled
+Learn more
+Remote Procedure Call
+RPC unauthenticated client options
+Baseline default: Authenticated
+Learn more
+Search
+Disable indexing encrypted items
+Baseline default: Yes
+Learn more
+Smart Screen
+Turn on Windows SmartScreen
+Baseline default: Yes
+Learn more
+Block users from ignoring SmartScreen warnings
+Baseline default: Yes
+Learn more
+System
+System boot start driver initialization
+Baseline default: Good unknown and bad critical
+Learn more
+Wi-Fi
+Block Automatically connecting to Wi-Fi hotspots
+Baseline default: Yes
+Learn more
+Block Internet sharing
+Baseline default: Yes
+Learn more
+Windows Connection Manager
+Block connection to non-domain networks
+Baseline default: Enabled
+Learn more
+Windows Ink Workspace
+Ink Workspace
+Baseline default: Enabled
+Learn more
+Windows PowerShell
+PowerShell script block logging
+Baseline default: Enabled
+Learn more
+Next steps
+Learn about security baselines
+Avoid conflicts
+Troubleshoot policies and profiles in Intune
+Feedback
+Was this page helpful?
+Yes No No
+Need help with this topic?
+Want to try using Ask Learn to clarify or guide you through this topic?
+Ask Learn Ask Learn
+Suggest a fix?
+Additional resources
+Last updated on 2026-04-15
+In this article
+Was this page helpful?
+Yes No No
+Need help with this topic?
+Want to try using Ask Learn to clarify or guide you through this topic?
+Ask Learn Ask Learn
+Suggest a fix?
+en-us
+Your Privacy Choices
+Theme
+Light
+Dark
+High contrast
+AI Disclaimer
+Previous Versions
+Blog
+Contribute
+Privacy
+Consumer Health Privacy
+Terms of Use
+Trademarks
+© Microsoft 2026

@@ -1,0 +1,756 @@
+BSI - IT-Grundschutz-Bausteine (Edition 2023)
+
+ Navigation und Service
+
+ Springe direkt zu:
+
+- Inhalt
+
+- Hauptmenü
+
+- Suche
+
+ Menü
+
+- Menü
+
+ Servicemenü
+
+ Servicemenue
+
+-
+
+ Kon­takt
+
+-
+
+ English
+
+-
+
+ Ge­bär­den­spra­che
+
+-
+
+ Leich­te Spra­che
+
+-
+
+ Nut­zungs­be­din­gun­gen
+
+-
+
+ Log­in
+
+ Hauptmenü
+
+-
+
+ Das BSI
+
+ Das BSI
+
+-
+
+ Cy­ber­na­ti­on Deutsch­land
+
+-
+
+ Auf­trag
+
+-
+
+ Or­ga­ni­sa­ti­on und Auf­bau
+
+-
+
+ Leit­bild
+
+-
+
+ Zeit­strahl
+
+-
+
+ BSI Stand­orte
+
+-
+
+ Um­welt­er­klä­rung
+
+-
+
+ The­men
+
+ Alle Themen
+
+-
+
+ Staat und Ver­wal­tung
+
+ Unsere Top-Themen
+
+-
+
+ Na­tio­na­les IT-La­ge­zen­trum
+
+-
+
+ CERT-Bund
+
+-
+
+ Zu­sam­men­ar­beit mit Bund und Län­dern
+
+-
+
+ Si­cher­heits­be­ra­tung
+
+-
+
+ Min­dest­stan­dards Bund
+
+ Alle Themen
+
+-
+
+ Un­ter­neh­men und Or­ga­ni­sa­tio­nen
+
+ Unsere Top-Themen
+
+-
+
+ Grund­schutz in der In­for­ma­ti­ons­si­cher­heit
+
+-
+
+ Thre­at In­tel­li­gence
+
+-
+
+ IT-Si­cher­heits­kenn­zei­chen
+
+-
+
+ Zer­ti­fi­zie­rung und An­er­ken­nung
+
+-
+
+ Ran­som­wa­re An­grif­fe
+
+ Alle Themen
+
+-
+
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+ Unsere Top-Themen
+
+-
+
+ Si­cher­heit beim On­li­neshop­ping
+
+-
+
+ On­line-Ac­count ab­si­chern
+
+-
+
+ Be­dro­hun­gen durch Cy­ber-Kri­mi­nel­le
+
+-
+
+ E-Mail, So­ci­al Me­dia, Mes­sen­ger und Co.
+
+-
+
+ Smart Me­te­ring & Ladein­fra­struk­tur
+
+ Alle Themen
+
+-
+
+ Re­gu­lier­te Wirt­schaft
+
+ Unsere Top-Themen
+
+-
+
+ NIS-2 - was tun?
+
+-
+
+ NIS-2-re­gu­lier­te Un­ter­neh­men
+
+-
+
+ Kri­ti­sche In­fra­struk­tu­ren (KRI­TIS)
+
+-
+
+ KRI­TIS-FAQ
+
+ Alle Themen
+
+-
+
+ IT-Si­cher­heits­vor­fall
+
+ IT-Sicherheitsvorfall
+
+-
+
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+-
+
+ Un­ter­neh­men
+
+-
+
+ Kri­ti­sche In­fra­struk­tu­ren und mel­de­pflich­ti­ge Un­ter­neh­men
+
+-
+
+ CVD-Richt­li­nie des BSI
+
+-
+
+ Kar­rie­re
+
+ Karriere
+
+-
+
+ Will­kom­men im #TeamB­SI
+
+-
+
+ Wa­rum BSI?
+
+-
+
+ Ar­bei­ten im BSI
+
+-
+
+ Ein­stieg
+
+-
+
+ FAQ
+
+-
+
+ Stel­len­an­ge­bo­te
+
+-
+
+ Ter­mi­ne
+
+-
+
+ Kon­takt Per­so­nal­ge­win­nung
+
+-
+
+ Ser­vice
+
+ Service
+
+-
+
+ Pres­se
+
+-
+
+ Mediathek
+
+-
+
+ Pu­bli­ka­tio­nen
+
+-
+
+ Newslet­ter und So­ci­al Me­dia
+
+-
+
+ Ver­an­stal­tun­gen
+
+-
+
+ Ver­ga­ben an Ex­ter­ne
+
+-
+
+ Die E-Rech­nung im BSI
+
+-
+
+ Kos­ten für Leis­tun­gen des BSI
+
+-
+
+ Kon­takt
+
+-
+
+ Fra­gen & Ant­wor­ten
+
+-
+
+ BSI-Portal
+
+ <abbr title=&#034;Bundesamt für Sicherheit in der Informationstechnik&#034;>BSI</abbr>-Portal
+
+-
+
+ SucheOeffnen
+
+ Suche
+
+ Suche
+
+ Häufig gesucht
+
+-
+
+ Regulierung nach NIS-2
+
+-
+
+ Gefährdungen durch Ransomware
+
+-
+
+ Zertifizierung Produkte & Personen (FAQ)
+
+-
+
+ Zertifizierung Common Criteria
+
+-
+
+ Elektronische Identitäten
+
+-
+
+ Digitaler Verbraucherschutz
+
+-
+
+ Technische Richtlinien
+
+-
+
+ Kritische Infrastrukturen
+
+-
+
+ Künstliche Intelligenz
+
+ Sie sind hier:
+
+-
+
+ Zur Startseite
+
+- &hellip;
+
+-
+ IT-Grundschutz
+
+-
+ IT-Grundschutz-Kompendium
+
+-
+ IT-Grundschutz-Bausteine
+
+ IT -Grundschutz-Bausteine
+
+ Edition 2023
+
+ Die folgenden PDF's befinden sich alle auf dem Stand der im Februar 2023 veröffentlichten Edition 2023.
+
+ IT -Grundschutz-Bausteine (Edition 2023) im PDF -Format als ZIP-Datei
+
+ IT -Grundschutz-Bausteine (Edition 2023) im MS -Word-Format als ZIP-Datei
+
+ Kreuzreferenztabellen zum IT -Grundschutz-Kompendium (Edition 2023) MS -Excel-Format
+
+ ISMS : Sicherheitsmanagement
+
+ ISMS .1 Sicherheitsmanagement
+
+ ORP: Organisation und Personal
+
+ ORP.1 Organisation
+
+ ORP.2 Personal
+
+ ORP.3 Sensibilisierung und Schulung zur Informationssicherheit
+
+ ORP.4 Identitäts- und Berechtigungsmanagement
+
+ ORP.5 Compliance Management (Anforderungsmanagement)
+
+ CON: Konzeption und Vorgehensweise
+
+ CON.1 Kryptokonzept
+
+ CON.2 Datenschutz
+
+ CON.3 Datensicherungskonzept
+
+ CON.6 Löschen und Vernichten
+
+ CON.7 Informationssicherheit auf Auslandsreisen
+
+ CON.8 Software -Entwicklung
+
+ CON.9 Informationsaustausch
+
+ CON.10 Entwicklung von Webanwendungen
+
+ CON.11.1 Geheimschutz VS-NUR FÜR DEN DIENSTGEBRAUCH ( VS-NfD )
+
+ OPS: Betrieb
+
+ OPS.1.1.1 Allgemeiner IT-Betrieb
+
+ OPS.1.1.2 Ordnungsgemäße IT -Administration
+
+ OPS.1.1.3 Patch - und Änderungsmanagement
+
+ OPS.1.1.4 Schutz vor Schadprogrammen
+
+ OPS.1.1.5 Protokollierung
+
+ OPS.1.1.6 Software -Tests und -Freigaben
+
+ OPS.1.1.7 Systemmanagement
+
+ OPS.1.2.2 Archivierung
+
+ OPS.1.2.4 Telearbeit
+
+ OPS.1.2.5 Fernwartung
+
+ OPS.1.2.6 NTP -Zeitsynchronisation
+
+ OPS.2.2 Cloud -Nutzung
+
+ OPS.2.3 Nutzung von Outsourcing
+
+ OPS.3.2 Anbieten von Outsourcing
+
+ DER: Detektion und Reaktion
+
+ DER.1 Detektion von sicherheitsrelevanten Ereignissen
+
+ DER.2.1 Behandlung von Sicherheitsvorfällen
+
+ DER.2.2 Vorsorge für die IT -Forensik
+
+ DER.2.3 Bereinigung weitreichender Sicherheitsvorfälle
+
+ DER.3.1 Audits und Revisionen
+
+ DER.3.2 Revision auf Basis des Leitfadens IS -Revision
+
+ DER.4 Notfallmanagement
+
+ APP: Anwendungen
+
+ APP.1.1 Office -Produkte
+
+ APP.1.2 Webbrowser
+
+ APP.1.4 Mobile Anwendung ( Apps )
+
+ APP.2.1 Allgemeiner Verzeichnisdienst
+
+ APP.2.2 Active Directory Domain Services
+
+ APP.2.3 Open LDAP
+
+ APP.3.1 Webanwendungen und Webservices
+
+ APP.3.2 Webserver
+
+ APP.3.3 Fileserver
+
+ APP.3.4 Samba
+
+ APP.3.6 DNS - Server
+
+ APP.4.2 SAP - ERP -System
+
+ APP.4.3 Relationale Datenbanksysteme
+
+ APP.4.4 Kubernetes
+
+ APP.4.6 SAP ABAP-Programmierung
+
+ APP.5.2 Microsoft Exchange und Outlook
+
+ APP.5.3 Allgemeiner E-Mail-Client und -Server
+
+ APP.5.4 Unified Communications und Collaboration
+
+ APP.6 Allgemeine Software
+
+ APP.7 Entwicklung von Individualsoftware
+
+ SYS: IT -Systeme
+
+ SYS.1.1 Allgemeiner Server
+
+ SYS.1.2.2 Windows Server 2012
+
+ SYS.1.2.3 Windows Server
+
+ SYS.1.3 Server unter Linux und Unix
+
+ SYS.1.5 Virtualisierung
+
+ SYS.1.6 Containerisierung
+
+ SYS.1.7 IBM Z
+
+ SYS.1.8 Speicherlösungen
+
+ SYS.1.9 Terminalserver
+
+ SYS.2.1 Allgemeiner Client
+
+ SYS.2.2.3 Clients unter Windows
+
+ SYS.2.3 Clients unter Linux und Unix
+
+ SYS.2.4 Clients unter macOS
+
+ SYS.2.5 Client-Virtualisierung
+
+ SYS.2.6 Virtual Desktop Infrastructure
+
+ SYS.3.1 Laptops
+
+ SYS.3.2.1 Allgemeine Smartphones und Tablets
+
+ SYS.3.2.2 Mobile Device Management ( MDM )
+
+ SYS.3.2.3 iOS (for Enterprise)
+
+ SYS.3.2.4 Android
+
+ SYS.3.3 Mobiltelefon
+
+ SYS.4.1 Drucker, Kopierer und Multifunktionsgeräte
+
+ SYS.4.3 Eingebettete Systeme
+
+ SYS.4.4 Allgemeines IoT -Gerät
+
+ SYS.4.5 Wechseldatenträger
+
+ IND: Industrielle IT
+
+ IND.1 Prozessleit- und Automatisierungstechnik
+
+ IND.2.1 Allgemeine ICS -Komponente
+
+ IND.2.2 Speicherprogrammierbare Steuerung ( SPS )
+
+ IND.2.3 Sensoren und Aktoren
+
+ IND.2.4 Maschine
+
+ IND.2.7 Safety Instrumented Systems
+
+ IND.3.2 Fernwartung im industriellen Umfeld
+
+ NET: Netze und Kommunikation
+
+ NET.1.1 Netzarchitektur und -design
+
+ NET.1.2 Netzmanagement
+
+ NET.2.1 WLAN -Betrieb
+
+ NET.2.2 WLAN -Nutzung
+
+ NET.3.1 Router und Switches
+
+ NET.3.2 Firewall
+
+ NET.3.3 VPN
+
+ NET.3.4 Network Access Control
+
+ NET.4.1 TK -Anlagen
+
+ NET.4.2 VoIP
+
+ NET.4.3 Faxgeräte und Faxserver
+
+ INF: Infrastruktur
+
+ INF.1 Allgemeines Gebäude
+
+ INF.2 Rechenzentrum sowie Serverraum
+
+ INF.5 Raum sowie Schrank für technische Infrastruktur
+
+ INF.6 Datenträgerarchiv
+
+ INF.7 Büroarbeitsplatz
+
+ INF.8 Häuslicher Arbeitsplatz
+
+ INF.9 Mobiler Arbeitsplatz
+
+ INF.10 Besprechungs-, Veranstaltungs- und Schulungsraum
+
+ INF.11 Allgemeines Fahrzeug
+
+ INF.12 Verkabelung
+
+ INF.13 Technisches Gebäudemanagement
+
+ INF.14 Gebäudeautomation
+
+ Ähnliche Themen
+
+-
+
+ Elementare Gefährdungen
+
+-
+
+ Umsetzungshinweise
+
+-
+
+ Archiv
+
+-
+
+ IT-Grundschutz-Tools
+
+ Zurück zu IT-Grundschutz-Kompendium
+
+ Fußbereich
+
+ Seite drucken
+
+ Unternavigation aller Website-Bereiche
+
+ Themen
+
+-
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+-
+ Un­ter­neh­men und Or­ga­ni­sa­tio­nen
+
+-
+ Staat und Ver­wal­tung
+
+-
+ Re­gu­lier­te Wirt­schaft
+
+ Das BSI
+
+-
+ Leit­bild
+
+-
+ Or­ga­ni­sa­ti­on und Auf­bau
+
+-
+ BSI Stand­orte
+
+-
+ Auf­trag
+
+-
+ Kon­takt
+
+ Karriere
+
+-
+ Ar­bei­ten im BSI
+
+-
+ Stel­len­an­ge­bo­te
+
+-
+ Stu­di­um und Aus­bil­dung
+
+ IT-Sicherheitsvorfall
+
+-
+ IT-Si­cher­heits­vor­fall
+
+ Folgen Sie uns
+
+-
+
+ Das BSI auf Bluesky
+
+-
+
+ BSI-Instagram
+
+-
+
+ Das BSI auf LinkedIn
+
+-
+
+ Das BSI auf Mastodon
+
+-
+
+ Newsletterverwaltung
+
+-
+
+ Das BSI auf YouTube
+
+-
+
+ Das BSI auf Xing
+
+-
+
+ RSS
+
+-
+
+ Im­pres­s­um
+
+-
+
+ Da­ten­schutz
+
+-
+
+ Nut­zungs­be­din­gun­gen
+
+-
+
+ Bar­rie­re­frei­heit
+
+ &#169; Bundesamt für Sicherheit in der Informationstechnik
+
+ Top
+ Top
+
+ Hinweis zur Verwendung von Cookies
+
+ Das BSI speichert keine personenbezogenen Daten der Webseitenbesucher. Details in unserer Datenschutzerklärung
+
+ OK

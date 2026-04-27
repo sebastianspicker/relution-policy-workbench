@@ -1,0 +1,378 @@
+Aktuelle Entwicklungen und Ausblick
+zum IT-Grundschutz
+
+Fortentwicklung des IT-Grundschutzes zu IT-Grundschutz++
+
+                  Holger Schildt, Referatsleiter S13 - IT-Grundschutz
+
+                  1. IT-Grundschutz-Tag 2025 | Magdeburg | 04.02.2025
+
+
+
+
+                                                                        Bild: © AdobeStock/Nirut
+Fortentwicklung IT-Grundschutz
+IT-Grundschutz-Kompendium 2025
+
+2018 bis 2023: Jährliche Veröffentlichung eines
+IT-Grundschutz-Kompendiums
+Seit 2023: Fortentwicklung „IT-Grundschutz ++“
+Auch 2025 keine Veröffentlichung einer Edition
+Eventuell weitere Veröffentlichung von
+Community und Final Drafts
+Eventuelle Fehler werden in Errata korrigiert
+Keine Aufwände bei Anwendern, da nicht auf eine
+Edition 2025 migriert werden braucht
+                                                                    Bund, Land
+                                                                       und
+
+Stakeholder und Perspektiven                                        Kommune
+
+
+                                           Tool-                                           Wirtschaft,
+Viele Brillen, ein Bild                   Hersteller                                       KMU, KKU
+
+
+
+
+                                                                      Sicher
+
+
+
+                          Zertifizierte                           EIN
+                                                                   ⇖⇗                                    CISO, ISB,
+                           Institute                           Grundschutz
+                                                                   ⇙⇘                                      Admin
+
+
+
+                                                       Performant                Günstig
+
+
+
+
+                                      Schulungen                                           Auditoren
+
+
+
+
+                                                                     Berater
+
+
+
+                                                                                                                      3
+Vision IT-Grundschutz++
+Wer Visionen hat, soll zum BSI gehen
+
+
+Cybersicherheit ist mess- &
+automatisierbar:
+Sicherheitsanforderungen werden als
+priorisierte, maschinenlesbare Regeln
+in kontinuierlichen PDCA-Zyklen
+erstellt
+
+
+
+
+                                        4
+Automatisierung des ISMS
+Anwendung datengesteuerter Werkzeuge weitgehend ermöglichen
+
+
+
+
+       Erfassung                Integration                 Aufrechterhaltung
+       • Systeme                • Continuous Integration,   • Überwachung der
+
+       • Daten                   Delivery and Deployment     Konformität
+
+       • Lieferanten            • Smart Standards           • Sperrung
+
+                                • Smart Contracts           • Alarmierung
+
+
+
+
+                                                                                5
+Kennzahlen für Entscheider
+Resilienz wird messbar, vergleichbar und verständlich durch Kennzahlindikatoren
+
+
+
+
+                                                                                  6
+Fortentwicklung IT-Grundschutz
+… und wie?
+
+
+
+
+        https://www.bsi.bund.de/SharedDocs/Termine/DE/2024/IT_Grundschutzveranstaltung_2024.html   7
+Filtern und Verstehen durch Metadaten
+Genau das sehen, was Sie jetzt brauchen
+
+          Praktiken                               Handlungsworte
+          • Prozesse des ISMS
+          • Strategie, Taktik, Operativ
+                                                  • Definierte Tätigkeiten
+                                                  • Mensch oder Maschine
+
+          Zielobjekte                             Hinweise
+          • Technik: Server, Linux, …
+          • Organisatorisch:
+                                                  • Ziele und Definitionen
+            Standorte, Adressaten, Verträge, …    • Umsetzungshinweise
+
+          Stufe 0-5                               Tags
+          • Von Quick-Win bis Nice-to-have
+          • Von Jeder bis erhöhter Schutzbedarf
+                                                  • Querschnittsthemen
+                                                  • Trends im Fokus
+                                                                             8
+Filtern und Verstehen durch Metadaten
+Genau das sehen, was Sie jetzt brauchen
+
+
+
+
+                                          9
+Wo bleibt das (Sicherheits-)Niveau?
+Zukünftige Mess- und Vergleichbarkeit im IT-Grundschutz
+
+                        IT-Grundschutz                                                  Die Praktik Konfiguration
+                                                                                        KANN beim
+                                                                               A.34.3   Videokonferenzserver die
+                                                                                        unverschlüsselte Übertragung
+                                                                                        von Bild und Ton deaktivieren
+                        • Mindestniveau
+  Basis-Anforderungen
+
+                                              Die Praktik Konfiguration
+                                            SOLLTE beim VK-Server die
+
+
+                        • Erweiterung des
+                                                          Ende-zu-Ende
+                                                   Verschlüsselung von    A.34.4
+                                            Inhaltsdaten (Bild und Ton)
+      Standard-
+    Anforderungen
+                          Niveaus                          ermöglichen
+
+
+                                                                                        Die Praktik Sensibilisierung
+                                                                                        SOLLTE Benutzende über die
+                                                                                        Kommunikation
+                        • Risikobasierte                                       A.22.2   schützenswerter
+                                                                                        Informationen über
+   Anforderungen für
+    einen erhöhten
+     Schutzbedarf
+                          Erweiterung                                                   unverschlüsselte
+                                                                                        Telekommunikationsverbindu
+                                                                                        ngen sensibilisieren
+
+
+
+
+                                                                                                                        10
+Die Stufen
+Was mache ich zuerst
+
+                       5   • Vorherige Anforderungen für erhöhten Schutzbedarf
+                           • Kann-Anforderungen
+
+
+
+                       4          • Für Bundesbehörden
+                                  • Für größere Behörden
+
+
+
+                       3                 • Für KMU umsetzbar
+
+
+
+                       2
+                                                • Für Kleinunternehmen
+                                                • Schützt gegen typische
+                                                  Sicherheitsvorfälle
+
+
+                       1
+                                                       • Für alle
+                                                       • Schützt gegen zahlreiche
+                                                         Vorfälle                   11
+Die Leistungskennzahlen
+Was bringt mir eine Anforderung?
+
+
+
+
+     Kennziffern
+                   Vertraulichkeit (C)
+                                         Wie Effektiv ist die
+                                         Anforderung in der
+                      Integrität (I)     Behandlung EINER
+                                            Gefährdung
+
+                   Verfügbarkeit (A)
+
+
+                                                                12
+Die Schwellwerte
+
+
+[Stufe 1] Sensibilisierung
+   gegen die Bild- und
+ Tonaufzeichnung ohne
+ vorherige Ankündigung
+                             • Vertraulichkeit : 6
+                             • Integrität: 0
+                                                     Schwellwert 1
+   an alle Betroffenen       • Vertraulichkeit 0
+
+
+        [Stufe 1]            • Vertraulichkeit [4]
+    Der IT-Betrieb legt
+zeitnahe Installation von
+                             • Integrität [3]         Vertraulichkeit [10+X]
+ Sicherheitsupdates fest     • Verfügbarkeit [4]
+
+
+                             • Vertraulichkeit [X]
+                                                      Integrität [3+Y]
+        [Stufe 1]
+           ….
+                             • Integrität [Y]
+                             • Verfügbarkeit [Z]      Verfügbarkeit[4+Z]
+                                                                               13
+Die Schwellwerte
+Zusammenspiel mit Erfüllungsgrad
+
+
+   Schwellwert 1                                    Schwellwert 2                      Schwellwert 3
+   •Die Werte aller 1 Anforderungen                 •Stufe 1 + Stufe 2 Anforderungen   •Stufe 1+ Stufe 2 + Stufe 3
+   •Eine zu erreichende Ziffer für                                                                                      Schwellwert 4   Schwellwert 5
+    Vertraulichkeit, Verfügbarkeit und Integrität
+
+
+
+
+                                                                                              Schwellwert beschreibt,
+                                                                                              was durch die Erfüllung
+                                                                                               erreicht werden KANN
+
+
+
+                                                          Erfüllungsgrad
+                                                        berücksichtigt alle
+                                                     erfüllten Anforderungen
+
+
+                                                                                                                                                        14
+Transparenz und Engagement in der Community
+Werkzeuge für jede Façon.
+
+ Download in JSON und XLSX
+ Benachrichtigung bei Änderungen
+  per E-Mail oder Webhooks
+ Versionierung mit Branches
+  für Stabilität und Dynamik
+ Feedback über Issues,
+  Pull Requests und Discussions
+ Individualisierung
+  über Forks und Scripting
+
+
+
+
+                                              15
+Sachstand
+Wie viel ++ steckt schon im neuen Kompendium?
+                         Umfang                                      Überführung
+ 9000
+
+ 8000
+
+ 7000
+
+ 6000
+
+ 5000
+
+ 4000
+
+ 3000
+
+ 2000
+
+ 1000
+
+   0
+          Edition 2023                     Kompendium++
+                         Objekte   §   ⚛
+                                                          offen   entwurf   abgestimmt   community   16
+                       Mehrwert
+Mehrwert
+                       Schneller im Ziel durch
+           Filtern, Automatisieren und Vereinheitlichen
+
+                  Fortschritt dynamisch messen
+                    mit Kennzahlindikatoren
+
+                        Bewährte Inhalte,
+                   klarer formuliert und erklärt
+
+                         Anpassung an
+             technische und rechtliche Neuerungen
+
+                      Agile Veröffentlichung,
+                   zeitnah und nachvollziehbar
+                                                          17
+Zusammenarbeit
+Wie können Sie bei der Pilotierung mitarbeiten?
+   Wo?                                                                                    Wie lange?
+      Videokonferenz                                                                      2 Stunden
+                    Teilnahme an einem digitalen Beteiligungsworkshop.
+                    Agenda:
+
+ Wann?               Kurze Vorstellung des IT-Grundschutz++ Konzeptes
+ 25.02.2025          Workshop:        Erarbeitung von Formaten zur Unterstützung
+                                       und Pilotierung des neuen Konzeptes
+                     Commitment zur Kooperation und Zusammenarbeit in der Pilotphase
+
+
+
+     Wer?                                                            Wie teilnehmen?
+     Jeder mit IT und GS-Kenntnissen                                 www.bsi.bund.de/dok/GS-Workshop
+                                                                     QR-Code auf der nächsten Folie
+                                                                                                       18
+Beteiligungsworkshop „Digitales Kompendium“
+Anmeldung
+
+
+
+
+                                              19
+             Vielen Dank für Ihre
+             Aufmerksamkeit!
+             IT-Grundschutz++ Team
+
+             it-grundschutz@bsi.bund.de
+             Tel.:   +49 (0) 228 9582 0
+
+             Bundesamt für Sicherheit in der Informationstechnik (BSI)
+             Godesberger Allee 87
+             53175 Bonn
+             www.bsi.bund.de
+
+
+
+
+Follow us:
+
+
+                                                                         Bild: © AdobeStock/Nirut
+

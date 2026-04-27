@@ -1,0 +1,160 @@
+Windows 11 v24H2 Security Baseline/
+Windows 11 v24H2 Security Baseline/Documentation/
+Windows 11 v24H2 Security Baseline/Documentation/MS Security Baseline Windows 11 v24H2.xlsx
+Windows 11 v24H2 Security Baseline/Documentation/MSFT-Win11-v24H2.PolicyRules
+Windows 11 v24H2 Security Baseline/Documentation/Windows 11 23H2 to 24H2 Delta.xlsx
+Windows 11 v24H2 Security Baseline/Documentation/Windows 11 24H2 Security Baseline Release Notes.pdf
+Windows 11 v24H2 Security Baseline/GP Reports/
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Internet Explorer 11 - Computer.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Internet Explorer 11 - User.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - BitLocker.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - Computer.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - Credential Guard.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - Defender Antivirus.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - Domain Security.htm
+Windows 11 v24H2 Security Baseline/GP Reports/MSFT Windows 11 24H2 - User.htm
+Windows 11 v24H2 Security Baseline/GPOs/
+Windows 11 v24H2 Security Baseline/GPOs/manifest.xml
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/Applications/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/GptTmpl.inf
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/Scripts/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/Scripts/Shutdown/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/Machine/Scripts/Startup/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{04602802-38C4-4900-87CD-B126DA8875ED}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/Scripts/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/Scripts/Shutdown/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/Machine/Scripts/Startup/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{3C4158A9-6823-4577-8AAE-197181A6E6AD}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/GptTmpl.inf
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/Scripts/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/Scripts/Shutdown/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/Machine/Scripts/Startup/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{9DD51389-33D0-4D19-8274-F9C19C54AACB}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/Applications/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/GptTmpl.inf
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/Scripts/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/Scripts/Shutdown/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/Machine/Scripts/Startup/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{BB10D67B-FBEA-4CD0-8E5F-09AC67C07670}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/Applications/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/User/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/DomainSysvol/GPO/User/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{BF76B495-48DD-4A15-AFFF-E9E20A6C9AAB}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/Applications/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/User/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/DomainSysvol/GPO/User/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{C4FCE0A9-BC29-4589-A63D-144E8CD991CE}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/Applications/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/windows nt/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/windows nt/Audit/audit.csv
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/microsoft/windows nt/SecEdit/GptTmpl.inf
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/Scripts/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/Scripts/Shutdown/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/Machine/Scripts/Startup/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{DAD42DA1-8499-42FE-A1CD-9E39196D8B98}/gpreport.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/Backup.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/bkupInfo.xml
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/GPO/
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/GPO/Machine/
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/GPO/Machine/comment.cmtx
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/GPO/Machine/registry.pol
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/DomainSysvol/GPO/User/
+Windows 11 v24H2 Security Baseline/GPOs/{DD32F334-CB07-4579-96E3-06F27B6B5FAB}/gpreport.xml
+Windows 11 v24H2 Security Baseline/Scripts/
+Windows 11 v24H2 Security Baseline/Scripts/Baseline-ADImport.ps1
+Windows 11 v24H2 Security Baseline/Scripts/Baseline-LocalInstall.ps1
+Windows 11 v24H2 Security Baseline/Scripts/ConfigFiles/
+Windows 11 v24H2 Security Baseline/Scripts/ConfigFiles/DeltaForNonDomainJoined.inf
+Windows 11 v24H2 Security Baseline/Scripts/ConfigFiles/DeltaForNonDomainJoined.txt
+Windows 11 v24H2 Security Baseline/Scripts/ConfigFiles/EP-reset.xml
+Windows 11 v24H2 Security Baseline/Scripts/Remove-EPBaselineSettings.ps1
+Windows 11 v24H2 Security Baseline/Scripts/Tools/
+Windows 11 v24H2 Security Baseline/Scripts/Tools/LGPO.txt
+Windows 11 v24H2 Security Baseline/Scripts/Tools/MapGuidsToGpoNames.ps1
+Windows 11 v24H2 Security Baseline/Templates/
+Windows 11 v24H2 Security Baseline/Templates/en-US/
+Windows 11 v24H2 Security Baseline/Templates/en-US/MSS-legacy.adml
+Windows 11 v24H2 Security Baseline/Templates/en-US/SecGuide.adml
+Windows 11 v24H2 Security Baseline/Templates/MSS-legacy.admx
+Windows 11 v24H2 Security Baseline/Templates/SecGuide.admx

@@ -1,0 +1,26 @@
+Content-Type: text/html; charset=utf-8
+Server: Apache
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Referrer-Policy: strict-origin-when-cross-origin
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+X-Content-Type-Options: nosniff
+X-DNS-Prefetch-Control: off
+X-Download-Options: noopen
+X-Frame-Options: SAMEORIGIN
+X-Permitted-Cross-Domain-Policies: none
+X-XSS-Protection: 0
+ETag: "vc0p27zzxl8025-gzip"
+Vary: Accept-Encoding
+Expires: Thu, 23 Apr 2026 21:41:25 GMT
+Cache-Control: max-age=0, no-cache, no-store
+Pragma: no-cache
+Date: Thu, 23 Apr 2026 21:41:25 GMT
+Transfer-Encoding: chunked
+Connection: close
+Connection: Transfer-Encoding
+Set-Cookie: ApplicationGatewayAffinityCORS=9e07ba4def840ce6de575dca8ad9b300; Path=/; SameSite=None; Secure
+Set-Cookie: ApplicationGatewayAffinity=9e07ba4def840ce6de575dca8ad9b300; Path=/
+Set-Cookie: LiSESSIONID=F9C3A0EF9DE548A5FB4081122F868F9B; Path=/; HttpOnly;SameSite=None;SameSite=None
+Set-Cookie: LithiumVisitor=~2pGbFKpWVaSXeMWPD~UPWmkOIBX2lNPCPTNIzHdGyCFktvzpFktAAy1qvoQF3r1D8TYMBkVPtgY_ZkDd6lMbC0T8xrgfzNL_HNsJIpNA..; Path=/; HttpOnly; Max-Age=31536000; Secure; SameSite=None
+Set-Cookie: LithiumTimezonePreferences=US%2FPacific; Path=/; Expires=Fri, 24 Apr 2026 21:41:23 GMT; SameSite=Lax
+Set-Cookie: csrf-aurora=4dbf69966a56f5f62e30ec44c12af644e08009938c6319bda5c2ef5831f9aac436e3500895c563faff31dbe2d67d98c18980a9fe8bb6ee41b90c1ef1c904d93d%7C7b6f9c921868a491a5e1b6f91646bd65c421d0dd8b52e1a8429735407a1b85ee; Path=/; HttpOnly; Secure; SameSite=Strict

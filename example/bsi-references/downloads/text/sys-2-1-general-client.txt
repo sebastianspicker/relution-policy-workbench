@@ -1,0 +1,484 @@
+BSI - Bundesamt für Sicherheit in der Informationstechnik - SYS.2.1 Allgemeiner Client (Edition 2023)
+
+ Navigation und Service
+
+ Springe direkt zu:
+
+- Inhalt
+
+- Hauptmenü
+
+- Suche
+
+ Menü
+
+- Menü
+
+ Servicemenü
+
+ Servicemenue
+
+-
+
+ Kon­takt
+
+-
+
+ English
+
+-
+
+ Ge­bär­den­spra­che
+
+-
+
+ Leich­te Spra­che
+
+-
+
+ Nut­zungs­be­din­gun­gen
+
+-
+
+ Log­in
+
+ Hauptmenü
+
+-
+
+ Das BSI
+
+ Das BSI
+
+-
+
+ Cy­ber­na­ti­on Deutsch­land
+
+-
+
+ Auf­trag
+
+-
+
+ Or­ga­ni­sa­ti­on und Auf­bau
+
+-
+
+ Leit­bild
+
+-
+
+ Zeit­strahl
+
+-
+
+ BSI Stand­orte
+
+-
+
+ Um­welt­er­klä­rung
+
+-
+
+ The­men
+
+ Alle Themen
+
+-
+
+ Staat und Ver­wal­tung
+
+ Unsere Top-Themen
+
+-
+
+ Na­tio­na­les IT-La­ge­zen­trum
+
+-
+
+ CERT-Bund
+
+-
+
+ Zu­sam­men­ar­beit mit Bund und Län­dern
+
+-
+
+ Si­cher­heits­be­ra­tung
+
+-
+
+ Min­dest­stan­dards Bund
+
+ Alle Themen
+
+-
+
+ Un­ter­neh­men und Or­ga­ni­sa­tio­nen
+
+ Unsere Top-Themen
+
+-
+
+ Grund­schutz in der In­for­ma­ti­ons­si­cher­heit
+
+-
+
+ Thre­at In­tel­li­gence
+
+-
+
+ IT-Si­cher­heits­kenn­zei­chen
+
+-
+
+ Zer­ti­fi­zie­rung und An­er­ken­nung
+
+-
+
+ Ran­som­wa­re An­grif­fe
+
+ Alle Themen
+
+-
+
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+ Unsere Top-Themen
+
+-
+
+ Si­cher­heit beim On­li­neshop­ping
+
+-
+
+ On­line-Ac­count ab­si­chern
+
+-
+
+ Be­dro­hun­gen durch Cy­ber-Kri­mi­nel­le
+
+-
+
+ E-Mail, So­ci­al Me­dia, Mes­sen­ger und Co.
+
+-
+
+ Smart Me­te­ring & Ladein­fra­struk­tur
+
+ Alle Themen
+
+-
+
+ Re­gu­lier­te Wirt­schaft
+
+ Unsere Top-Themen
+
+-
+
+ NIS-2 - was tun?
+
+-
+
+ NIS-2-re­gu­lier­te Un­ter­neh­men
+
+-
+
+ Kri­ti­sche In­fra­struk­tu­ren (KRI­TIS)
+
+-
+
+ KRI­TIS-FAQ
+
+ Alle Themen
+
+-
+
+ IT-Si­cher­heits­vor­fall
+
+ IT-Sicherheitsvorfall
+
+-
+
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+-
+
+ Un­ter­neh­men
+
+-
+
+ Kri­ti­sche In­fra­struk­tu­ren und mel­de­pflich­ti­ge Un­ter­neh­men
+
+-
+
+ CVD-Richt­li­nie des BSI
+
+-
+
+ Kar­rie­re
+
+ Karriere
+
+-
+
+ Will­kom­men im #TeamB­SI
+
+-
+
+ Wa­rum BSI?
+
+-
+
+ Ar­bei­ten im BSI
+
+-
+
+ Ein­stieg
+
+-
+
+ FAQ
+
+-
+
+ Stel­len­an­ge­bo­te
+
+-
+
+ Ter­mi­ne
+
+-
+
+ Kon­takt Per­so­nal­ge­win­nung
+
+-
+
+ Ser­vice
+
+ Service
+
+-
+
+ Pres­se
+
+-
+
+ Mediathek
+
+-
+
+ Pu­bli­ka­tio­nen
+
+-
+
+ Newslet­ter und So­ci­al Me­dia
+
+-
+
+ Ver­an­stal­tun­gen
+
+-
+
+ Ver­ga­ben an Ex­ter­ne
+
+-
+
+ Die E-Rech­nung im BSI
+
+-
+
+ Kos­ten für Leis­tun­gen des BSI
+
+-
+
+ Kon­takt
+
+-
+
+ Fra­gen & Ant­wor­ten
+
+-
+
+ BSI-Portal
+
+ <abbr title=&#034;Bundesamt für Sicherheit in der Informationstechnik&#034;>BSI</abbr>-Portal
+
+-
+
+ SucheOeffnen
+
+ Suche
+
+ Suche
+
+ Häufig gesucht
+
+-
+
+ Regulierung nach NIS-2
+
+-
+
+ Gefährdungen durch Ransomware
+
+-
+
+ Zertifizierung Produkte & Personen (FAQ)
+
+-
+
+ Zertifizierung Common Criteria
+
+-
+
+ Elektronische Identitäten
+
+-
+
+ Digitaler Verbraucherschutz
+
+-
+
+ Technische Richtlinien
+
+-
+
+ Kritische Infrastrukturen
+
+-
+
+ Künstliche Intelligenz
+
+ Sie sind hier:
+
+-
+
+ Zur Startseite
+
+- SYS.2.1 Allgemeiner Client (Edition 2023)
+
+ SYS.2.1 Allgemeiner Client (Edition 2023)
+
+ Datum
+ 01.02.2023
+
+ Ziel dieses Bausteins ist der Schutz von Informationen, die auf jeglicher Art von Clients , unabhängig vom verwendeten Betriebssystem, erstellt, gelesen, bearbeitet, gespeichert oder versendet werden.
+
+-
+
+ PDF, 173KB herunterladen
+
+ Fußbereich
+
+ Seite drucken
+
+ Unternavigation aller Website-Bereiche
+
+ Themen
+
+-
+ Ver­brau­che­rin­nen und Ver­brau­cher
+
+-
+ Un­ter­neh­men und Or­ga­ni­sa­tio­nen
+
+-
+ Staat und Ver­wal­tung
+
+-
+ Re­gu­lier­te Wirt­schaft
+
+ Das BSI
+
+-
+ Leit­bild
+
+-
+ Or­ga­ni­sa­ti­on und Auf­bau
+
+-
+ BSI Stand­orte
+
+-
+ Auf­trag
+
+-
+ Kon­takt
+
+ Karriere
+
+-
+ Ar­bei­ten im BSI
+
+-
+ Stel­len­an­ge­bo­te
+
+-
+ Stu­di­um und Aus­bil­dung
+
+ IT-Sicherheitsvorfall
+
+-
+ IT-Si­cher­heits­vor­fall
+
+ Folgen Sie uns
+
+-
+
+ Das BSI auf Bluesky
+
+-
+
+ BSI-Instagram
+
+-
+
+ Das BSI auf LinkedIn
+
+-
+
+ Das BSI auf Mastodon
+
+-
+
+ Newsletterverwaltung
+
+-
+
+ Das BSI auf YouTube
+
+-
+
+ Das BSI auf Xing
+
+-
+
+ RSS
+
+-
+
+ Im­pres­s­um
+
+-
+
+ Da­ten­schutz
+
+-
+
+ Nut­zungs­be­din­gun­gen
+
+-
+
+ Bar­rie­re­frei­heit
+
+ &#169; Bundesamt für Sicherheit in der Informationstechnik
+
+ Top
+ Top
+
+ Hinweis zur Verwendung von Cookies
+
+ Das BSI speichert keine personenbezogenen Daten der Webseitenbesucher. Details in unserer Datenschutzerklärung
+
+ OK

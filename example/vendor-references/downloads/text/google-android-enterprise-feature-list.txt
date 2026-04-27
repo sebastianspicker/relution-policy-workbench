@@ -1,0 +1,1137 @@
+Android Enterprise feature list  |  Google for Developers Skip to main content
+Android Enterprise
+/
+English
+Deutsch
+Español
+Español – América Latina
+Français
+Indonesia
+Italiano
+Polski
+Português – Brasil
+Tiếng Việt
+Türkçe
+Русский
+עברית
+العربيّة
+فارسی
+हिंदी
+বাংলা
+ภาษาไทย
+中文 – 简体
+中文 – 繁體
+日本語
+한국어
+Sign in
+Home Guides
+Android Enterprise
+Home
+Guides
+Get started
+Overview
+Develop your solution
+Release your solution
+Feature requirements
+Feature list
+Solution sets
+Work profile on personally-owned device
+Work profile on company-owned device
+Fully managed device
+Dedicated device
+Reference
+APIs and tools
+Overview
+Android Management API
+Zero-touch enrollment API
+Google Play Custom App Publishing API
+Connected work & Personal apps
+Overview
+Getting started
+Basic sample
+Advanced sample
+Advanced topics
+Security posture signals
+XR Management
+Resources for OEMs and carriers
+Deprecations
+Terminology
+Home
+Products
+Google Play services
+Android Enterprise
+Guides
+Send feedback
+Android Enterprise feature list Stay organized with collections Save and categorize content based on your preferences.
+Page Summary
+outlined_flag
+EMM solutions managing over 500 devices must support all standard features of at least one solution set to be commercially available.
+Various methods exist for provisioning devices with work profiles, fully managed setups, or dedicated device configurations based on Android version and ownership type.
+Android Enterprise offers robust device security features including security challenges, remote wipe/lock, and compliance enforcement.
+Account and app management features cover enterprise binding, silent app distribution, managed configuration, and programmatic app approval.
+Device management features include runtime permission and Wi-Fi configuration management, certificate and VPN management, and control over system settings.
+This page lists the complete set of Android Enterprise features.
+If you intend to manage more than 500 devices, your EMM solution must support
+all the standard features
+( star ) of at least one
+solution set before it can be made commercially available. EMM developers that
+would like their solutions listed in Android's Enterprise Solutions Directory as offering a Standard Management Set must pass standard feature verification
+and become a member of our Android Enterprise Partner Program .
+An extra set of advanced features is available for each solution set. These
+features are denoted in each solution set page: work profile on
+personally-owned device , work
+profile on company-owned
+device , fully managed
+device , and dedicated
+device . EMM developers that are AE partner program members with
+solutions that pass advanced feature verification are listed in Android's Enterprise Solutions Directory as offering an Advanced Management Set .
+Note: Use of Android Management API is subject to permissible usage
+policy .
+Key
+star standard
+feature star advanced
+feature star_border optional feature remove_circle_outline not applicable
+1. Device provisioning
+1.1. DPC-first work profile provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.1+ star remove_circle_outline remove_circle_outline remove_circle_outline
+After downloading Android Device Policy from Google Play, users can provision a
+work profile.
+1.1.1. The EMM provides an IT admin with a QR code or activation code to
+support this provisioning method (go to enrolling and provisioning a device ).
+1.2. DPC-identifier device provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline 12.0+ star star star
+Entering "afw#" in the device's setup wizard provisions a fully managed or
+dedicated device.
+1.2.1. The EMM provides an IT admin with a QR code or activation code to support
+this provisioning method (go to enrolling and provisioning a device ).
+1.3. NFC device provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline 12.0+ star_border star_border star_border
+NFC tags can be used by IT admins to provision new or factory-reset devices,
+according to the implementation guidelines defined in the Play EMM API
+developer documentation .
+1.3.1. EMMs must use NFC Forum Type 2 Tags with at least 888 bytes of memory.
+Provisioning must use provisioning extras to pass non-sensitive registration
+details such as server IDs and enrollment IDs to a device. Registration details
+shouldn't include sensitive information, such as passwords or certificates.
+1.3.2. We recommend the use of NFC tags for Android 10 onwards due to the
+deprecation of NFC Beam (also known as NFC Bump).
+1.4. QR code device provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline star star star
+The EMM's console can generate a QR code that IT admins can scan to provision a
+fully-managed or dedicated device, according to implementation guidelines
+defined in the Android Management API developer documentation.
+1.4.1. The QR code must use provisioning extras to pass non-sensitive
+registration details (such as server IDs, enrollment IDs) to a device.
+Registration details must not include sensitive information, such as passwords
+or certificates.
+1.5. Zero-touch enrollment
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ (Pixel: Android 7.1+) remove_circle_outline star star star
+IT admins can preconfigure devices purchased from authorized
+resellers and manage them using your EMM console.
+1.5.1. IT admins can provision company-owned devices using the zero-touch
+enrollment method, outlined in Zero-touch enrollment for IT admins .
+1.5.2. When a device is first turned on, the device is automatically forced into
+the settings defined by the IT admin.
+1.6. Advanced zero-touch provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ (Pixel: Android 7.1+) remove_circle_outline star_border star_border star_border
+IT admins can automate much of the device enrollment process with zero-touch
+enrollment. Combined with sign-in URLs , IT admins can limit enrollment to specific accounts or domains, according to
+the configuration options offered by the EMM.
+1.6.1. IT admins can provision a company-owned device using the zero-touch
+enrollment method .
+1.6.2. This requirement is deprecated.
+1.6.3. Using the sign-in URL , the EMM must ensure that unauthorized users can't proceed with activation.
+At a minimum, activation must be locked down to users of a given enterprise.
+1.6.4. Using the sign-in URL ,
+the EMM must make it possible for
+IT admins to pre-populate registration details (for example server IDs,
+enrollment IDs) aside from unique user or device information (for example
+username/password, activation token), so that users don't have to enter details
+when activating a device.
+EMMs must not include sensitive information, such as passwords or
+certificates, in the zero-touch enrollment's configuration.
+1.7. Google Account work profile provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border remove_circle_outline remove_circle_outline remove_circle_outline
+For enterprises that use a managed Google Domain, this feature guides
+users through the setup of a work profile after entering their corporate
+Workspace credentials during device setup or on a device that is already
+activated. In both cases, the corporate Workspace identity will be migrated into
+the work profile.
+1.8. Google Account device provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline star_border star_border remove_circle_outline
+The Android Management API doesn't support this feature.
+1.9. Direct zero-touch configuration
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ remove_circle_outline star star star
+IT admins can use the EMM's console to set up zero-touch devices using the zero-touch iframe .
+1.10. Work profiles on company-owned devices
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ star_border star remove_circle_outline remove_circle_outline
+EMMs can enroll company-owned devices that have a work profile by setting AllowPersonalUsage .
+1.10.1. Deliberately blank.
+1.10.2. IT admins can set compliance actions for work profiles on company-owned
+devices through PersonalUsagePolicies .
+1.10.3. IT admins can deactivate the camera in either the work profile or the
+entire device through PersonalUsagePolicies .
+1.10.4. IT admins can deactivate screen capture in either the work profile or an
+entire device through PersonalUsagePolicies .
+1.10.5. IT admins can set a blocklist of applications that cannot be installed
+in the personal profile through PersonalApplicationPolicy .
+1.10.6. IT admins can relinquish management of a company-owned device by
+removing the work profile or wiping the entire device.
+1.11. Dedicated device provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+IT admins can enroll dedicated devices without the user being prompted to
+authenticate with a Google Account.
+2. Device security
+2.1. Device security challenge
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+IT admins can set and enforce a device security challenge (PIN/pattern/password)
+from a predefined selection of 3 complexity levels on managed devices.
+2.1.1. Policy must enforce settings managing device security challenges
+(parentProfilePasswordRequirements for work profile, passwordRequirements for
+fully managed and dedicated devices).
+2.1.2.  The password complexity should map to the following password
+complexities:
+PASSWORD_COMPLEXITY_LOW - pattern or pin with repeating (4444) or
+ordered (1234, 4321, 2468) sequences.
+PASSWORD_COMPLEXITY_MEDIUM - PIN with no repeating (4444) or ordered
+(1234, 4321, 2468) sequences, alphabetic, or alphanumeric password with a
+length of at least 4
+PASSWORD_COMPLEXITY_HIGH - PIN with no repeating (4444) or ordered
+(1234, 4321, 2468) sequences and a length of at least 8 or alphabetic or
+alphanumeric passwords with a length of at least 6
+2.1.3. Additional password restrictions can also be enforced as legacy settings
+on company-owned devices.
+2.2. Work security challenge
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star remove_circle_outline remove_circle_outline
+IT admins can set and enforce a security challenge for apps and data in the work
+profile that is separate and has different requirements from the device security
+challenge (2.1.).
+2.2.1. Policy must enforce the security challenge for the work profile.
+By default, IT admins should set restrictions only for the work profile
+if no scope is specified
+IT admins can set this device-wide by specifying the scope (see
+requirement 2.1)
+2.2.2.  The password complexity should map to the following predefined password
+complexities:
+PASSWORD_COMPLEXITY_LOW - pattern or pin with repeating (4444) or
+ordered (1234, 4321, 2468) sequences.
+PASSWORD_COMPLEXITY_MEDIUM - PIN with no repeating (4444) or ordered
+(1234, 4321, 2468) sequences, alphabetic, or alphanumeric password with a
+length of at least 4
+PASSWORD_COMPLEXITY_HIGH - PIN with no repeating (4444) or ordered
+(1234, 4321, 2468) sequences and a length of at least 8 or alphabetic or
+alphanumeric passwords with a length of at least 6
+2.2.3. Additional password restrictions can also be enforced as legacy settings
+2.3. Advanced passcode management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star_border
+IT admins can set up advanced password settings on devices.
+2.3.1. Deliberately blank.
+2.3.2. Deliberately blank.
+2.3.3. The following password lifecycle settings can be set for each lock screen available on a
+device:
+Deliberately blank
+Deliberately blank
+Maximum failed passwords for wipe: Specifies the number of times users
+can enter an incorrect password before corporate data is wiped from the
+device. IT admins must be able to turn off this feature.
+2.3.4. (Android 8.0+) Strong Authentication required timeout: a strong
+authentication passcode (such as PIN or password) must be input after a timeout period set by an IT admin . After the timeout period, non-strong
+authentication methods (such as fingerprint, face unlock) are turned off until
+the device is unlocked with a strong authentication passcode.
+2.4. Smart lock management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star_border star_border star_border star_border
+IT admins can manage whether trust agents in Android's Smart Lock feature are permitted to extend device unlock up to four hours.
+2.4.1. IT admins can disable trust agents on the device.
+2.5. Wipe and lock
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+IT admins can use the EMM's console to remotely lock and wipe work data from a
+managed device.
+2.5.1. Devices must be locked using the Android Management API .
+2.5.2. Devices must be wiped using the Android Management API .
+2.6. Compliance enforcement
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+If a device is not compliant with security policies, compliance rules put in place by the Android Management API automatically restrict use of work
+data.
+2.6.1. At minimum, the security policies enforced on a device must include
+password policy.
+2.7. Default security policies
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+EMMs must enforce the specified security policies on devices by default ,
+without requiring IT admins to set up or customize any settings in the EMM's
+console. EMMs are encouraged (but not required) to not allow IT admins to change
+the default state of these security features.
+2.7.1. Installing apps from unknown sources must be blocked, including apps
+installed on the personal side of any Android 8.0+ device with a work profile. This subfeature is supported by default .
+2.7.2. Debugging features must be blocked. This subfeature
+is supported by default.
+2.8. Security policies for dedicated devices
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+No other actions are allowed for a locked down dedicated device.
+2.8.1. Booting into safe mode must be turned off by default using policy (Go to safeBootDisabled ).
+2.9. Play Integrity Support
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+Play Integrity checks are made by default. No extra implementation is
+required.
+2.9.1. Deliberately blank.
+2.9.2. Deliberately blank.
+2.9.3. IT admins can set up different policy responses based on the value of the
+device's SecurityRisk , including blocking provisioning, wiping corporate data, and allowing
+enrollment to proceed.
+The EMM service will enforce this policy response for the result of
+each integrity check.
+Note: Default option must not be to allow enrollment to proceed.
+2.9.4. Deliberately blank.
+2.10. Verify Apps enforcement
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+IT admins can turn on Verify Apps on devices. Verify Apps scans apps installed on Android devices for harmful
+software before and after they're installed, helping to ensure that malicious
+apps can't compromise corporate data.
+2.10.1. Verify Apps must be turned on by default using policy (Go to ensureVerifyAppsEnabled ).
+2.11. Direct Boot support
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star star star
+The Android Management API supports this feature by default. No extra
+implementation is required.
+2.12. Hardware security management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.1+ remove_circle_outline star star star
+IT admins can lock down hardware elements of a company-owned device to ensure
+data-loss prevention.
+2.12.1. IT admins can block users from mounting physical external media using policy (go to mountPhysicalMediaDisabled ).
+2.12.2. IT admins can block users from sharing data from their device using NFC
+beam using policy (go to outgoingBeamDisabled ). This subfeature is optional since NFC beam
+function is no longer supported in Android 10 and higher.
+2.12.3. IT admins can block users from transferring files over USB using policy (go to usbFileTransferDisabled ).
+2.13. Enterprise security logging
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline remove_circle_outline star_border star_border
+The Android Management API doesn't support this feature.
+3. Account and app management
+3.1. Enterprise binding
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can bind the EMM to their organization, allowing the EMM to use
+managed Google Play to distribute apps to devices.
+3.1.1. An admin with an existing managed Google Domain can bind their domain to
+the EMM.
+3.1.2. Deliberately blank.
+3.1.3. Deliberately blank.
+3.1.4. The EMM console guides the admin to enter their work email address in the
+Android signup flow and discourages them from using a Gmail account.
+3.1.5. The EMM pre-fills the admin's email address in the Android signup flow.
+3.2. Managed Google Play Account provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star remove_circle_outline
+The EMM can silently provision enterprise user accounts, called managed Google
+Play accounts. These accounts identify managed users and allow unique, per-user
+app distribution rules.
+3.2.1. Managed Google Play Accounts (user accounts) are automatically created
+when devices are provisioned.
+The Android Management API supports this feature by default. No extra
+implementation is required.
+3.3. Managed Google Play device account provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+The EMM can create and provision managed Google Play device accounts. Device
+accounts support silently installing apps from the managed Google Play Store,
+and are not tied to a single user. Instead, a device account is used to identify
+a single device to support app distribution rules per device in dedicated device
+scenarios.
+3.3.1. Managed Google Play Accounts are automatically created when devices are
+provisioned.
+The Android Management API supports this feature by default. No extra
+implementation is required.
+3.4. Managed Google Play Account provisioning for legacy devices
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline
+This feature is deprecated.
+3.5. Silent app distribution
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can silently distribute work apps on devices without any user
+interaction.
+3.5.1. The EMM's console must use the Android Management API to allow IT admins to install work apps on managed devices.
+3.5.2. The EMM's console must use the Android Management API to allow IT admins to update work apps on managed devices.
+3.5.3. The EMM's console must use the Android Management API to allow IT admins to uninstall apps on managed devices.
+3.6. Managed configuration management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+IT admins can view and silently set managed configurations for any app that
+supports managed configurations.
+3.6.1. The EMM's console must be able to retrieve and display the managed configuration settings of any Play app.
+3.6.2. The EMM's console must allow IT admins to set any configuration type (as
+defined by the Android Enterprise framework) for any Play app using the Android Management
+API .
+3.6.3. The EMM's console must allow IT admins to set wildcards (such as
+$username$ or %emailAddress%) so that a single configuration for an app such as
+Gmail can be applied to multiple users.
+3.7. App catalog management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline
+The Android Management API supports this feature by default. No
+additional implementation is required.
+3.8. Programmatic app approval
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star_border
+The EMM's console uses the managed Google Play iframe to support Google Play's
+app discovery and approval capabilities. IT admins can search for apps,
+approve apps, and approve new app permissions without leaving the EMM's console.
+3.8.1. IT admins can search for apps and approve them within the EMM's console
+using the managed Google Play iframe .
+3.9. Basic store layout management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star remove_circle_outline
+The managed Google Play Store app can be used to install and update work apps.
+By default, the managed Google Play Store displays apps approved for a user in
+a single list. This layout is referred to as basic store layout .
+3.9.1. The EMM's console should allow IT admins to manage the apps visible in an end user's basic store layout.
+3.10. Advanced store layout configuration
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star_border star_border star_border remove_circle_outline
+3.10.1. IT admins can customize the store layout seen in the managed Google Play Store app.
+3.11. App license management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline
+This feature is deprecated.
+3.12. Google-hosted private app management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can update Google-hosted private apps through the EMM console instead
+of through the Google Play Console.
+3.12.1. IT admins can upload new versions of apps that are already published
+privately to the enterprise using:
+The managed Google Play iframe , or
+the Google Play Developer Publishing API .
+3.13. Self-hosted private app management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star_border star_border star_border star_border
+IT admins can set up and publish self-hosted private apps. Unlike
+Google-hosted private apps, Google Play does not host the APKs. Instead,
+the EMM helps IT admins host APKs themselves, and helps protect self-hosted
+apps by ensuring they can only be installed when authorized by managed Google
+Play.
+3.13.1. The EMM's console must help IT admins host the app APK, by offering both
+of the following options:
+Hosting the APK on the EMM's server. The server can be on-premise or
+cloud-based.
+Hosting the APK outside of the EMM's server, at the discretion of the
+enterprise. The IT admin must specify in the EMM console where the
+APK is hosted.
+3.13.2. The EMM's console must generate an appropriate APK definition
+file using the provided APK
+and must guide IT admins through the publishing process.
+3.13.3. IT admins can update self-hosted private apps, and the EMM's console
+can silently publish updated APK definition files using the Google Play
+Developer Publishing API .
+3.13.4. The EMM's server serves download requests for the self-hosted APK
+that contains a valid JWT within the request's cookie, as verified by the
+private app's public key.
+To facilitate this process, the EMM's server must guide IT admins to
+download the self-hosted app's license public key from the Play Google
+Play Console, and upload this key to the EMM console.
+3.14. EMM pull notifications
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline remove_circle_outline
+This feature is not applicable to the Android Management API. Set up
+Pub/Sub notifications instead.
+3.15. API usage requirements
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+The EMM implements Android Management APIs at scale, avoiding traffic
+patterns that could negatively impact enterprises' ability to manage apps in
+production environments.
+3.15.1. The EMM must adhere to the Android Management API usage limits. Not correcting behavior that exceeds these guidelines may
+result in suspension of API use, at Google's discretion.
+3.15.2. The EMM should distribute traffic from different enterprises throughout
+the day, rather than consolidating enterprise traffic at specific or similar
+times. Behavior that fits this traffic pattern, such as scheduled batch
+operations for each device enrolled, may result in suspending API use, at
+Google's discretion.
+3.15.3. The EMM shouldn't make consistent, incomplete, or deliberately incorrect
+requests that make no attempt to retrieve or manage actual enterprise data.
+Behavior that fits this traffic pattern may result in suspended API use, at
+Google's discretion.
+3.16. Advanced managed configuration management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+The EMM supports the following advanced managed configuration management
+features:
+3.16.1. The EMM's console must be able to retrieve and display the up to four
+levels of nested managed configuration settings of any Play app, using:
+The managed Google Play iframe , or
+a custom UI.
+3.16.2. The EMM's console must be able to retrieve and display any feedback returned by an app's feedback channel , when set up by an IT admin.
+The EMM's console must allow IT admins to associate a specific feedback item
+with the device and app it originated from.
+The EMM's console must allow IT admins to subscribe to alerts or reports of
+specific message types (such as error messages).
+3.16.3. The EMM's console must only send values that either have a default value or are manually set by the admin using:
+The managed configurations iframe, or
+A custom UI.
+3.17. Web app management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can create and distribute web apps in the EMM console.
+3.17.1. The EMM console allows IT admins to distribute shortcuts to web apps
+using:
+The Managed Google Play iframe ,
+or the Android Management API .
+3.18. Managed Google Play Account lifecycle management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+The EMM can create, update, and delete managed Google Play Accounts on
+behalf of IT admins, and automatically recover from account expiration.
+This feature is supported by default. No extra EMM implementation is
+required.
+3.19. Application track management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+3.19.1. IT Admins can pull a list of track IDs set by a developer for a particular app.
+3.19.2. IT Admins can set devices to use a particular development track for an application.
+3.20. Advanced application update management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+IT admins can allow apps to be updated immediately or postpone them from being
+updated for 90 days.
+3.20.1. IT admins can allow apps to use high-priority app updates to be updated when an update is ready.
+3.20.2. IT admins can allow apps to have their app updates postponed for 90 days.
+3.21. Provisioning methods management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+The EMM can generate provisioning configurations and present these to the IT
+admin in a form ready for distribution to end users (such as QR code,
+zero-touch configuration, Play Store URL).
+3.22. Upgrade Enterprise binding
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can upgrade the enterprise binding type to a managed Google Domain
+enterprise, allowing the organization to access Google Account services and
+features on enrolled devices.
+3.22.1. The EMM console allows the IT admin to trigger the upgrade of an
+existing managed Google Play Accounts enterprise to a managed Google Domain
+enterprise using the requisite APIs .
+3.22.2. EMMs should use Pub/Sub to receive notifications about IT
+admin-initiated upgrade events (even those occurring outside the EMM console)
+and update their UI to reflect these changes.
+3.23. Managed Google Account provisioning
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star remove_circle_outline
+The EMM can provision a device with enterprise user accounts , called managed Google Accounts.
+These accounts identify managed users and allow app distribution rules, and
+allow access to Google services. IT admins can additionally set policy to require managed Google Account authentication during or after enrollment.
+3.23.1. The EMM can provision a managed Google Account according to the defined implementation guidelines .
+In doing so:
+A managed Google Account is added to the device.
+The managed Google Account must have a 1 to 1 mapping with actual users in
+the EMM's console.
+3.23.2. The IT admin can use the policy to provide users the option to sign in
+to a managed Google Account for enrollment.
+3.23.3. The IT admin can use the policy to control whether the user is required
+to sign in to a managed Google Account to complete enrollment.
+3.23.4. IT admins can optionally restrict the upgrade flow to a specific account
+identifier (email address) for a given device.
+3.24. Managed Google Play Account upgrade
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+remove_circle_outline star star star star
+IT admins can upgrade the user
+account type to a managed Google Account, allowing the device to access Google Account
+services and features on enrolled devices.
+3.24.1. IT admins can upgrade an existing managed Google Play Accounts on a
+device to a managed Google Account.
+3.24.2. IT admins can optionally restrict the upgrade flow to a specific account
+identifier (email address) for a given device.
+4. Device management
+4.1. Runtime permission policy management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star star star star
+IT admins can silently set a default response to runtime permission requests
+made by work apps.
+4.1.1. IT admins must be able to choose from the following options when setting
+a default runtime permission policy for their organization:
+prompt (allows users to choose)
+allow
+deny
+The EMM should enforce these settings using policy .
+4.2. Runtime permission grant state management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star star star star
+After setting a default runtime permission policy (go to 4.1.), IT admins can
+silently set responses for specific permissions from any work app built on API
+23 or higher.
+4.2.1. IT admins must be able to set the grant state (default, grant, or deny)
+of any permission requested by any work app built on API 23 or higher. The EMM
+should enforce these settings using policy .
+4.3. Wi-Fi configuration management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star star star star
+IT admins can silently provision enterprise Wi-Fi configurations on managed
+devices, including:
+4.3.1. SSID, using policy .
+4.3.2. Password, using policy .
+4.4. Wi-Fi security management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star star star star
+IT admins can provision enterprise Wi-Fi configurations on devices that include the following advanced security
+features:
+4.4.1. Identity
+4.4.2. Certificates for client authorization
+4.4.3. CA certificates
+4.5. Advanced Wi-Fi management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline star_border star_border star_border
+IT admins can lock down Wi-Fi configurations on managed devices, to prevent
+users from creating configurations or modifying corporate configurations.
+4.5.1. IT admins can lock down corporate Wi-Fi configurations using policy in either
+of the following configurations:
+Users cannot modify any Wi-Fi configurations provisioned by the EMM (go to wifiConfigsLockdownEnabled ), but
+may add and modify their own user-configurable networks (for example
+personal networks).
+Users cannot add or modify any Wi-Fi network on the device
+(go to wifiConfigDisabled ), limiting Wi-Fi connectivity to just those
+networks provisioned by the EMM.
+4.6. Account management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star_border
+IT admins can ensure that only authorized corporate accounts can interact with
+corporate data, for services such as SaaS storage and productivity apps, or
+email. Without this feature, users can add personal accounts to those
+corporate apps that also support consumer accounts, enabling them to share
+corporate data with those personal accounts.
+4.6.1. IT admins can prevent users from adding or modifying
+accounts (see modifyAccountsDisabled ).
+When enforcing this policy on a device, EMMs must set this restriction
+before provisioning is complete, to ensure users cannot circumvent this
+policy by adding accounts before the policy is enacted.
+4.7. Workspace account management
+This feature is deprecated. See 3.23. for replacement requirements.
+4.8. Certificate management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star star
+Allows IT admins to deploy identity certificates and certificate authorities to
+devices to allow use of corporate resources.
+4.8.1. IT admins can install user identity certs generated by their PKI on a per-user basis. The EMM's console must integrate
+with at least one PKI and distribute certificates generated from that
+infrastructure.
+4.8.2. IT admins can install certificate authorities (see caCerts ) in the managed keystore. However, this subfeature is unsupported
+.
+4.9. Advanced certificate management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star star star
+Allows IT admins to silently select the certificates that specific managed apps
+should use. This feature also grants IT admins the ability to remove
+CAs and identity certs from active devices, and prevent users from modifying
+credentials stored in the managed keystore.
+4.9.1. For any app distributed to devices, IT admins can specify a certificate
+the app will be silently granted access during runtime. (This
+subfeature is not supported)
+Certificate selection must be generic enough to allow a single
+configuration that applies to all users, each of which may have a
+user-specific identity certificate.
+4.9.2. IT admins can silently remove certificates from the managed keystore.
+4.9.3. IT admins can silently uninstall a CA certificate. (This subfeature is
+not supported)
+4.9.4. IT admins can prevent users from configuring credentials (go to credentialsConfigDisabled ) in the managed keystore.
+4.9.5. IT admins can pre-grant certificates for work apps using ChoosePrivateKeyRule .
+4.10. Delegated certificate management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star_border star_border star_border star_border
+IT admins can distribute a third-party certificate management app to devices and
+grant that app privileged access to install certificates into the managed
+keystore.
+4.10.1. IT admins can specify a certificate management package (go to CERT_INSTALL DelegatedScope) to be set as the delegated certificate
+management app.
+The EMM's may optionally suggest known certificate management packages,
+but must allow the IT admin to choose from the list of apps available for
+install, for applicable users.
+4.11. Advanced VPN management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star star star
+Allows IT admins to specify an Always On VPN to ensure that the data from
+specified managed apps will always go through a setup of the VPN.
+Note: this feature requires deploying a VPN client that
+supports both Always On and per-app VPN features.
+4.11.1. IT admins can specify an arbitrary VPN package to be set as an Always On VPN.
+The EMM's console may optionally suggest known VPN packages that support
+Always On VPN, but can't restrict the VPNs available for Always On configuration
+to any arbitrary list.
+4.11.2. IT admins can use managed configurations to specify the VPN settings for
+an app.
+4.12. IME management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border remove_circle_outline remove_circle_outline
+IT admins can manage what input methods (IMEs) can be set up for
+devices. Since the IME is shared across both work and personal profiles,
+blocking use of IMEs will prevent users from allowing those IMEs for personal
+use as well. IT admins may not, however, block use of system IMEs on work
+profiles (go to advanced IME management for more details).
+4.12.1. IT admins can set up an IME allowlist (Go to permitted_input_methods ) of arbitrary length (including an empty list,
+which blocks non-system IMEs), which may contain any arbitrary IME packages.
+The EMM's console may optionally suggest known or recommended IMEs to
+include in the allowlist, but must allow IT admins to choose from the list
+of apps available for install, for applicable users.
+4.12.2. The EMM must inform IT admins that system IMEs are excluded from
+management on devices with work profiles.
+4.13. Advanced IME management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline star_border star_border
+IT admins can manage what input methods (IMEs) users can set up on a
+device. Advanced IME management extends the basic feature by allowing IT admins
+to manage the use of system IMEs as well, which device manufacturer
+or carrier of the device typically provide.
+4.13.1. IT admins can set up an IME allowlist (go to permitted_input_methods ) of arbitrary length (excluding an empty list,
+which blocks all IMEs including system IMEs), which may contain any arbitrary
+IME packages.
+The EMM's console may optionally suggest known or recommended IMEs to
+include in the allowlist, but must allow IT admins to choose from the list
+of apps available for install, for applicable users.
+4.13.2. EMM must prevent IT admins from setting up an empty allowlist, as this
+setting will block all IMEs including system IMEs from being set up on the
+device.
+4.13.3. EMM must ensure that if an IME allowlist does not contain system IMEs,
+the third-party IMEs are silently installed before the allowlist is applied
+on the device.
+4.14. Accessibility services management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border star_border star_border
+IT admins can manage what accessibility services users can allow on devices. Accessibility services are powerful tools for users
+with disabilities or those that are temporarily unable to fully interact with a
+device. However, they may interact with corporate data in ways that are
+non-compliant with corporate policy. This feature allows IT admins to turn off
+any non-system accessibility service.
+4.14.1. IT admins can set up an accessibility service allowlist (go to permittedAccessibilityServices ) of arbitrary length (including an empty
+list, which blocks non-system accessibility services), which may contain any
+arbitrary accessibility service package. When applied to a work profile, this
+affects both the personal profile and the work profile.
+Console may optionally suggest known or recommended accessibility services
+to include in the allowlist, but must allow IT admin to choose from
+the list of apps available for install, for applicable users.
+4.15. Location Sharing management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border remove_circle_outline remove_circle_outline
+IT admins can prevent users from sharing location data with apps in the work
+profile. Otherwise, the location setting in the work profile is configurable in
+Settings.
+4.15.1. IT admins can disable location services (go to shareLocationDisabled ) within the work profile.
+4.16. Advanced Location Sharing management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline star_border star_border
+IT admins can enforce a given Location Sharing setting on a managed device.
+This feature can ensure that corporate apps always have high accuracy location
+data. This feature can also ensure that extra battery is not consumed by
+restricting location settings to battery saving mode.
+4.16.1. IT admins can set the device location services to each of the following modes:
+High accuracy.
+Sensors only, for example GPS, but not including network-provided
+location.
+Battery saving, which limits the update frequency.
+Off.
+4.17. Factory reset protection management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.1+ remove_circle_outline star star star
+Allows IT admins to protect company-owned devices from theft by ensuring
+unauthorized users can't factory reset devices. If factory reset protection
+introduces operational complexities when devices are returned to IT, IT admins
+can turn off factory reset protection entirely.
+4.17.1. IT admins can prevent users from factory resetting (go to factoryResetDisabled ) their device from Settings.
+Note: Factory Reset cannot be prevented by IT admins on devices enrolled with a
+Work profile, even if the device is company-owned.
+4.17.2. IT admins can specify corporate unlock account(s) authorized to
+provision devices (go to frpAdminEmails ) after a factory reset.
+This account can be tied to an individual, or used by the entire enterprise
+to unlock devices.
+4.17.3. IT admins can disable factory reset protection (go to factoryResetDisabled ) for specified devices.
+4.17.4. IT admins can start a remote device wipe that optionally wipes reset protection data, thus removing factory reset
+protection on the reset device.
+4.18. Advanced app control
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline star_border star_border
+IT admins can prevent the user from uninstalling or otherwise modifying managed
+apps through Settings. For example, preventing force closing the app or
+clearing an app's data cache.
+4.18.1. IT admins can block uninstall of any arbitrary managed apps, or all
+managed apps (go to uninstallAppsDisabled ).
+4.18.2. IT admins can prevent users from modifying application data from Settings. (The Android Management API doesn't support this subfeature)
+4.19. Screen capture management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border star_border star_border
+IT admins can block users from taking screenshots when using managed apps.
+This setting includes blocking screen sharing apps and similar apps (such as
+Google Assistant) that use the system screenshot capabilities.
+4.19.1. IT admins can prevent users from capturing screenshots (go to screenCaptureDisabled ).
+4.20. Disable cameras
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+Dependant remove_circle_outline 11.0+ star_border 5.0+ star_border 5.0+ star_border
+IT admins can turn off use of device cameras by managed apps.
+4.20.1. IT admins can disable use of device cameras (go to cameraDisabled ) by managed apps.
+4.21. Network statistics collection
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ star_border star_border remove_circle_outline remove_circle_outline
+The Android Management API doesn't support this feature.
+4.22. Advanced network statistics collection
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline remove_circle_outline star_border star_border
+The Android Management API doesn't support this feature.
+4.23. Reboot device
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline remove_circle_outline star_border star
+IT admins can remotely restart managed devices.
+4.23.1. IT admins can remotely reboot a managed device.
+4.24. System radio management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline star_border star_border star_border
+Provides IT admins with granular management over system network radios and
+associated use policies using policy .
+4.24.1. IT admins can turn off cell broadcasts sent by service
+providers (go to cellBroadcastsConfigDisabled ).
+4.24.2. IT admins can prevent users from modifying mobile network settings in
+Settings (go to mobileNetworksConfigDisabled ).
+4.24.3. IT admins can prevent users from resetting all network settings in
+Settings. (go to networkResetDisabled ).
+4.24.4. IT admins can set up whether the device permits mobile data
+while roaming (go to dataRoamingDisabled ).
+4.24.5. IT admins can set up whether the device can make outgoing phone
+calls, excluding emergency calls (go to outGoingCallsDisabled ).
+4.24.6. IT admins can set up whether the device can send and receive text
+messages (go to smsDisabled ).
+4.24.7. IT admins can prevent users from using their device as a portable
+hotspot by tethering (go to tetheringConfigDisabled ).
+4.24.8. IT admins can set the Wi-Fi timeout to default, while plugged in, or
+never. (The Android Management API doesn't support this subfeature)
+4.24.9. IT admins can prevent users from setting up or modifying existing
+Bluetooth connections (go to bluetoothConfigDisabled ).
+4.25. System audio management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline star_border star_border
+IT admins can silently control device audio features ,
+including muting the device, preventing users from modifying volume settings,
+and preventing users from unmuting the device microphone.
+4.25.1. IT admins can silently mute managed devices. (The Android Management API doesn't support this subfeature)
+4.25.2. IT admins can prevent users from modifying device volume
+settings (go to adjustVolumeDisabled ). This also mutes the devices.
+4.25.3. IT admins can prevent users from unmuting the device
+microphone (go to unmuteMicrophoneDisabled ).
+4.26. System clock management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+Dependant 8.0+ star_border 11.0+ star_border 5.0+ star_border 5.0+ star_border
+IT admins can manage device clock and time zone settings, and prevent users from
+modifying automatic device settings.
+4.26.1. IT admins can enforce system auto time and auto time zone ,
+preventing the user from setting the date, time, and time zone of
+the device.
+4.27. Advanced dedicated device features
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+For dedicated devices, IT admins can manage the following features using policy to support
+various kiosk use cases.
+4.27.1. IT admins can turn off the device keyguard (go to keyguardDisabled ).
+4.27.2. IT admins can turn off the device status bar, blocking notifications and
+Quick Settings (go to statusBarDisabled ).
+4.27.3. IT admins can force the device screen to remain on while the device is
+plugged in (go to stayOnPluggedModes ).
+4.27.4. IT admins can prevent the following system UIs from being displayed (go to createWindowsDisabled ):
+Toasts
+Application overlays.
+4.27.5. IT admins can allow the system recommendation for apps to skip their
+user tutorial and other introductory hints on first start-up (go to skip_first_use_hints ).
+4.28. Delegated scope management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+8.0+ star star star star
+IT admins are able to delegate extra privileges to individual packages.
+4.28.1. IT admins can manage the following scopes :
+Certificate installation and management
+Deliberately blank
+Network logging
+Security logging (not supported for work profile on personally-owned device)
+4.29. Enrollment-specific ID Support
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+12.0+ star star remove_circle_outline remove_circle_outline
+Starting in Android 12, work profiles will no longer have access to
+hardware-specific identifiers. IT admins can follow the lifecycle of a device
+with a work profile through the enrollment-specific ID, which will persist
+through factory resets.
+4.29.1. IT admins can obtain an enrollment-specific ID
+4.29.2. This enrollment-specific ID must persist through a factory reset
+4.30. Credential manager policy
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+14.0+ star star star star
+IT admins can manage which credential manager applications are allowed or
+blocked using the credential provider policy default or the credential provider policy .
+4.30.1 IT admins can block all credential managers on the device (or within the
+Work profile) using policy.
+4.30.2 IT admins can specify allowing only pre-loaded (system apps) credential
+managers.
+4.30.3 IT admins can specify a list of package names to enable credential
+manager functionality.
+4.31. Basic eSIM management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+15.0+ star star star star
+Allows IT admins to provision a device with an eSIM profile and manage its
+lifecycle on the device.
+4.31.1 IT admins can silently provision an eSIM profile onto a device using
+policy.
+4.31.2 IT admins can delete managed eSIMs from a device using policy.
+4.31.3 IT admins can prevent users from modifying mobile network settings in
+Settings (go to mobileNetworksConfigDisabled ).
+Note: This is a duplicate of 4.24.2.
+4.31.4 IT admins can remotely send a wipe command to a device or work profile.
+This command optionally removes managed eSIMs from the device. By default,
+managed eSIMs are removed from work profiles on personally-owned devices, but
+retained on company-owned devices.
+4.31.5 IT admins can retrieve the EID (Embedded Identity Document) identifier of
+a device using the EMM console UI (or equivalent method).
+5. Device usability
+5.1. Managed provisioning customization
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star_border star_border star_border star_border
+IT admins can modify the default setup flow UX to include
+enterprise-specific features. Optionally, IT admins can display EMM-provided
+branding during provisioning.
+5.1.1. IT admins can customize the provisioning process by specifying enterprise-specific Terms of Service and other disclaimers (go to termsAndConditions ).
+5.1.2. IT admins can deploy non-configurable, EMM-specific Terms of Service and other disclaimers
+(go to termsAndConditions ).
+EMMs may set their non-configurable, EMM-specific customization as the
+default for deployments, but must allow IT admins to set up their own
+customization.
+5.1.3. primaryColor has been deprecated for the enterprise resource on Android
+10 and higher.
+5.2. Enterprise customization
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star_border star_border remove_circle_outline remove_circle_outline
+The Android Management API doesn't support this feature.
+5.3. Advanced enterprise customization
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline remove_circle_outline star_border remove_circle_outline
+The Android Management API doesn't support this feature.
+5.4. Lock screen messages
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline star_border star_border star_border
+IT admins can set a custom message that's always displayed on the device lock
+screen, and does not require device unlock to be viewed.
+5.4.1. IT admins can set a custom lock screen message (go to deviceOwnerLockScreenInfo ).
+5.5. Policy transparency management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star star star
+IT admins can customize the help text provided to users when they attempt to
+modify managed settings on their device, or deploy an EMM-supplied generic
+support message. Both short and long support messages can be customized, and are
+displayed in instances such as attempting to uninstall a managed app for which
+an IT admin has already blocked uninstallation.
+5.5.1. IT admins can customize short and long user-facing support
+messages .
+5.5.2. IT admins can deploy non-configurable, EMM-specific, short and long
+support messages (go to shortSupportMessage and longSupportMessage in policies ).
+EMM may set their non-configurable, EMM-specific support messages as the
+default for deployments, but must allow IT admins to set up their own
+messages.
+5.6. Cross-profile contact management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star_border star_border remove_circle_outline remove_circle_outline
+5.6.1. IT admins can disable displaying work contacts in personal profile
+contact searches and incoming calls .
+5.6.2. IT admins can disable bluetooth contact sharing of work contacts, for example hands-free calling in cars or headsets.
+5.7. Cross-profile data management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star_border star_border remove_circle_outline remove_circle_outline
+Allows IT admins to manage the types of data that can be shared between the work
+and personal profiles, allowing admins to balance usability and data security
+according to their requirements.
+5.7.1. IT admins can configure cross-profile data sharing policy so that personal apps can resolve intents from the work profile, such as sharing
+intents or web links.
+5.7.2. IT admins can allow applications from the work profile to create and
+display widgets on the home screen of the personal profile. This capability
+is turned off by default, but can be set to allowed using workProfileWidgets and workProfileWidgetsDefault fields.
+5.7.3. IT admins can control the ability to copy/paste between the work and personal profiles .
+5.8. System update policy
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline star star star
+IT admins can set up and apply over-the-air (OTA) system updates
+devices.
+5.8.1. The EMM's console allows IT admins to set the following OTA
+configurations:
+Automatic: Devices install OTA updates when they become available.
+Postpone: IT admins must be able to postpone OTA update for up to 30
+days. This policy does not affect security updates (e.g. monthly security
+patches).
+Windowed: IT admins must be able to schedule OTA updates within a daily
+maintenance window.
+5.8.2. OTA configurations are applied to devices using policy .
+5.9. Lock task mode management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+6.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+IT admins can lock an app or set of apps to the screen, and ensure that users
+can't exit the app.
+5.9.1. The EMM's console allows IT admins to silently allow an arbitrary set of
+apps to install and lock to a device. Policy allows setting up dedicated devices.
+5.10. Persistent preferred activity management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border star_border star_border
+Allows IT admins to set an app as the default intent handler for intents that
+match a certain intent filter. For example, this feature would allow IT admins
+to choose which browser app automatically opens web links. This feature can
+manage which launcher app is used when tapping the home button.
+5.10.1. IT admins can set any package as the default intent handler for any arbitrary intent filter.
+The EMM's console may optionally suggest known or recommended intents for
+configuration, but cannot restrict intents to any arbitrary list.
+The EMM's console must allow IT admins to choose from the list of apps
+that are available to install for applicable users.
+5.11. Keyguard feature management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ star star remove_circle_outline remove_circle_outline
+IT admins can manage the features available to users before unlocking the
+device keyguard (lock screen) and the work challenge keyguard (lock screen).
+5.11.1. Policy can turn off the following device keyguard features:
+trust agents
+fingerprint unlock
+unredacted notifications
+5.11.2. The following keyguard features of the work profile can be turned off
+using policy :
+trust agents
+fingerprint unlock
+5.12. Advanced keyguard feature management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline star star star_border
+IT admins can manage advanced device keyguard (lock screen) features on
+company-owned devices.
+5.12.1. IT admins can turn off the following device keyguard features using policy :
+Secure camera
+All notifications
+Unredacted
+Trust agents
+Fingerprint unlock
+All keyguard features
+5.13. Remote debugging
+The Android Management API doesn't support this feature.
+5.14. MAC address retrieval
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+7.0+ remove_circle_outline star_border star_border star_border
+EMMs can silently fetch a device's MAC address, to be used to identify devices
+in other parts of the enterprise infrastructure (for example when identifying
+devices for network access control).
+5.14.1. The EMM can silently retrieve a device's MAC address and can associate it with the device in the EMM's console.
+5.15. Advanced lock task mode management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+9.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+With a dedicated device, IT admins can use the EMM's
+console to perform the following tasks:
+5.15.1. Silently allow a single app to install and lock to a device .
+5.15.2. Turn on or off the following System UI features:
+Home button
+Overview
+Global actions
+Notifications
+System info / Status bar
+Keyguard (lock screen). This subfeature is turned on by default when
+5.15.1. is implemented.
+5.15.3. Turn off System error dialogs .
+5.16. Advanced system update policy
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+9.0+ remove_circle_outline remove_circle_outline remove_circle_outline star
+IT admins can set a specified freeze period for blocking system updates on a device.
+5.16.1. The EMM's console must allow IT admins to block over-the-air (OTA)
+system updates for a specified freeze period .
+5.17. Work profile policy transparency management
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+9.0+ star star remove_circle_outline remove_circle_outline
+IT admins can customize the message displayed to users when removing the work
+profile from a device.
+5.17.1. IT admins can provide custom text to display (go to wipeReasonMessage ) when a work profile is wiped.
+5.18. Connected app support
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+11.0+ star star remove_circle_outline remove_circle_outline
+IT admins can set a list of packages that can communicate across the
+work profile boundary by setting ConnectedWorkAndPersonalApp .
+5.19. Manual system update
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+11.0+ remove_circle_outline remove_circle_outline remove_circle_outline star_border
+The Android Management API doesn't support this feature.
+6. Device Admin Deprecation
+6.1. Device Admin Deprecation
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ remove_circle_outline remove_circle_outline star star
+EMMs are required to post a plan by the end of 2022 ending customer support for Device Admin on GMS devices by the end of Q1 2023.
+7. API usage
+7.1. Standard policy controller for new bindings
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star star star_border star_border
+By default devices must be managed using Android Device Policy for any new
+bindings. EMMs may provide the option to manage devices using a custom DPC in a
+settings area under a heading 'Advanced' or similar terminology. New customers
+must not be exposed to an arbitrary choice between technology stacks during any
+onboarding or setup workflows.
+7.2. Standard policy controller for new devices
+Android version Work profile on personally‑owned device Work profile on company‑owned device Fully managed device Dedicated device
+5.0+ star_border star_border star_border star_border
+By default devices must be managed using Android Device Policy for all new
+device enrollments, for both existing and new bindings. EMMs may provide the
+option to manage devices using a custom DPC in a settings area under a heading
+'Advanced' or similar terminology.
+Send feedback
+Except as otherwise noted, the content of this page is licensed under the Creative Commons Attribution 4.0 License , and code samples are licensed under the Apache 2.0 License . For details, see the Google Developers Site Policies . Java is a registered trademark of Oracle and/or its affiliates.
+Last updated 2026-04-21 UTC.
+Need to tell us more? [[["Easy to understand","easyToUnderstand","thumb-up"],["Solved my problem","solvedMyProblem","thumb-up"],["Other","otherUp","thumb-up"]],[["Missing the information I need","missingTheInformationINeed","thumb-down"],["Too complicated / too many steps","tooComplicatedTooManySteps","thumb-down"],["Out of date","outOfDate","thumb-down"],["Samples / code issue","samplesCodeIssue","thumb-down"],["Other","otherDown","thumb-down"]],["Last updated 2026-04-21 UTC."],[],[]]
+EMM Community
+Join the Android EMM developer community
+Android Videos
+Visit the Android Developers Channel
+Android Enterprise Info
+For Enterprise Customers
+For App Developers
+For OEMs
+Resources
+APIs and Tools
+Google Play Services
+Google Play Console
+Downloads
+Install the Android SDK
+Android
+Chrome
+Firebase
+Google Cloud Platform
+Google AI
+All products
+Terms
+Privacy
+Manage cookies
+English
+Deutsch
+Español
+Español – América Latina
+Français
+Indonesia
+Italiano
+Polski
+Português – Brasil
+Tiếng Việt
+Türkçe
+Русский
+עברית
+العربيّة
+فارسی
+हिंदी
+বাংলা
+ภาษาไทย
+中文 – 简体
+中文 – 繁體
+日本語
+한국어

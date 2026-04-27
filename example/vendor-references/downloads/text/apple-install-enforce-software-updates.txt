@@ -1,0 +1,408 @@
+Install and enforce software updates for Apple devices - Apple Support
+Apple
+Store
+Mac
+iPad
+iPhone
+Watch
+Vision
+AirPods
+TV & Home
+Entertainment
+Accessories
+Support
+0 +
+Apple Platform Deployment
+Open Menu Close Menu
+Communities
+Search this guide Clear Search
+Table of Contents
+Apple Platform Deployment
+Welcome
+Intro to Apple Platform Deployment
+What’s new
+Plan the deployment
+Intro to device management
+Declarative device management
+Intro to declarative device management
+Use declarative device management to manage Apple devices
+Device management
+Intro to device management profiles
+Intro to device management payloads
+About device supervision
+Choose a deployment model
+Device enrollment methods
+Enrollment methods for Apple devices
+Account-driven enrollment methods
+User Enrollment and device management
+Device Enrollment and device management
+Automated Device Enrollment and device management
+Deploy Apple TV
+Deploy Apple Vision Pro
+Deploy Apple Watch
+Deploy shared devices
+Shared device overview
+Use Return to Service for Apple devices
+Deploy Shared iPad
+Shared iPad overview
+Prepare Shared iPad
+Choose a device management service
+Device management migration
+Plan your device management migration
+Configure your new device management service
+Migrate managed devices
+Back up and restore managed devices
+Use standards-based services
+Prepare your environment
+Deploy devices with Apple School Manager or Apple Business
+Use Apple Configurator
+Configure devices
+Install apps with Apple Configurator
+Add Apple devices to Apple School Manager or Apple Business
+Configure your network for device management
+Configure devices to work with APNs
+Configure devices with cellular connections
+Prepare to use eSIMs with Apple devices
+Use a device management service to deploy devices with cellular connections
+Support for private 5G and LTE networks
+Support for 5G Network Slicing
+Prepare your Wi-Fi networks
+Optimize your Wi-Fi networks
+Review aggregate throughput for Wi-Fi networks
+Speed up downloads
+Intro to content caching
+Set up content caching
+Use DNS TXT records
+Advanced content caching settings
+Content caching from the command line
+Content caching metrics
+Set up a shared internet connection
+Use identity services
+Intro to Apple identity services
+Extensible Single Sign-on on Apple devices
+Intro to Single Sign-on
+Enrollment SSO for iPhone, iPad, and Apple Vision Pro
+Platform SSO for macOS
+Kerberos SSO extension
+Integrate Apple devices with Microsoft services
+Integrate with Microsoft Entra ID
+Integrate with Microsoft Exchange
+Use Microsoft Exchange to identify an iPhone, iPad, or Apple Vision Pro
+Integrate Mac computers with Active Directory
+About Managed Apple Accounts
+About Managed Apple Accounts
+iCloud for Managed Apple Accounts
+Review the setup process
+Manage Setup Assistant
+Managed Migration Assistant for macOS
+Set up local macOS accounts
+Device management configuration options
+Review declarative configurations
+Plan your configuration profiles
+Review device management payloads
+Review device management restrictions
+Manage software updates
+About software updates
+Software update process
+Install and enforce software updates
+Use device management to deploy software updates
+Phases of Apple software update enforcement
+Test software updates with the AppleSeed for IT beta program
+Distribute content
+Intro to content distribution
+Content distribution methods
+Distribute apps
+Distribute managed apps
+Distribute Custom Apps
+Distribute unlisted apps
+Distribute proprietary in-house apps
+Distribute packages to Mac computers
+Get app bundle IDs
+Bundle IDs for iPhone and iPad Apple apps
+Bundle IDs for Apple TV Apple apps
+Get the bundle ID for a Mac app
+Manage organizational data
+Manage login items and background tasks on Mac
+Integrate with networks
+How Apple devices join Wi-Fi networks
+Connect to 802.1X networks
+Wi-Fi roaming support
+Cisco network enhancements
+Wi-Fi and Ethernet specifications for Apple devices
+Use VPN for secure access
+VPN overview
+Cisco IPsec VPN setup
+Use a VPN proxy and certificate configuration
+Use network relays
+Filter content
+Use AirPlay
+Ensure device security
+Intro to device management security
+Background Security Improvements
+Lock and locate devices
+Erase devices
+Activation Lock
+Manage accessory access
+Enforce password policies
+Use persistent tokens
+Use built-in network security features
+Managed Device Attestation
+Managed Device Attestation
+Deploy Managed Device Attestation
+Manage certificates
+Intro to certificate management
+Distribute certificates
+Smart card integration
+Intro to smart card integration
+Smart card support on iPhone and iPad
+Supported smart card functions on iPhone and iPad
+Use a smart card on iPhone and iPad
+Smart card support on Mac
+Supported smart card functions on Mac
+Use a smart card on Mac
+Configure a Mac for smart card–only authentication
+FileVault and smart card usage
+Advanced smart card options
+macOS system security
+Startup security
+System extensions in macOS
+FileVault
+Intro to FileVault
+Use secure and bootstrap tokens
+Manage FileVault with device management
+Mac app security enhancements
+Device management settings
+Declarative configurations and status reports
+Declarative status reports
+Declarative app configuration
+Authentication credentials and identity asset declaration
+Background task management declarative
+Calendar declarative configuration
+Certificates declarative configuration
+Contacts declarative configuration
+Exchange declarative configuration
+Google Accounts declarative configuration
+LDAP declarative configuration
+Legacy interactive profile declarative configuration
+Legacy profile declarative configuration
+Mail declarative configuration
+Math and Calculator app declarative configuration
+Managed Migration Assistant declarative configuration
+Passcode declarative configuration
+Passkey Attestation declarative configuration
+Safari browsing management declarative configuration
+Safari extensions management declarative configuration
+Screen Sharing declarative configuration
+Service configuration files declarative configuration
+Software Update declarative configuration
+Software Update settings declarative configuration
+Storage management declarative configuration
+Subscribed Calendars declarative configuration
+Device management lists
+Device management service enrollment information
+Device management service User Enrollment information
+Device management payloads for Device Enrollment
+Device management payloads for Automated Device Enrollment
+Device management payload lists
+Payload list for iPhone and iPad
+Payload list for Mac
+Payload list for Apple TV
+Payload list for Apple Watch
+Payload list for Apple Vision Pro
+Payload list for Shared iPad
+Payload list available in Apple Configurator for Mac
+Device management restriction lists
+Restrictions for iPhone and iPad
+Restrictions for Mac
+Restrictions for Apple TV
+Restrictions for Apple Watch
+Restrictions for Apple Vision Pro
+Restrictions for supervised devices
+Restrictions available in Apple Configurator for Mac
+Device management command lists
+Device management command list
+Device management command settings options list
+Device management query lists
+Device information queries
+Device network information queries
+Operating system queries
+Installed app queries
+Security queries
+Device management payload settings
+Accessibility payload settings
+Active Directory Certificate payload settings
+AirPlay payload settings
+AirPlay Security payload settings
+AirPrint payload settings
+App Lock payload settings
+Associated Domains payload settings
+Automated Certificate Management Environment (ACME) payload settings
+Autonomous Single App Mode payload settings
+Calendar payload settings
+Cellular payload settings
+Cellular Private Network payload settings
+Certificate Preference payload settings
+Certificate Revocation payload settings
+Certificate Transparency payload settings
+Certificates payload settings
+Conference Room Display payload settings
+Contacts payload settings
+Content Caching payload settings
+Directory Service payload settings
+DNS Proxy payload settings
+DNS Settings payload settings
+Dock payload settings
+Domains payload settings
+Energy Saver payload settings
+Exchange ActiveSync (EAS) payload settings
+Exchange Web Services (EWS) payload settings
+Extensible Single Sign-on payload settings
+Extensible Single Sign-on Kerberos payload settings
+Extensions payload settings
+FileVault payload settings
+Finder payload settings
+Firewall payload settings
+Fonts payload settings
+Global HTTP Proxy payload settings
+Google Accounts payload settings
+Home Screen Layout payload settings
+Identification payload settings
+Identity Preference payload settings
+Kernel Extension Policy payload settings
+LDAP payload settings
+Lights Out Management payload settings
+Lock Screen Message payload settings
+Login Window payload settings
+Managed Login Items payload settings
+Mail payload settings
+Network settings
+Wi-Fi settings
+Ethernet settings
+WEP, WPA, WPA2, WPA2/WPA3 settings
+Dynamic WEP, WPA Enterprise, and WPA2 Enterprise settings
+EAP settings
+HotSpot 2.0 settings
+Legacy Hotspot settings
+Cisco Fastlane settings
+Network Proxy Configuration settings
+Network Usage Rules payload settings
+Notifications payload settings
+Parental Controls payload settings
+Passcode payload settings
+Printing payload settings
+Privacy Preferences Policy Control payload settings
+Relay payload settings
+SCEP payload settings
+Security payload settings
+Setup Assistant payload settings
+Single Sign-on payload settings
+Smart Card payload settings
+Subscribed Calendars payload settings
+System Extensions payload settings
+System Migration payload settings
+Time Machine payload settings
+TV Remote payload settings
+VPN device management settings
+VPN device management settings overview
+AppLayerVPN payload settings
+IKEv2 settings
+IPsec settings
+L2TP settings
+VPN Proxy settings
+Web Clips payload settings
+Web Content Filter payload settings
+Xsan payload settings
+Additional resources
+Join AppleSeed for IT
+AppleCare support
+Professional services
+Deployment and management training
+Apple Consultants Network
+Apple web resources
+Glossary
+Document revision history
+Copyright and trademarks
+Install and enforce software updates for Apple devices
+Using declarative device management, organizations can configure different aspects of the software update process. This includes managing software update availability, enforcing software updates, enrolling devices into beta programs, and more.
+Require a minimum version during enrollment
+On devices with iOS 17 , iPadOS 17 , macOS 14 , visionOS 26 , or later, device management services can enforce a minimum operating system version during Automated Device Enrollment. If the device doesn’t meet the minimum version that the device management service expects, it guides the user through an update before they can complete Setup Assistant. The same process happens automatically when using Auto Advance. This helps ensure that organization-owned devices are on the necessary operating system version before going into production.
+Manage the availability of software updates
+Organizations may want to control which versions their users can update their devices to. For example, this control can be used to perform verification of an update with a test group before allowing all users to install it in production, or deploy different deferrals to different groups to phase the rollout of recent updates.
+Time-based deferrals
+Supervised devices can be prevented from offering OTA software updates to users or trigger an automatic update until a specified period of time has passed since they were made publicly available by Apple. For example, say that an iPhone fleet is using iOS 17.3 , and a deferred software update configuration of 30 days is applied. In this scenario, users have iOS 17.4 offered to them on their managed devices 30 days after the iOS 17.4 release date.
+As part of the configuration, organizations can specify a custom deferral period from 1 to 90 days. For iPhone, iPad, and Apple TV devices, this delay applies to both operating system updates and upgrades. For Mac computers, they can also specify different deferral periods for operating system updates, upgrades, and non-operating system updates. Non-operating system updates include updates for Safari, XProtect, printer drivers, and Xcode command-line tools. For example, a custom deferral can be used on macOS to defer a software upgrade for longer than a software update.
+Note: OTA software updates are typically available for up to 180 days after their initial release date to ensure that an update is always available for managed devices with the maximum deferral value.
+Recommended cadence on iOS and iPadOS
+In addition to defining time-based deferrals, organizations can define whether users on supervised iPhone and iPad devices have the option to upgrade to a newer, major version or continue on the current one and still receive minor updates, even after an upgrade is available.
+For example, on an iPhone using iOS 17.6 , one of three options can be used:
+Offer users only additional updates to iOS 17 .
+Offer users only the upgrade to iOS 18 .
+Allow users the choice: additional updates to iOS 17 (for example, iOS 17.7 ) or upgrade to iOS 18 .
+The first option is available for only a limited period of time and allows users to benefit from any important security updates while testing is completed to approve the major upgrade for a production environment.
+In conjunction with deferrals, a recommended cadence can be used. In the example above, it could be used to keep devices on iOS 17 while deferring software updates only (like iOS 17.7 ) for the defined period of time.
+Install software updates automatically
+For devices with iOS 18 , iPadOS 18 , macOS 14 , tvOS 18.4 , or later, organizations can manage the automatic software update behavior on supervised devices.
+Note: Automatic software updates adhere to time-based deferrals and are initiated only after the specified period of time has passed.
+Automatic software updates (not upgrades)
+For downloading and preparing automatic software updates, the following configuration choices are available:
+Let the user choose whether to turn on automatic downloads.
+Automatic update downloads are turned off.
+Automatic update downloads are turned on.
+For installing automatic software updates and upgrades, the following configuration choices are available:
+Let the user choose whether to turn on automatic update installation.
+Automatic update installations are turned off.
+Automatic update installations are turned on.
+Note: This option requires automatic downloads to be turned on.
+These choices provide granular controls for an organization to define the most suitable automatic software update approach.
+For Mac computers, there’s an additional setting with the same three configuration options for security updates, which include updates for XProtect, Gatekeeper, and system data files. For more information, see the Apple Support article About background updates in macOS .
+Automatic Background Security Improvements
+Background Security Improvements don’t adhere to the managed software update deferral. Because they apply only to the latest minor operating system version, if that update is deferred, the Background Security Improvement is also effectively deferred.
+Organizations can define whether Background Security Improvements are automatically applied and specify whether users are allowed to remove them after they’ve been applied.
+Require authorization by an administrator on macOS
+Organizations can change the default behavior to require authorization by a local administrator to install a software update. For example, this can be used in deployments where a device is shared with multiple users to restrict who can perform an update.
+Enforce software updates
+Organizations can enforce specific software updates at a chosen time regardless of configured deferrals or if the automatic installation of Background Security Improvements is turned off. This helps ensure managed devices run a specified version by a certain date and time while allowing users to install the update at a time convenient for them (prior to the enforcement date).
+The enforcement date and time are relative to the local time zone of the device. This allows the same configuration to be applied across different regions. For example, if the enforcement date is set to 6:00 p.m., devices attempt to perform the update at 6:00 p.m. on the specified date in their local time zone.
+User experience of enforced software updates
+When a software update is declared, the device starts to download and prepare the update and users are informed about its deadline:
+In Settings (iOS, iPadOS, and tvOS) and in System Settings (macOS)
+In a notification
+If the iPhone or iPad is only connected using a cellular network, the user is prompted to confirm the download. If they don’t confirm, the device triggers the download when a Wi-Fi connection becomes available.
+Depending on the time left until the enforcement deadline, the notification provides different options on iOS, iPadOS, and macOS (as described below). To allow for increased transparency for users and to keep them informed about the process, additional information about the update can be provided using the “More information” link. tvOS shows notifications at the same cadence, but with a single, non-dismissible option to acknowledge the update enforcement timeline.
+If the user doesn’t immediately begin the installation, the notifications and options shown depend on the remaining time get more frequent leading up to the enforcement date and are meant to encourage the user to install the update at a time convenient for them. To help ensure these notifications are displayed to the user, the Do Not Disturb feature is ignored during the 24 hours prior to the enforcement.
+Alternatively, for devices with iOS 18 , iPadOS 18 , macOS 15 , tvOS 18.4 , or later, organizations can set the notifications to be displayed only one hour before the enforcement deadline and to show the restart countdown. This reduces the amount of notifications shown on devices—for example, if they aren’t directly assigned to a user (like a kiosk deployment).
+Install an enforced software update
+To initiate and authorize the update from a notification or from Settings and System Settings, the user is prompted for their passcode or password.
+In case the user hasn’t installed the update before the local enforcement date:
+tvOS proceeds to install the update
+iOS and iPadOS force the user to enter their passcode if one is set (unless it was entered earlier)
+For more information, see Escrow keybag in Apple Platform Security.
+macOS force quits all open apps (regardless of whether any documents are open and unsaved) and performs a restart if necessary
+On a Mac with Apple silicon, the Mac uses a bootstrap token (if one is available) to authorize the update or the Mac prompts the user for their credentials
+To enforce the installation of an update, upgrade, or Background Security Improvement, a device needs to meet the same requirements as for a user-initiated update of the same type.
+A key benefit of declarative device management is the autonomy of devices. Instead of triggering individual actions, the device management service declares the desired state, and delegates the task to achieve that state to the device itself. A specific example of this behavior is a situation where the operating system misses the update enforcement date because the device doesn’t meet the requirements. The device automatically detects when the operating system doesn’t achieve the declared state, and resumes the process when it connects to the internet.
+To do so—if necessary—the operating system downloads and prepares the update and posts another notification letting the user know the install is past due and an attempt is made to perform the installation within the next hour. In case the process gets interrupted again for any reason, the process repeats the next time the device is powered on and connected to the internet.
+Using status reports available with declarative device management, a device management service has increased transparency about the status of the installation—for example, waiting for, downloading and preparing, or installing the update. Meaningful error codes indicate when the system can’t apply a release or is unable to successfully complete it. This might occur if the device is offline, if the battery charge is too low, or if there isn’t enough free space available.
+Updating iPadOS on Shared iPad
+You can initiate software updates on Shared iPad devices over the air using the device management service that the Shared iPad enrolls in. If the device is physically connected, you can use Finder or Apple Configurator on a Mac.
+To install an update on Shared iPad , users need to be signed out but can be left cached on the device. If the installation requires more free space than what is currently available, cached user account data needs to be removed. Due to the autonomy of declarative device management, a device keeps retrying to install a new release until it’s successful.
+To minimize downtime, updates to a Shared iPad should be scheduled to occur during off hours to minimize impact to users and the network.
+For more information, see Updates and upgrades to iPadOS for Shared iPad .
+Published Date: September 24, 2025
+See also Device management service User Enrollment information Device management payloads for Device Enrollment Device management payloads for Automated Device Enrollment Apple Developer website: ScheduleOSUpdateCommand.Command.UpdatesItem
+Previous Software update process Next Use device management to deploy software updates
+Helpful?
+Yes No
+Character limit: 250
+Please don’t include any personal information in your comment.
+Maximum character limit is 250.
+Submit
+Thanks for your feedback.
+Apple Footer
+ Apple
+Support
+Apple Platform Deployment
+Install and enforce software updates for Apple devices
+United States
+Copyright © 2026 Apple Inc. All rights reserved.
+Privacy Policy Terms of Use Sales and Refunds Site Map

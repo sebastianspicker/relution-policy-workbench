@@ -1,0 +1,23 @@
+HTTP 200 OK
+accept-ranges: bytes
+cache-control: max-age=604800
+connection: Keep-Alive
+content-language: de-DE
+content-security-policy: base-uri 'self'; style-src 'self'; connect-src 'self' *.itzbund.de; script-src 'self' piwik.itzbund.de; object-src 'self' multimedia.gsb.bund.de medien.bsi.bund.de; media-src 'self' multimedia.gsb.bund.de medien.bsi.bund.de; img-src 'self' piwik.itzbund.de *.tile.openstreetmap.org; font-src 'self'; frame-ancestors 'self' *.prod.gsb.bsi.in.bund.de ; upgrade-insecure-requests;
+content-type: application/pdf;charset=UTF-8
+date: Thu, 23 Apr 2026 19:44:43 GMT
+etag: "85c890b9aad58584b9efcfd9d759eb2a"
+keep-alive: timeout=10, max=497
+last-modified: Wed, 01 Feb 2023 05:00:25 GMT
+referrer-policy: same-origin
+server: Apache
+set-cookie: AL_SESS-S=AZrFzf8vcf_jfJYw4Qf3Rltnl0AiAa9kqidmYNeT9RwDzqyTCgWEwia5grkaMv!efKPx; Path=/; Secure; HttpOnly; SameSite=Lax
+strict-transport-security: max-age=31536000
+transfer-encoding: chunked
+vary: Accept-Encoding
+x-content-security-policy: sandbox allow-scripts allow-popups allow-same-origin;
+x-content-type-options: nosniff
+x-frame-options: sameorigin
+x-permitted-cross-domain-policies: none
+x-ua-compatible: IE=edge
+x-webkit-csp: base-uri 'self'; style-src 'self'; connect-src 'self' *.itzbund.de; script-src 'self' piwik.itzbund.de; object-src 'self' multimedia.gsb.bund.de medien.bsi.bund.de; media-src 'self' multimedia.gsb.bund.de medien.bsi.bund.de; img-src 'self' piwik.itzbund.de *.tile.openstreetmap.org; font-src 'self'; frame-ancestors 'self' *.prod.gsb.bsi.in.bund.de ; upgrade-insecure-requests;

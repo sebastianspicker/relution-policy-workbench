@@ -1,0 +1,373 @@
+Activation Lock on Apple devices - Apple Support
+Apple
+Store
+Mac
+iPad
+iPhone
+Watch
+Vision
+AirPods
+TV & Home
+Entertainment
+Accessories
+Support
+0 +
+Apple Platform Deployment
+Open Menu Close Menu
+Communities
+Search this guide Clear Search
+Table of Contents
+Apple Platform Deployment
+Welcome
+Intro to Apple Platform Deployment
+What’s new
+Plan the deployment
+Intro to device management
+Declarative device management
+Intro to declarative device management
+Use declarative device management to manage Apple devices
+Device management
+Intro to device management profiles
+Intro to device management payloads
+About device supervision
+Choose a deployment model
+Device enrollment methods
+Enrollment methods for Apple devices
+Account-driven enrollment methods
+User Enrollment and device management
+Device Enrollment and device management
+Automated Device Enrollment and device management
+Deploy Apple TV
+Deploy Apple Vision Pro
+Deploy Apple Watch
+Deploy shared devices
+Shared device overview
+Use Return to Service for Apple devices
+Deploy Shared iPad
+Shared iPad overview
+Prepare Shared iPad
+Choose a device management service
+Device management migration
+Plan your device management migration
+Configure your new device management service
+Migrate managed devices
+Back up and restore managed devices
+Use standards-based services
+Prepare your environment
+Deploy devices with Apple School Manager or Apple Business
+Use Apple Configurator
+Configure devices
+Install apps with Apple Configurator
+Add Apple devices to Apple School Manager or Apple Business
+Configure your network for device management
+Configure devices to work with APNs
+Configure devices with cellular connections
+Prepare to use eSIMs with Apple devices
+Use a device management service to deploy devices with cellular connections
+Support for private 5G and LTE networks
+Support for 5G Network Slicing
+Prepare your Wi-Fi networks
+Optimize your Wi-Fi networks
+Review aggregate throughput for Wi-Fi networks
+Speed up downloads
+Intro to content caching
+Set up content caching
+Use DNS TXT records
+Advanced content caching settings
+Content caching from the command line
+Content caching metrics
+Set up a shared internet connection
+Use identity services
+Intro to Apple identity services
+Extensible Single Sign-on on Apple devices
+Intro to Single Sign-on
+Enrollment SSO for iPhone, iPad, and Apple Vision Pro
+Platform SSO for macOS
+Kerberos SSO extension
+Integrate Apple devices with Microsoft services
+Integrate with Microsoft Entra ID
+Integrate with Microsoft Exchange
+Use Microsoft Exchange to identify an iPhone, iPad, or Apple Vision Pro
+Integrate Mac computers with Active Directory
+About Managed Apple Accounts
+About Managed Apple Accounts
+iCloud for Managed Apple Accounts
+Review the setup process
+Manage Setup Assistant
+Managed Migration Assistant for macOS
+Set up local macOS accounts
+Device management configuration options
+Review declarative configurations
+Plan your configuration profiles
+Review device management payloads
+Review device management restrictions
+Manage software updates
+About software updates
+Software update process
+Install and enforce software updates
+Use device management to deploy software updates
+Phases of Apple software update enforcement
+Test software updates with the AppleSeed for IT beta program
+Distribute content
+Intro to content distribution
+Content distribution methods
+Distribute apps
+Distribute managed apps
+Distribute Custom Apps
+Distribute unlisted apps
+Distribute proprietary in-house apps
+Distribute packages to Mac computers
+Get app bundle IDs
+Bundle IDs for iPhone and iPad Apple apps
+Bundle IDs for Apple TV Apple apps
+Get the bundle ID for a Mac app
+Manage organizational data
+Manage login items and background tasks on Mac
+Integrate with networks
+How Apple devices join Wi-Fi networks
+Connect to 802.1X networks
+Wi-Fi roaming support
+Cisco network enhancements
+Wi-Fi and Ethernet specifications for Apple devices
+Use VPN for secure access
+VPN overview
+Cisco IPsec VPN setup
+Use a VPN proxy and certificate configuration
+Use network relays
+Filter content
+Use AirPlay
+Ensure device security
+Intro to device management security
+Background Security Improvements
+Lock and locate devices
+Erase devices
+Activation Lock
+Manage accessory access
+Enforce password policies
+Use persistent tokens
+Use built-in network security features
+Managed Device Attestation
+Managed Device Attestation
+Deploy Managed Device Attestation
+Manage certificates
+Intro to certificate management
+Distribute certificates
+Smart card integration
+Intro to smart card integration
+Smart card support on iPhone and iPad
+Supported smart card functions on iPhone and iPad
+Use a smart card on iPhone and iPad
+Smart card support on Mac
+Supported smart card functions on Mac
+Use a smart card on Mac
+Configure a Mac for smart card–only authentication
+FileVault and smart card usage
+Advanced smart card options
+macOS system security
+Startup security
+System extensions in macOS
+FileVault
+Intro to FileVault
+Use secure and bootstrap tokens
+Manage FileVault with device management
+Mac app security enhancements
+Device management settings
+Declarative configurations and status reports
+Declarative status reports
+Declarative app configuration
+Authentication credentials and identity asset declaration
+Background task management declarative
+Calendar declarative configuration
+Certificates declarative configuration
+Contacts declarative configuration
+Exchange declarative configuration
+Google Accounts declarative configuration
+LDAP declarative configuration
+Legacy interactive profile declarative configuration
+Legacy profile declarative configuration
+Mail declarative configuration
+Math and Calculator app declarative configuration
+Managed Migration Assistant declarative configuration
+Passcode declarative configuration
+Passkey Attestation declarative configuration
+Safari browsing management declarative configuration
+Safari extensions management declarative configuration
+Screen Sharing declarative configuration
+Service configuration files declarative configuration
+Software Update declarative configuration
+Software Update settings declarative configuration
+Storage management declarative configuration
+Subscribed Calendars declarative configuration
+Device management lists
+Device management service enrollment information
+Device management service User Enrollment information
+Device management payloads for Device Enrollment
+Device management payloads for Automated Device Enrollment
+Device management payload lists
+Payload list for iPhone and iPad
+Payload list for Mac
+Payload list for Apple TV
+Payload list for Apple Watch
+Payload list for Apple Vision Pro
+Payload list for Shared iPad
+Payload list available in Apple Configurator for Mac
+Device management restriction lists
+Restrictions for iPhone and iPad
+Restrictions for Mac
+Restrictions for Apple TV
+Restrictions for Apple Watch
+Restrictions for Apple Vision Pro
+Restrictions for supervised devices
+Restrictions available in Apple Configurator for Mac
+Device management command lists
+Device management command list
+Device management command settings options list
+Device management query lists
+Device information queries
+Device network information queries
+Operating system queries
+Installed app queries
+Security queries
+Device management payload settings
+Accessibility payload settings
+Active Directory Certificate payload settings
+AirPlay payload settings
+AirPlay Security payload settings
+AirPrint payload settings
+App Lock payload settings
+Associated Domains payload settings
+Automated Certificate Management Environment (ACME) payload settings
+Autonomous Single App Mode payload settings
+Calendar payload settings
+Cellular payload settings
+Cellular Private Network payload settings
+Certificate Preference payload settings
+Certificate Revocation payload settings
+Certificate Transparency payload settings
+Certificates payload settings
+Conference Room Display payload settings
+Contacts payload settings
+Content Caching payload settings
+Directory Service payload settings
+DNS Proxy payload settings
+DNS Settings payload settings
+Dock payload settings
+Domains payload settings
+Energy Saver payload settings
+Exchange ActiveSync (EAS) payload settings
+Exchange Web Services (EWS) payload settings
+Extensible Single Sign-on payload settings
+Extensible Single Sign-on Kerberos payload settings
+Extensions payload settings
+FileVault payload settings
+Finder payload settings
+Firewall payload settings
+Fonts payload settings
+Global HTTP Proxy payload settings
+Google Accounts payload settings
+Home Screen Layout payload settings
+Identification payload settings
+Identity Preference payload settings
+Kernel Extension Policy payload settings
+LDAP payload settings
+Lights Out Management payload settings
+Lock Screen Message payload settings
+Login Window payload settings
+Managed Login Items payload settings
+Mail payload settings
+Network settings
+Wi-Fi settings
+Ethernet settings
+WEP, WPA, WPA2, WPA2/WPA3 settings
+Dynamic WEP, WPA Enterprise, and WPA2 Enterprise settings
+EAP settings
+HotSpot 2.0 settings
+Legacy Hotspot settings
+Cisco Fastlane settings
+Network Proxy Configuration settings
+Network Usage Rules payload settings
+Notifications payload settings
+Parental Controls payload settings
+Passcode payload settings
+Printing payload settings
+Privacy Preferences Policy Control payload settings
+Relay payload settings
+SCEP payload settings
+Security payload settings
+Setup Assistant payload settings
+Single Sign-on payload settings
+Smart Card payload settings
+Subscribed Calendars payload settings
+System Extensions payload settings
+System Migration payload settings
+Time Machine payload settings
+TV Remote payload settings
+VPN device management settings
+VPN device management settings overview
+AppLayerVPN payload settings
+IKEv2 settings
+IPsec settings
+L2TP settings
+VPN Proxy settings
+Web Clips payload settings
+Web Content Filter payload settings
+Xsan payload settings
+Additional resources
+Join AppleSeed for IT
+AppleCare support
+Professional services
+Deployment and management training
+Apple Consultants Network
+Apple web resources
+Glossary
+Document revision history
+Copyright and trademarks
+Activation Lock on Apple devices
+When a user turns on Activation Lock, it’s difficult for someone else to use or sell an iPhone, iPad, Mac, or Apple Watch if it’s ever lost or stolen. If you use a device management service that supports Activation Lock, you can manage it for devices your organization owns.
+There are two types of Activation Lock available:
+Organization-linked: Organization-linked Activation Lock requires Apple School Manager or Apple Business and is generally simpler to manage for organizations. It allows a device management service to fully control turning Activation Lock on and off through server-side interactions.
+User-linked: User-linked Activation Lock requires the user to have a personal Apple Account (not a Managed Apple Account ) and for them to turn on Find My . This method allows the user to lock an organization-linked device to their personal Apple Account if the device management service allows Activation Lock.
+Note: Some device management services support both Activation Lock methods; when attempting to use both, the first successful Activation Lock event takes precedence.
+Turn off Activation Lock
+In Apple School Manager or Apple Business, a user with Manage Device privileges can turn off organization-linked and user-linked Activation Lock for an iPhone, iPad, Mac, Apple Watch , or Apple Vision Pro that their organization owns. You need to add the device to Apple School Manager or Apple Business before enabling Activation Lock. Additionally, you can’t have released the device, but you don’t need to assign it to a device management service.
+For more information, see:
+Apple School Manager User Guide: Turn off Activation Lock
+Apple Business User Guide: Turn off Activation Lock
+Organization-linked Activation Lock for iPhone and iPad
+Allowing organization-linked Activation Lock means the device management service (not the user) contacts Apple servers directly to lock or unlock the device. Because this happens entirely server-side, there are no dependencies on user actions or the state of their device. The device management service creates its own bypass code, and sends it to Apple servers when it needs to turn on or turn off Activation Lock for the device.
+If your device management service is unsuccessful in removing Activation Lock, on the Activation Lock screen, enter the user name and password of the account that created the device management service token that links the device management service to Apple School Manager or Apple Business. In Apple School Manager, this is a user with the role of Administrator, Site Manager, or Device Enrollment Manager. In Apple Business, this is a user whose role has permissions to view, add, and delete device management services.
+Important: If you assign your devices to a device management service that links to Apple School Manager or Apple Business, use this method.
+User-linked Activation Lock
+In contrast with organization-linked Activation Lock, user-linked Activation Lock lets users lock devices your organization owns with their personal iCloud account.
+In this case, device management services can allow users to turn on Activation Lock on an organization-linked supervised device. Because Activation Lock is disallowed by default on supervised devices, the device management service needs to fetch a bypass code that the device creates and store it before allowing the user to turn on Activation Lock. If the user is unable to authenticate with their Apple Account for any reason, including if they leave the organization, you can use the bypass code to turn off Activation Lock remotely with a device management service, or directly on the device, when you need to erase the device and assign it to a new user.
+On iPhone and iPad, the bypass codes are available for up to 15 days after the device is first supervised, or until a device management service obtains—and then clears—the code explicitly. If a device management service doesn’t retrieve the bypass code within 15 days, that bypass code is unretrievable.
+Mac computers require Apple silicon or the Apple T2 Security Chip to be eligible to use Activation Lock. If an eligible Mac computer is using Device Enrollment and you update or upgrade it to macOS 10.15 or later, Activation Lock is disallowed by default, but you can optionally allow it. Managing Activation Lock on installations (not upgrades) of macOS 10.15 or later requires the device to be supervised. For a Mac with macOS 11 or later, if it’s supervised using Device Enrollment, you can’t manage Activation Lock until you enroll the device in a device management service. That means it may be possible for Activation Lock to already be turned on when the Mac enrolls in a device management service and becomes supervised. In that case, you can’t turn it off using a device management service and macOS can’t disallow it by default until the user turns it off.
+If you have physical possession of the device, on an iPhone or iPad, enter the device management service Activation Lock bypass code on the Activation Lock screen in the Apple Account password field, and leave the user name field blank. On a Mac, you can enter the bypass code by clicking Recovery Assistant in the menu bar and selecting the “Activate with MDM key” option. Consult your device management service developer’s documentation on where to locate the bypass code.
+When a device management service allows user-linked Activation Lock, the following occurs:
+If Find My is on when your device management service allows Activation Lock, Activation Lock turns on at that time.
+If Find My is off when your device management service allows Activation Lock, Activation Lock turns on the next time the user turns on Find My .
+Use bypass codes to clear Activation Lock
+To manage Activation Lock, your device management service needs to store two bypass codes:
+The device-generated bypass code. The device management service retains this code until it receives a different, nonempty code from the device.
+The bypass code the server creates when initiating Activation Lock through the device management service.
+The bypass codes that the device management service uses to manage Activation Lock are crucial to your ability to clear Activation Lock. Be sure to secure the bypass codes and back them up on a regular basis. If you change to a different device management service, ensure that you receive a copy of those bypass codes, or that the device management service clears Activation Lock for all enrolled devices.
+To clear the Activation Lock on Apple devices that support dual SIMs, the device management service needs to include both IMEI (International Mobile Equipment Identity) values in the request. For device management service developers, see Creating and Using Bypass Codes on the Apple Developer website.
+If your device management service is unable to remove Activation Lock, contact your device management service developer support resources, or see the Apple Support article How to remove Activation Lock .
+Published Date: July 29, 2024
+See also Apple Support article: Activation Lock for iPhone and iPad Apple Platform Security: Activation Lock security
+Previous Erase devices Next Manage accessory access
+Helpful?
+Yes No
+Character limit: 250
+Please don’t include any personal information in your comment.
+Maximum character limit is 250.
+Submit
+Thanks for your feedback.
+Apple Footer
+ Apple
+Support
+Apple Platform Deployment
+Activation Lock on Apple devices
+United States
+Copyright © 2026 Apple Inc. All rights reserved.
+Privacy Policy Terms of Use Sales and Refunds Site Map

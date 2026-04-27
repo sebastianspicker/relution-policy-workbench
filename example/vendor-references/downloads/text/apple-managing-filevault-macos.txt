@@ -1,0 +1,275 @@
+Managing FileVault in macOS - Apple Support
+Apple
+Store
+Mac
+iPad
+iPhone
+Watch
+Vision
+AirPods
+TV & Home
+Entertainment
+Accessories
+Support
+0 +
+Apple Platform Security
+Open Menu Close Menu
+Communities
+Search this guide Clear Search
+Table of Contents
+Apple Platform Security
+Welcome
+Intro to Apple platform security
+Hardware security and biometrics
+Hardware security overview
+Apple SoC security
+The Secure Enclave
+Optic ID, Face ID, and Touch ID
+Biometric security
+Magic Keyboard with Touch ID
+Optic ID, Face ID, Touch ID, passcodes, and passwords
+Optic ID matching security
+Facial matching security
+Uses for Optic ID, Face ID, and Touch ID
+Secure intent and connections to the Secure Enclave
+Hardware microphone disconnect
+Mac on-screen camera indicator light
+Express Cards with power reserve
+System security
+System security overview
+Secure boot
+Boot process for iPad and iPhone devices
+Memory safe iBoot implementation
+Mac computers with Apple silicon
+Boot process
+Boot modes
+Paired recoveryOS restrictions
+Startup Disk security policy control
+LocalPolicy signing-key creation and management
+Contents of a LocalPolicy file for a Mac with Apple silicon
+Intel-based Mac computers
+Boot process
+Boot modes
+Startup Security Utility
+Firmware password protection
+recoveryOS and diagnostics environments
+Signed system volume security
+Secure software updates
+Background Security Improvements
+Operating system integrity
+Device pairing and connection security
+Physical pairing model security
+Activating data connections securely
+Verifying accessories
+Automatically unlock Apple devices
+BlastDoor for Messages and IDS
+Lockdown Mode security
+Overview of additional macOS system security capabilities
+Additional macOS system security capabilities
+System Integrity Protection
+Trust caches
+Peripheral processor security
+Rosetta 2 on a Mac with Apple silicon
+Direct memory access protections
+Securely extending the kernel
+Option ROM security
+UEFI firmware security in an Intel-based Mac
+System security for watchOS
+Random number generation
+Communicating emergency information using satellites
+Apple Security Research Device
+Encryption and Data Protection
+Encryption and Data Protection overview
+Quantum-secure cryptography with Apple devices
+Passcodes and passwords
+Data Protection
+Data Protection overview
+Data Protection
+Data Protection classes
+Keybags for Data Protection
+Protecting keys in alternate boot modes
+Protecting user data in the face of attack
+Sealed Key Protection (SKP)
+Role of Apple File System
+Keychain data protection
+FileVault
+Volume encryption with FileVault
+Managing FileVault
+How Apple protects users’ personal data
+Protecting app access to user data
+Protecting access to user’s health data
+Digital signing and encryption
+App security
+App security overview
+App code signing process
+App security in iOS, iPadOS, and visionOS
+Intro to app security for iOS, iPadOS, and visionOS
+About App Store security
+Security of runtime process
+App protection and app groups
+App security in macOS
+Intro to app security for macOS
+App code signing process
+Gatekeeper and runtime protection
+Protecting against malware
+Controlling app access to files
+Supporting extensions
+Secure features in the Notes app
+Secure features in the Shortcuts app
+Services security
+Services security overview
+Apple Account and Managed Apple Account
+Apple Account security
+Managed Apple Account security
+iCloud
+iCloud security overview
+iCloud encryption
+Advanced Data Protection for iCloud
+iCloud Backup security
+iCloud Private Relay security
+Account recovery contact security
+Legacy Contact security
+Passcode and password management
+Passcode security overview
+Sign in with Apple security
+Automatic strong passwords
+Password AutoFill security
+App access to saved passwords
+Password security recommendations
+Password Monitoring
+Sending passwords
+Credential provider extensions
+iCloud Keychain
+iCloud Keychain security overview
+Secure keychain syncing
+Secure iCloud Keychain recovery
+Escrow security for iCloud Keychain
+Apple Pay
+Apple Pay security overview
+Apple Pay component security
+How Apple Pay keeps users’ purchases protected
+Credit, debit, and prepaid cards
+Card provisioning security overview
+Adding credit or debit cards to Apple Pay
+Payment authorization with Apple Pay
+Paying with cards using Apple Pay
+Contactless passes in Apple Pay
+Rendering cards unusable with Apple Pay
+Apple Card security
+Apple Cash security
+Tap to Pay on iPhone
+Using Apple Wallet
+Access using Apple Wallet
+Access key types
+Car key security
+Car key security
+Car key transactions
+Adding transit and eMoney cards to Apple Wallet
+IDs in Apple Wallet
+IDs in Apple Wallet
+Security of IDs in Apple Wallet
+iMessage
+iMessage security overview
+How iMessage sends and receives messages
+Check In security
+Secure iMessage name and photo sharing
+Secure Apple Messages for Business
+FaceTime security
+Find My
+Find My security
+Locating missing devices
+Continuity
+Continuity security overview
+Handoff security
+iPhone cellular call relay security
+iPhone Text Message Forwarding security
+Instant Hotspot security
+Network security
+Network security overview
+TLS security
+IPv6 security
+VPN security
+Wi-Fi security and privacy
+Security features when connecting to wireless networks
+Wi-Fi security with Apple devices
+Privacy features when connecting to wireless networks
+Wi-Fi privacy with Apple devices
+Bluetooth security
+Ultra Wideband security in iOS
+Single Sign-on security
+AirDrop security
+Wi-Fi password sharing security
+Firewall security in macOS
+Developer kit security
+Developer kit security overview
+ARKit security
+DriverKit security
+EnergyKit data security
+HomeKit security
+Communication security
+Data security
+Securing routers with HomeKit
+Camera security
+Security with Apple TV
+NFC & SE Platform security
+ReplayKit security
+SiriKit security
+WidgetKit security
+Secure device management
+Secure device management overview
+Device management
+Device management security overview
+Managed Device Attestation
+Attestation process security
+Configuration enforcement
+Automated Device Enrollment
+Activation Lock security
+Managed Lost Mode and remote wipe
+Shared iPad security
+Apple Configurator security
+Screen Time security
+Glossary
+Document revision history
+Copyright and trademarks
+Managing FileVault in macOS
+On devices with macOS, organizations can manage FileVault using SecureToken or Bootstrap Token.
+Using Secure Token
+Apple File System (APFS) in macOS 10.13 or later changes how FileVault encryption keys are generated. In previous versions of macOS on CoreStorage volumes, the keys used in the FileVault encryption process were created when a user or organization turned on FileVault on a Mac. On devices with macOS on APFS volumes, the keys are generated either during user creation, setting the first user’s password, or during the first login by a user of the Mac. This implementation of the encryption keys, when they’re generated, and how they’re stored are all part of a feature known as Secure Token . Specifically, a Secure Token is a wrapped version of a key encryption key (KEK) protected by a userʼs password.
+When deploying FileVault on APFS, the user can continue to:
+Use existing tools and processes, such as a personal recovery key (PRK) that can be stored with a device management service for escrow
+Defer enablement of FileVault until a user logs into or out of the Mac
+Create and use an institutional recovery key (IRK)
+In macOS 11 , setting the initial password for the very first user on the Mac results in that user being granted a Secure Token. In some workflows, that may not be the desired behavior, as previously, granting the first Secure Token would have required the user account to log in. To prevent this from happening, add ;DisabledTags;SecureToken to the programmatically created user’s AuthenticationAuthority attribute prior to setting the user’s password, as shown below:
+sudo dscl . append /Users/<user name> AuthenticationAuthority ";DisabledTags;SecureToken"
+Using Bootstrap Token
+macOS 10.15 introduced the Bootstrap Token to help with granting a Secure Token to both mobile accounts and the optional device enrollment-created administrator account (“managed administrator”). Using the Bootstrap Token feature of macOS 10.15 or later requires:
+Mac enrollment in a device management service using Apple School Manager or Apple Business Manager, which makes the Mac supervised
+Device management service developer support
+In macOS 10.15.4 or later, a Bootstrap Token is generated and escrowed to a device management service on the first login by any user who is Secure Token–enabled if the device management service supports the feature. A Bootstrap Token can also be generated and escrowed to a device management service using the profiles command-line tool, if needed.
+In macOS 11 or later, a Bootstrap Token:
+Can grant a Secure Token to any user logging in to a Mac computer, including local user accounts.
+On a Mac with Apple silicon, a Bootstrap Token can be used to authorize the installation of both kernel extensions and software updates when managed using a device management service.
+Institutional versus personal recovery keys
+FileVault on both CoreStorage and APFS volumes supports using an institutional recovery key (IRK, previously known as a FileVault Master identity ) to unlock the volume. Though an IRK is useful for command-line operations to unlock a volume or turn off FileVault altogether, its utility for organizations is limited, especially in recent versions of macOS. And on a Mac with Apple silicon, IRKs provide no functional value for two primary reasons: IRKs can’t be used to access recoveryOS, and because target disk mode is no longer supported, the volume can’t be unlocked by connecting it to another Mac.
+Important: For those reasons and more, the use of an IRK is no longer recommended for institutional management of FileVault on Mac computers . Instead, a personal recovery key (PRK) should be used.
+Unlock FileVault using SSH
+On a Mac with Apple silicon with macOS 26 or later, FileVault can be unlocked over SSH after a restart if Remote Login is turned on and a network connection is available.
+Published Date: January 28, 2026
+See also Internal volume encryption and FileVault Device management security overview Apple Platform Deployment: Use Secure Token, Bootstrap Token, and volume ownership in deployments
+Download this guide as a PDF
+Previous Volume encryption with FileVault Next Protecting app access to user data
+Helpful?
+Yes No
+Character limit: 250
+Please don’t include any personal information in your comment.
+Maximum character limit is 250.
+Submit
+Thanks for your feedback.
+Apple Footer
+ Apple
+Support
+Apple Platform Security
+Managing FileVault in macOS
+United States
+Copyright © 2026 Apple Inc. All rights reserved.
+Privacy Policy Terms of Use Sales and Refunds Site Map
