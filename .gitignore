@@ -49,5 +49,6 @@ playwright-report/
 test-results/
 coverage/
 reports/
+private/
 scratch/
 tmp/

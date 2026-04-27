@@ -173,7 +173,7 @@ async function handleRequest(
     return;
   }
   if (url.pathname === "/api/workspace" && request.method === "POST") {
-    const body = await readJsonBody(request);
+    const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
     const previousWorkspace = loadWorkspace(options.workspace);
     const previousSidecar = captureSidecarState(options.workspace);
     try {
@@ -189,7 +189,7 @@ async function handleRequest(
     return;
   }
   if (url.pathname === "/api/workspace/validate" && request.method === "POST") {
-    const body = await readJsonBody(request);
+    const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
     try {
       sendJson(response, 200, { validation: validateWorkspace(parseWorkspaceBody(body), bundle) });
     } catch (error) {
