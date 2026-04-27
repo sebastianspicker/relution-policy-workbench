@@ -305,8 +305,9 @@ def source_roles(sources: list[dict[str, Any]], scope: str) -> list[dict[str, st
 
 def update_readme(output_vendor_dir: Path, sources: list[dict[str, Any]], recommendations: list[dict[str, Any]]) -> None:
     readme_path = output_vendor_dir / "README.md"
-    if not readme_path.exists() and output_vendor_dir != VENDOR_DIR:
-        shutil.copy2(VENDOR_DIR / "README.md", readme_path)
+    source_readme_path = VENDOR_DIR / "README.md"
+    if not readme_path.exists() and output_vendor_dir != VENDOR_DIR and source_readme_path.exists():
+        shutil.copy2(source_readme_path, readme_path)
     if not readme_path.exists():
         return
     counts: dict[str, int] = {}

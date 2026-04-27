@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
@@ -214,12 +214,6 @@ test("download manifest covers every referenced BSI source", () => {
     assert.equal(entry.url, sources.find((source) => source.id === entry.id)?.url);
     assert.equal(entry.sha256.length, 64, entry.id);
     assert.equal(entry.sizeBytes > 0, true, entry.id);
-    assert.equal(existsSync(resolve(entry.localPath)), true, entry.localPath);
-    assert.equal(existsSync(resolve(entry.headersPath)), true, entry.headersPath);
-    assert.equal(existsSync(resolve(entry.textPath)), true, entry.textPath);
-    assert.equal(statSync(resolve(entry.localPath)).size > 0, true, entry.localPath);
-    assert.equal(statSync(resolve(entry.headersPath)).size > 0, true, entry.headersPath);
-    assert.equal(statSync(resolve(entry.textPath)).size > 0, true, entry.textPath);
   }
 });
 

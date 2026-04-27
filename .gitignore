@@ -31,6 +31,24 @@ example/roundtrip.rexp
 example/sample-edited.rexp
 example/sample-roundtrip.rexp
 
+# Local source payload artifacts. Keep derived JSON catalogs and REXP fixtures tracked.
+example/**/*.pdf
+example/**/*.xlsx
+example/**/*.html
+example/**/*.htm
+example/**/*.txt
+example/**/*.zip
+example/**/*.xml
+example/**/*.admx
+example/**/*.adml
+example/**/*.ps1
+example/**/*.pol
+example/**/*.inf
+example/**/*.csv
+example/**/*.cmtx
+example/**/*.PolicyRules
+example/**/*.md
+
 # Local audit, agent, and review artifacts.
 AUDIT*.md
 FUNCTION_AUDIT*.md
