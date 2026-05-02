@@ -375,6 +375,7 @@ async function serveEditor(args: ParsedArgs, workspace: string, out: string, key
     out,
     key,
     allowNetworkHost: args.options["allow-network-editor"] === true,
+    allowLocalServiceHosts: args.options["allow-local-service-hosts"] === true,
     port: optionalInteger(args, "port") ?? 8787,
     host: optionalString(args, "host") ?? "127.0.0.1",
   };
@@ -420,7 +421,7 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
 
     const name = token.slice(2);
-    if (name === "force" || name === "pretty" || name === "json" || name === "once" || name === "sort-ascending" || name === "allow-network-editor" || name === "allow-heuristic-runtime-metadata") {
+    if (name === "force" || name === "pretty" || name === "json" || name === "once" || name === "sort-ascending" || name === "allow-network-editor" || name === "allow-local-service-hosts" || name === "allow-heuristic-runtime-metadata") {
       options[name] = true;
       continue;
     }
@@ -513,8 +514,8 @@ function printHelp(): void {
   rexp relution assess --host <server> --token <api-token> [--workspace <dir>] [--platform <csv>] [--status <csv>] [--json]  # read-only remote API
   rexp relution audit --host <server> --token <api-token> [--expected-policy IOS=Policy] [--inactive-warning-days 30] [--inactive-problem-days 90] [--json]  # read-only remote API
   rexp new --platform <Platform> --name <name> --workspace <dir> [--force]
-  rexp edit <file.rexp> --key <password> --workspace <dir> --out <file.rexp> [--port 8787] [--force]
-  rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-network-editor]
+  rexp edit <file.rexp> --key <password> --workspace <dir> --out <file.rexp> [--port 8787] [--force] [--allow-local-service-hosts]
+  rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-network-editor] [--allow-local-service-hosts]
 
 With no arguments, rexp starts the local browser editor using ${DEFAULT_SERVE_WORKSPACE}.
 The password can also be supplied through RELUTION_REXP_KEY.`);

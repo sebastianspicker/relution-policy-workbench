@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
@@ -65,6 +65,75 @@ test("round-trips extracted policy exports into a verifiable rexp archive", () =
     "report.json",
     "metadata.bin",
   ]);
+});
+
+test("readZip rejects archives whose aggregate inflated size exceeds the configured limit", () => {
+  const archive = writeZip([
+    { name: "entry-1.json", data: Buffer.alloc(4, "a") },
+    { name: "entry-2.json", data: Buffer.alloc(4, "b") },
+    { name: "entry-3.json", data: Buffer.alloc(4, "c") },
+    { name: "entry-4.json", data: Buffer.alloc(4, "d") },
+  ]);
+
+  assert.throws(
+    () => readZip(archive, { maxTotalUncompressedBytes: 12 }),
+    /uncompressed data exceeds the supported size limit/u,
+  );
+});
+
+test("packPlainDirectory rejects symlinked managed input paths", () => {
+  const scenarios = [
+    {
+      name: "metadata",
+      link: (workspace: string, outsideFile: string) => {
+        rmSync(join(workspace, "metadata.json"));
+        symlinkSync(outsideFile, join(workspace, "metadata.json"));
+      },
+    },
+    {
+      name: "report",
+      link: (workspace: string, outsideFile: string) => {
+        rmSync(join(workspace, "report.json"));
+        symlinkSync(outsideFile, join(workspace, "report.json"));
+      },
+    },
+    {
+      name: "policies-directory",
+      link: (workspace: string, outsideFile: string) => {
+        const outsidePolicies = join(outsideFile, "..", "outside-policies");
+        mkdirSync(outsidePolicies, { recursive: true });
+        writeFileSync(join(outsidePolicies, "policy_SECRET.json"), '{"uuid":"SECRET","versions":[]}\n');
+        rmSync(join(workspace, "policies"), { recursive: true });
+        symlinkSync(outsidePolicies, join(workspace, "policies"));
+      },
+    },
+    {
+      name: "policy-file",
+      link: (workspace: string, outsideFile: string) => {
+        rmSync(join(workspace, "policies", "policy_LOCAL.json"));
+        symlinkSync(outsideFile, join(workspace, "policies", "policy_LOCAL.json"));
+      },
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    const root = mkdtempSync(join(tmpdir(), `relution-pack-symlink-${scenario.name}-`));
+    const workspace = join(root, "workspace");
+    const outsideFile = join(root, "outside.json");
+    mkdirSync(join(workspace, "policies"), { recursive: true });
+    writeFileSync(join(workspace, "metadata.json"), '{"version":1}\n');
+    writeFileSync(join(workspace, "report.json"), '{"policiesToExport":[],"exportedPolicies":{},"failedPolicies":{}}\n');
+    writeFileSync(join(workspace, "policies", "policy_LOCAL.json"), '{"uuid":"LOCAL","versions":[]}\n');
+    writeFileSync(outsideFile, '{"uuid":"SECRET","versions":[]}\n');
+
+    scenario.link(workspace, outsideFile);
+
+    assert.throws(
+      () => packPlainDirectory(workspace, join(root, "out.rexp"), password),
+      /Project path must not use symlinks/u,
+      scenario.name,
+    );
+  }
 });
 
 test("extractRexp rejects policy entries that escape the output root", () => {

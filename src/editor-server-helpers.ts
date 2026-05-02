@@ -1,4 +1,5 @@
-import { type IncomingMessage } from "node:http";
+import { randomBytes } from "node:crypto";
+import { type IncomingMessage, type ServerResponse } from "node:http";
 import { RECOMMENDATION_SOURCES, type RecommendationSource } from "./recommendation-types.js";
 import { type ComplianceSelection, type ComplianceSourceArtifacts } from "./compliance.js";
 import { isRecommendationSource, loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
@@ -52,6 +53,47 @@ export function assertSafeMutatingApiRequest(request: IncomingMessage, options: 
   assertJsonContentType(request);
 }
 
+export function createNetworkApiToken(): string {
+  return randomBytes(32).toString("base64url");
+}
+
+export function editorUrlWithNetworkToken(host: string, port: number, token: string | undefined): string {
+  const baseUrl = `http://${host}:${String(port)}/`;
+  return token === undefined ? baseUrl : `${baseUrl}?editorToken=${token}`;
+}
+
+export function handleNetworkTokenBootstrap(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  token: string | undefined,
+): boolean {
+  if (token === undefined || request.method !== "GET" || url.searchParams.get("editorToken") !== token) {
+    return false;
+  }
+
+  url.searchParams.delete("editorToken");
+  response.writeHead(302, {
+    "location": `${url.pathname}${url.search}${url.hash}`,
+    "set-cookie": `relution_editor_token=${token}; HttpOnly; SameSite=Strict; Path=/`,
+  });
+  response.end();
+  return true;
+}
+
+export function assertNetworkApiToken(request: IncomingMessage, token: string | undefined): void {
+  if (token === undefined) {
+    return;
+  }
+  if (firstHeaderValue(request.headers["x-relution-editor-token"]) === token) {
+    return;
+  }
+  if (cookieValue(request.headers.cookie, "relution_editor_token") === token) {
+    return;
+  }
+  throw new HttpError(403, "Network editor API requests require the editor token");
+}
+
 function requireRequestHost(request: IncomingMessage): { host: string; hostname: string } {
   const host = firstHeaderValue(request.headers.host);
   if (host === undefined || host.trim().length === 0) {
@@ -98,6 +140,19 @@ export function assertSafeEditorHost(host: string, allowNetworkHost: boolean): v
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+function cookieValue(cookieHeader: string | undefined, name: string): string | undefined {
+  if (cookieHeader === undefined) {
+    return undefined;
+  }
+  for (const part of cookieHeader.split(";")) {
+    const [rawName, ...rawValue] = part.trim().split("=");
+    if (rawName === name) {
+      return rawValue.join("=");
+    }
+  }
+  return undefined;
 }
 
 function normalizeHostname(hostname: string): string {

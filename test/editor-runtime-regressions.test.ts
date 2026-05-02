@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { lstatSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startEditorServer } from "../src/editor-server.js";
@@ -88,10 +89,96 @@ test("editor mutation endpoints return 400 for malformed client requests", async
   }
 });
 
+test("network editor mode requires the URL capability token for API requests", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-network-token-"));
+  const workspace = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "Network token guard",
+    serverVersion: bundle.serverVersion,
+  });
+
+  const handle = await startEditorServer({
+    workspace,
+    key: "",
+    out,
+    host: "127.0.0.1",
+    port: 0,
+    allowNetworkHost: true,
+  });
+
+  try {
+    const token = new URL(handle.url).searchParams.get("editorToken");
+    assert.equal(typeof token, "string");
+    assert.notEqual(token, "");
+
+    const blocked = await postJsonWithHost(handle.url, {
+      host: "attacker.example.test",
+      origin: "http://attacker.example.test",
+      body: { key: "stolen-by-rebinding" },
+    });
+    assert.equal(blocked.status, 403);
+    assert.match(blocked.body, /editor token/u);
+
+    const allowed = await postJsonWithHost(handle.url, {
+      host: "attacker.example.test",
+      origin: "http://attacker.example.test",
+      token: token ?? "",
+      body: { key: "operator-approved" },
+    });
+    assert.equal(allowed.status, 200);
+  } finally {
+    await handle.close();
+  }
+});
+
 async function postJson(url: URL, value: unknown): Promise<Response> {
   return fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(value),
+  });
+}
+
+function postJsonWithHost(
+  baseUrl: string,
+  options: { host: string; origin: string; token?: string; body: unknown },
+): Promise<{ status: number; body: string }> {
+  const url = new URL("api/key", baseUrl);
+  const body = JSON.stringify(options.body);
+
+  return new Promise((resolveRequest, rejectRequest) => {
+    const request = httpRequest(
+      {
+        hostname: url.hostname,
+        port: Number(url.port),
+        path: url.pathname,
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-length": Buffer.byteLength(body),
+          "host": options.host,
+          "origin": options.origin,
+          ...(options.token === undefined ? {} : { "x-relution-editor-token": options.token }),
+        },
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer | string) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        response.on("end", () => {
+          resolveRequest({
+            status: response.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+    request.on("error", rejectRequest);
+    request.end(body);
   });
 }

@@ -88,16 +88,24 @@ test("queries and normalizes Relution device responses", async () => {
   }
 });
 
-test("redacts tokens from failed Relution API errors", async () => {
+test("sanitizes failed Relution API errors", async () => {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response("secret-token is invalid", { status: 401, statusText: "Unauthorized" });
+  globalThis.fetch = async () => new Response(
+    "secret-token Bearer unrelated-token student@example.test Campus iPad Device owner Alice",
+    { status: 401, statusText: "Unauthorized" },
+  );
   try {
     await assert.rejects(
       queryRelutionDevices(normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }), {}),
       (error) => {
         assert.equal(error instanceof Error, true);
-        assert.match((error as Error).message, /\[redacted\]/u);
-        assert.doesNotMatch((error as Error).message, /secret-token/u);
+        const message = (error as Error).message;
+        assert.equal(message, "Relution API request failed: 401 Unauthorized");
+        assert.doesNotMatch(message, /secret-token/u);
+        assert.doesNotMatch(message, /unrelated-token/u);
+        assert.doesNotMatch(message, /student@example\.test/u);
+        assert.doesNotMatch(message, /Campus iPad/u);
+        assert.doesNotMatch(message, /Alice/u);
         return true;
       },
     );

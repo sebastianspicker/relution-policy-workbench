@@ -123,6 +123,7 @@ async function probeDashboardWithMockDevices(options: {
     out: join(options.root, "dashboard-out.rexp"),
     key: archiveKey,
     port: 0,
+    allowLocalServiceHosts: true,
   });
   try {
     const session = await postJson<{ configured: boolean; baseUrl?: string }>(handle.url, "/api/relution/session", {

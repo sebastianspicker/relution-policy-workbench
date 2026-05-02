@@ -53,10 +53,8 @@ import {
 import { loadTemplateBundle, listTemplates, type RelutionTemplateBundle } from "./templates.js";
 import type { AppleSchemaCatalog } from "./apple-schema.js";
 import {
-  HttpError,
-  assertSafeEditorHost,
-  assertSafeMutatingApiRequest,
-  badRequest,
+  HttpError, assertNetworkApiToken, assertSafeEditorHost, assertSafeMutatingApiRequest,
+  badRequest, createNetworkApiToken, editorUrlWithNetworkToken, handleNetworkTokenBootstrap,
   loadComplianceArtifacts,
   optionalRecord,
   optionalString,
@@ -76,6 +74,7 @@ export interface EditorServerOptions {
   key: string;
   out: string;
   allowNetworkHost?: boolean;
+  allowLocalServiceHosts?: boolean;
   bundlePath?: string;
   host?: string;
   port?: number;
@@ -87,11 +86,11 @@ export interface EditorServerHandle {
 }
 
 type JsonRecord = Record<string, unknown>;
-
 interface EditorRuntimeState {
   key: string;
   relution: RelutionEditorRuntime;
   zammad: ZammadEditorRuntime;
+  networkApiToken?: string;
 }
 
 interface EditorRequestContext {
@@ -110,7 +109,8 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const port = options.port ?? 8787;
   const bundle = loadTemplateBundle(options.bundlePath);
   const appleSchema = loadAppleSchemaCatalog();
-  const runtimeState: EditorRuntimeState = { key: options.key, relution: createRelutionEditorRuntime(), zammad: createZammadEditorRuntime() };
+  const networkApiToken = options.allowNetworkHost === true ? createNetworkApiToken() : undefined;
+  const runtimeState: EditorRuntimeState = { key: options.key, relution: createRelutionEditorRuntime(), zammad: createZammadEditorRuntime(), ...(networkApiToken === undefined ? {} : { networkApiToken }) };
 
   const server = createServer((request, response) => {
     void handleRequest(request, response, options, bundle, appleSchema, runtimeState).catch((error: unknown) => {
@@ -130,7 +130,7 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const actualPort = typeof address === "object" && address !== null ? address.port : port;
 
   return {
-    url: `http://${host}:${actualPort}/`,
+    url: editorUrlWithNetworkToken(host, actualPort, networkApiToken),
     close: () =>
       new Promise((resolveClose, rejectClose) => {
         server.close((error) => {
@@ -154,6 +154,10 @@ async function handleRequest(
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const context: EditorRequestContext = { options, bundle, appleSchema, runtimeState };
+  if (handleNetworkTokenBootstrap(url, request, response, runtimeState.networkApiToken)) return;
+  if (url.pathname.startsWith("/api/")) {
+    assertNetworkApiToken(request, runtimeState.networkApiToken);
+  }
   if (url.pathname.startsWith("/api/") && request.method === "POST") {
     assertSafeMutatingApiRequest(request, options);
   }
@@ -163,10 +167,10 @@ async function handleRequest(
   if (await handleComplianceApiRequest(url, request, response, context)) {
     return;
   }
-  if (await handleRelutionApiRequest(url, request, response, runtimeState.relution, options.workspace)) {
+  if (await handleRelutionApiRequest(url, request, response, runtimeState.relution, options.workspace, options.allowLocalServiceHosts === true)) {
     return;
   }
-  if (await handleZammadApiRequest(url, request, response, runtimeState.zammad)) {
+  if (await handleZammadApiRequest(url, request, response, runtimeState.zammad, options.allowLocalServiceHosts === true)) {
     return;
   }
   if (await handleArchiveApiRequest(url, request, response, context)) {

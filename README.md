@@ -240,7 +240,7 @@ The local editor supports:
 - switching between default, organization-style, Relution-style, dark, and local custom theme tokens
 - building an encrypted `.rexp`, verifying decryptability and policy hashes, and downloading the output
 
-The editor runs locally at `http://127.0.0.1:8787/` by default. Use `--port` to change the port. Binding to a non-loopback host requires `--allow-network-editor` because the editor can mutate and rebuild local policy workspaces.
+The editor runs locally at `http://127.0.0.1:8787/` by default. Use `--port` to change the port. Binding to a non-loopback host requires `--allow-network-editor` because the editor can mutate and rebuild local policy workspaces. Relution and Zammad editor sessions reject hosts that resolve to loopback, private, link-local, multicast, unspecified, or IPv6 ULA addresses unless local Docker or lab use is made explicit with `--allow-local-service-hosts`.
 
 ## Ruleset JSON and Baselines
 

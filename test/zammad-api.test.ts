@@ -82,3 +82,42 @@ test("creates Zammad tickets with token auth and internal note article", async (
     globalThis.fetch = originalFetch;
   }
 });
+
+test("sanitizes failed Zammad API errors", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(
+    "secret-token Bearer unrelated-token it@example.test Campus iPad customer Alice",
+    { status: 403, statusText: "Forbidden" },
+  );
+  try {
+    await assert.rejects(
+      createZammadTicket(
+        normalizeZammadConnection({
+          host: "zammad.example.test",
+          apiToken: "secret-token",
+          group: "IT",
+          customer: "it@example.test",
+        }),
+        {
+          kind: "non-compliant-device",
+          title: "MDM non-compliance: Campus iPad",
+          body: "Finding body",
+          issueId: "missing-policy",
+        },
+      ),
+      (error) => {
+        assert.equal(error instanceof Error, true);
+        const message = (error as Error).message;
+        assert.equal(message, "Zammad API request failed: 403 Forbidden");
+        assert.doesNotMatch(message, /secret-token/u);
+        assert.doesNotMatch(message, /unrelated-token/u);
+        assert.doesNotMatch(message, /it@example\.test/u);
+        assert.doesNotMatch(message, /Campus iPad/u);
+        assert.doesNotMatch(message, /Alice/u);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
