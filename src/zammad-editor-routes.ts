@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { badRequest, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   createZammadTicket,
   normalizeZammadConnection,
@@ -24,6 +25,7 @@ export async function handleZammadApiRequest(
   request: IncomingMessage,
   response: ServerResponse,
   runtime: ZammadEditorRuntime,
+  allowLocalServiceHosts = false,
 ): Promise<boolean> {
   if (!url.pathname.startsWith("/api/zammad")) {
     return false;
@@ -52,7 +54,12 @@ export async function handleZammadApiRequest(
     if (basePath !== undefined) {
       input.basePath = basePath;
     }
-    runtime.connection = normalizeZammadConnection(input);
+    const connection = normalizeZammadConnection(input);
+    const policyError = await outboundHostPolicyError("Zammad", connection.host, allowLocalServiceHosts);
+    if (policyError !== undefined) {
+      throw badRequest(policyError);
+    }
+    runtime.connection = connection;
     sendJson(response, 200, publicZammadSession(runtime.connection));
     return true;
   }

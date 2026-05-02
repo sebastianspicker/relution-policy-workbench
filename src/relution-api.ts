@@ -250,8 +250,7 @@ async function relutionFetch(connection: RelutionConnection, path: string, init:
     },
   });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Relution API request failed: ${String(response.status)} ${response.statusText}: ${redactToken(text, connection.apiToken).slice(0, 500)}`);
+    throw new Error(`Relution API request failed: ${String(response.status)} ${response.statusText}`);
   }
   return response;
 }
@@ -485,10 +484,6 @@ function parseHostInput(value: string): { protocol?: RelutionProtocol; host: str
   } catch {
     return { host: trimmed.replace(/^https?:\/\//iu, "").replace(/\/.*$/u, "") };
   }
-}
-
-function redactToken(text: string, token: string): string {
-  return token.length === 0 ? text : text.replaceAll(token, "[redacted]");
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

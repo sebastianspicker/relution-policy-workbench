@@ -11,6 +11,12 @@ export interface ZipEntryInput {
   data: Buffer;
 }
 
+export interface ReadZipOptions {
+  maxEntries?: number;
+  maxTotalCompressedBytes?: number;
+  maxTotalUncompressedBytes?: number;
+}
+
 interface CentralDirectoryEntry {
   name: string;
   compressionMethod: number;
@@ -30,10 +36,14 @@ const ENCRYPTED_FLAG = 0x0001;
 const METHOD_STORED = 0;
 const METHOD_DEFLATED = 8;
 const MAX_ENTRY_SIZE_BYTES = 16 * 1024 * 1024;
+const DEFAULT_MAX_ENTRIES = 10000;
+const DEFAULT_MAX_TOTAL_COMPRESSED_BYTES = 256 * 1024 * 1024;
+const DEFAULT_MAX_TOTAL_UNCOMPRESSED_BYTES = 512 * 1024 * 1024;
 
 const CRC_TABLE = buildCrcTable();
 
-export function readZip(buffer: Buffer): ZipEntry[] {
+export function readZip(buffer: Buffer, options: ReadZipOptions = {}): ZipEntry[] {
+  const limits = readZipLimits(options);
   const eocdOffset = findEndOfCentralDirectory(buffer);
   const totalEntries = buffer.readUInt16LE(eocdOffset + 10);
   const centralDirectoryOffset = buffer.readUInt32LE(eocdOffset + 16);
@@ -41,8 +51,11 @@ export function readZip(buffer: Buffer): ZipEntry[] {
   if (totalEntries === ZIP64_MARKER_16 || centralDirectoryOffset === ZIP64_MARKER_32) {
     throw new Error("ZIP64 archives are not supported");
   }
+  if (totalEntries > limits.maxEntries) {
+    throw new Error(`ZIP archive contains too many entries (${String(totalEntries)} > ${String(limits.maxEntries)})`);
+  }
 
-  const centralEntries = readCentralDirectory(buffer, centralDirectoryOffset, totalEntries);
+  const centralEntries = readCentralDirectory(buffer, centralDirectoryOffset, totalEntries, limits);
   return centralEntries.map((entry) => readEntryData(buffer, entry));
 }
 
@@ -108,9 +121,16 @@ function findEndOfCentralDirectory(buffer: Buffer): number {
   throw new Error("Could not find ZIP end of central directory");
 }
 
-function readCentralDirectory(buffer: Buffer, offset: number, totalEntries: number): CentralDirectoryEntry[] {
+function readCentralDirectory(
+  buffer: Buffer,
+  offset: number,
+  totalEntries: number,
+  limits: Required<ReadZipOptions>,
+): CentralDirectoryEntry[] {
   const entries: CentralDirectoryEntry[] = [];
   let cursor = offset;
+  let totalCompressedBytes = 0;
+  let totalUncompressedBytes = 0;
 
   for (let index = 0; index < totalEntries; index += 1) {
     if (buffer.readUInt32LE(cursor) !== CENTRAL_DIRECTORY_SIGNATURE) {
@@ -128,12 +148,50 @@ function readCentralDirectory(buffer: Buffer, offset: number, totalEntries: numb
     const nameStart = cursor + 46;
     const nameEnd = nameStart + fileNameLength;
     const name = buffer.subarray(nameStart, nameEnd).toString("utf8");
+    totalCompressedBytes += compressedSize;
+    totalUncompressedBytes += uncompressedSize;
+    if (totalCompressedBytes > limits.maxTotalCompressedBytes) {
+      throw new Error(
+        `ZIP archive compressed data exceeds the supported size limit (${String(limits.maxTotalCompressedBytes)} bytes)`,
+      );
+    }
+    if (totalUncompressedBytes > limits.maxTotalUncompressedBytes) {
+      throw new Error(
+        `ZIP archive uncompressed data exceeds the supported size limit (${String(limits.maxTotalUncompressedBytes)} bytes)`,
+      );
+    }
 
     entries.push({ name, compressionMethod, flags, compressedSize, uncompressedSize, localHeaderOffset });
     cursor = nameEnd + extraLength + commentLength;
   }
 
   return entries;
+}
+
+function readZipLimits(options: ReadZipOptions): Required<ReadZipOptions> {
+  return {
+    maxEntries: normalizeLimit(options.maxEntries, DEFAULT_MAX_ENTRIES, "maxEntries"),
+    maxTotalCompressedBytes: normalizeLimit(
+      options.maxTotalCompressedBytes,
+      DEFAULT_MAX_TOTAL_COMPRESSED_BYTES,
+      "maxTotalCompressedBytes",
+    ),
+    maxTotalUncompressedBytes: normalizeLimit(
+      options.maxTotalUncompressedBytes,
+      DEFAULT_MAX_TOTAL_UNCOMPRESSED_BYTES,
+      "maxTotalUncompressedBytes",
+    ),
+  };
+}
+
+function normalizeLimit(value: number | undefined, fallback: number, label: string): number {
+  if (value === undefined) {
+    return fallback;
+  }
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new Error(`ZIP option ${label} must be a positive safe integer`);
+  }
+  return value;
 }
 
 function readEntryData(buffer: Buffer, entry: CentralDirectoryEntry): ZipEntry {

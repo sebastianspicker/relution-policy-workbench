@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   assessRelutionDevices,
   auditRelutionDevices,
@@ -34,6 +35,7 @@ export async function handleRelutionApiRequest(
   response: ServerResponse,
   runtime: RelutionEditorRuntime,
   workspace: string,
+  allowLocalServiceHosts = false,
 ): Promise<boolean> {
   if (!url.pathname.startsWith("/api/relution")) {
     return false;
@@ -60,7 +62,12 @@ export async function handleRelutionApiRequest(
     if (basePath !== undefined) {
       connectionInput.basePath = basePath;
     }
-    runtime.connection = normalizeRelutionConnection(connectionInput);
+    const connection = normalizeRelutionConnection(connectionInput);
+    const policyError = await outboundHostPolicyError("Relution", connection.host, allowLocalServiceHosts);
+    if (policyError !== undefined) {
+      throw badRequest(policyError);
+    }
+    runtime.connection = connection;
     sendJson(response, 200, publicRelutionSession(runtime.connection));
     return true;
   }

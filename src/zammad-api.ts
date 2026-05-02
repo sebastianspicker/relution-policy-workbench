@@ -128,8 +128,7 @@ async function zammadFetch(connection: ZammadConnection, path: string, init: Req
     },
   });
   if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Zammad API request failed: ${String(response.status)} ${response.statusText}: ${redactToken(text, connection.apiToken).slice(0, 500)}`);
+    throw new Error(`Zammad API request failed: ${String(response.status)} ${response.statusText}`);
   }
   return response;
 }
@@ -162,8 +161,4 @@ function parseHostInput(value: string): { protocol?: ZammadProtocol; host: strin
   } catch {
     return { host: trimmed.replace(/^https?:\/\//iu, "").replace(/\/.*$/u, "") };
   }
-}
-
-function redactToken(text: string, token: string): string {
-  return token.length === 0 ? text : text.replaceAll(token, "[redacted]");
 }

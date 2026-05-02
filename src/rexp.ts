@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, pbkdf2Sync, randomBytes } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
 import { readZip, writeZip, type ZipEntry, type ZipEntryInput } from "./zip.js";
 
@@ -50,6 +50,9 @@ const IV_LENGTH = 12;
 const GCM_TAG_LENGTH = 16;
 const KEY_LENGTH_BYTES = 16;
 const PBKDF2_ITERATIONS = 10000;
+const MAX_REXP_ENTRIES = 1024;
+const MAX_REXP_TOTAL_COMPRESSED_BYTES = 64 * 1024 * 1024;
+const MAX_REXP_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024;
 const MANAGED_PROJECT_PATHS = [METADATA_JSON, REPORT_JSON, HASHES_JSON, "policies"] as const;
 const POLICY_FILE_PATTERN = /^policies\/policy_[^/]+\.json$/u;
 
@@ -197,7 +200,11 @@ export function encryptRelutionPayload(
 }
 
 function readRexpEntries(filePath: string): ZipEntry[] {
-  return readZip(readFileSync(filePath));
+  return readZip(readFileSync(filePath), {
+    maxEntries: MAX_REXP_ENTRIES,
+    maxTotalCompressedBytes: MAX_REXP_TOTAL_COMPRESSED_BYTES,
+    maxTotalUncompressedBytes: MAX_REXP_TOTAL_UNCOMPRESSED_BYTES,
+  });
 }
 
 function decryptHashMap(encryptedMetadata: Buffer, password: string): Record<string, string> {
@@ -315,10 +322,15 @@ function listPolicyFiles(inputDir: string): string[] {
   if (!existsSync(policiesDir) || !statSync(policiesDir).isDirectory()) {
     return [];
   }
-  return readdirSync(policiesDir)
+  assertProjectPathUsesNoSymlink(inputDir, "policies");
+  const policyFiles = readdirSync(policiesDir)
     .filter((name) => name.startsWith("policy_") && name.endsWith(POLICY_SUFFIX))
     .sort()
     .map((name) => `policies/${name}`);
+  for (const policyFile of policyFiles) {
+    assertProjectPathUsesNoSymlink(inputDir, policyFile);
+  }
+  return policyFiles;
 }
 
 function writeProjectFile(outputDir: string, relativePath: string, data: Buffer): void {
@@ -328,7 +340,8 @@ function writeProjectFile(outputDir: string, relativePath: string, data: Buffer)
 }
 
 function readProjectFile(inputDir: string, relativePath: string): Buffer {
-  return readFileSync(join(inputDir, relativePath));
+  assertProjectPathUsesNoSymlink(inputDir, relativePath);
+  return readFileSync(resolveManagedProjectPath(inputDir, relativePath));
 }
 
 function getRequiredEntry(entries: ZipEntry[], name: string): ZipEntry {
@@ -353,6 +366,24 @@ function resolveManagedProjectPath(rootDir: string, relativePath: string): strin
     throw new Error(`Project path resolves outside extraction root: ${relativePath}`);
   }
   return candidate;
+}
+
+function assertProjectPathUsesNoSymlink(rootDir: string, relativePath: string): void {
+  const resolvedRoot = resolve(rootDir);
+  if (existsSync(resolvedRoot) && lstatSync(resolvedRoot).isSymbolicLink()) {
+    throw new Error(`Project path must not use symlinks: ${rootDir}`);
+  }
+
+  let current = resolvedRoot;
+  for (const segment of relativePath.split(/[\\/]/u).filter((part) => part.length > 0)) {
+    current = join(current, segment);
+    if (!existsSync(current)) {
+      break;
+    }
+    if (lstatSync(current).isSymbolicLink()) {
+      throw new Error(`Project path must not use symlinks: ${relativePath}`);
+    }
+  }
 }
 
 function isManagedProjectPath(relativePath: string): boolean {

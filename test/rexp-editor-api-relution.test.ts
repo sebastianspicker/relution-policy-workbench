@@ -7,6 +7,51 @@ import { startEditorServer } from "../src/editor-server.js";
 import { createNewWorkspace } from "../src/workspace.js";
 import { loadTemplateBundle } from "../src/templates.js";
 
+test("editor Relution and Zammad sessions reject local service hosts by default", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-editor-api-hosts-"));
+  const workspace = join(root, "workspace");
+  createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "Relution host validation test",
+    serverVersion: loadTemplateBundle().serverVersion,
+  });
+  const handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0 });
+  try {
+    const cases = [
+      {
+        label: "Relution IP literal",
+        path: "/api/relution/session",
+        body: { host: "127.0.0.1", apiToken: "secret-token" },
+      },
+      {
+        label: "Relution DNS private",
+        path: "/api/relution/session",
+        body: { host: "localhost", apiToken: "secret-token" },
+      },
+      {
+        label: "Zammad IP literal",
+        path: "/api/zammad/session",
+        body: { host: "127.0.0.1", apiToken: "zammad-token", group: "IT", customer: "it@example.test" },
+      },
+      {
+        label: "Zammad DNS private",
+        path: "/api/zammad/session",
+        body: { host: "localhost", apiToken: "zammad-token", group: "IT", customer: "it@example.test" },
+      },
+    ];
+
+    for (const entry of cases) {
+      const response = await postRaw(handle.url, entry.path, entry.body);
+      const text = await response.text();
+      assert.equal(response.status, 400, `${entry.label}: ${text}`);
+      assert.match(text, /blocked local\/private address/u, entry.label);
+    }
+  } finally {
+    await handle.close();
+  }
+});
+
 test("editor Relution API session queries devices and writes local reports", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
@@ -48,7 +93,7 @@ test("editor Relution API session queries devices and writes local reports", asy
     name: "Relution API Test",
     serverVersion: loadTemplateBundle().serverVersion,
   });
-  const handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0 });
+  const handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0, allowLocalServiceHosts: true });
   try {
     const session = await postJson<{ configured: boolean }>(handle.url, "/api/relution/session", {
       protocol: "https",
@@ -119,12 +164,17 @@ async function getJson<T>(baseUrl: string, path: string): Promise<T> {
 }
 
 async function postJson<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
+  const response = await postRaw(baseUrl, path, body);
+  const text = await response.text();
+  assert.equal(response.ok, true, text);
+  return JSON.parse(text) as T;
+}
+
+async function postRaw(baseUrl: string, path: string, body: unknown): Promise<Response> {
   const response = await fetch(new URL(path, baseUrl), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  const text = await response.text();
-  assert.equal(response.ok, true, text);
-  return JSON.parse(text) as T;
+  return response;
 }
