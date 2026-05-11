@@ -89,7 +89,7 @@ test("editor mutation endpoints return 400 for malformed client requests", async
   }
 });
 
-test("network editor mode requires the URL capability token for API requests", async () => {
+test("network editor mode requires the fragment capability token for API requests", async () => {
   const root = mkdtempSync(join(tmpdir(), "relution-network-token-"));
   const workspace = join(root, "workspace");
   const out = join(root, "output.rexp");
@@ -111,7 +111,9 @@ test("network editor mode requires the URL capability token for API requests", a
   });
 
   try {
-    const token = new URL(handle.url).searchParams.get("editorToken");
+    const url = new URL(handle.url);
+    const token = url.hash.startsWith("#editorToken=") ? decodeURIComponent(url.hash.slice("#editorToken=".length)) : null;
+    assert.equal(url.searchParams.get("editorToken"), null);
     assert.equal(typeof token, "string");
     assert.notEqual(token, "");
 
@@ -135,11 +137,72 @@ test("network editor mode requires the URL capability token for API requests", a
   }
 });
 
+test("default loopback editor mode rejects API reads with non-loopback Host headers", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-loopback-host-"));
+  const workspace = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "Loopback host guard",
+    serverVersion: bundle.serverVersion,
+  });
+
+  const handle = await startEditorServer({
+    workspace,
+    key: "",
+    out,
+    host: "127.0.0.1",
+    port: 0,
+  });
+
+  try {
+    const blockedGet = await getWithHost(new URL("api/state", handle.url), "attacker.example.test");
+    assert.equal(blockedGet.status, 403);
+    assert.match(blockedGet.body, /loopback Host header/u);
+
+    const allowedGet = await getWithHost(new URL("api/state", handle.url), "127.0.0.1");
+    assert.equal(allowedGet.status, 200);
+    assert.match(allowedGet.body, /Loopback host guard/u);
+  } finally {
+    await handle.close();
+  }
+});
+
 async function postJson(url: URL, value: unknown): Promise<Response> {
   return fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(value),
+  });
+}
+
+function getWithHost(url: URL, host: string): Promise<{ status: number; body: string }> {
+  return new Promise((resolveRequest, rejectRequest) => {
+    const request = httpRequest(
+      {
+        hostname: url.hostname,
+        port: Number(url.port),
+        path: url.pathname,
+        method: "GET",
+        headers: { host },
+      },
+      (response) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (chunk: Buffer | string) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+        response.on("end", () => {
+          resolveRequest({
+            status: response.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+    request.on("error", rejectRequest);
+    request.end();
   });
 }
 

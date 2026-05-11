@@ -53,6 +53,9 @@ const PBKDF2_ITERATIONS = 10000;
 const MAX_REXP_ENTRIES = 1024;
 const MAX_REXP_TOTAL_COMPRESSED_BYTES = 64 * 1024 * 1024;
 const MAX_REXP_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024;
+// Only these project paths are ever extracted, overwritten, or trusted from
+// metadata.hashes.json. Relution archives are ZIP files, so path scope is a
+// security invariant rather than a cosmetic validation detail.
 const MANAGED_PROJECT_PATHS = [METADATA_JSON, REPORT_JSON, HASHES_JSON, "policies"] as const;
 const POLICY_FILE_PATTERN = /^policies\/policy_[^/]+\.json$/u;
 
@@ -156,6 +159,9 @@ export function packPlainDirectory(inputDir: string, outputFile: string, passwor
 }
 
 export function decryptRelutionPayload(payload: Buffer, password: string): Buffer {
+  // Relution 26.1.1 frames encrypted blobs as:
+  // [salt length][salt][IV length][IV][ciphertext][GCM tag].
+  // Keep this parser strict so unsupported archive variants fail closed.
   const saltLength = readLength(payload, 0, 1, 9, "salt");
   const saltStart = 1;
   const saltEnd = saltStart + saltLength;

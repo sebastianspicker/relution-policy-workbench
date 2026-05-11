@@ -320,8 +320,13 @@ def importable_native_mappings(recommendation: dict[str, Any]) -> list[dict[str,
         for mapping in mappings
         if mapping.get("kind") == "relution-native"
         and isinstance(mapping.get("type"), str)
+        and safe_relution_target_type(mapping["type"])
         and isinstance(mapping.get("values"), dict)
     ]
+
+
+def safe_relution_target_type(target_type: str) -> bool:
+    return bool(re.fullmatch(r"[A-Z][A-Z0-9_]*(?:--[a-z0-9-]+)?", target_type))
 
 
 def multi_instance_id(mapping: dict[str, Any], recommendation_id: str) -> str | None:

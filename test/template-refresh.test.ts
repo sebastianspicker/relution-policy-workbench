@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createRelutionAuditReport } from "../src/audit.js";
-import { refreshTemplates } from "../src/template-refresh.js";
+import { refreshTemplates, resolveTemplateRefreshEntryTarget } from "../src/template-refresh.js";
 import { createTemplateBundle } from "../src/templates.js";
 import { writeZip } from "../src/zip.js";
 
@@ -73,6 +73,53 @@ test("template refresh heuristic fallback requires explicit opt-in", () => {
 
   const bundle = JSON.parse(readFileSync(out, "utf8")) as { refreshDiagnostics?: { runtimeMetadata?: { source?: string } } };
   assert.equal(bundle.refreshDiagnostics?.runtimeMetadata?.source, "heuristic");
+});
+
+test("template refresh rejects class extraction entries outside the work directory", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-template-refresh-entry-"));
+  const classesDir = join(root, "classes");
+
+  assert.equal(resolveTemplateRefreshEntryTarget(classesDir, "com/example/Config.class"), join(classesDir, "com/example/Config.class"));
+  assert.throws(() => resolveTemplateRefreshEntryTarget(classesDir, "../../escape.class"), /escapes extraction root/u);
+});
+
+test("template bundle generation tolerates recursive allOf references", () => {
+  const bundle = createTemplateBundle({
+    openApi: {
+      components: {
+        schemas: {
+          Platform: { type: "string", enum: ["UNKNOWN", "IOS"] },
+          EnrollmentType: { type: "string", enum: [] },
+          ConfigurationDetails: {
+            discriminator: {
+              mapping: {
+                IOS_RECURSIVE: "#/components/schemas/IosRecursiveDetails",
+              },
+            },
+          },
+          IosRecursiveDetails: {
+            allOf: [
+              { $ref: "#/components/schemas/IosRecursiveDetails" },
+              {
+                type: "object",
+                properties: {
+                  type: { type: "string" },
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+    iosSystemApps: {},
+    springConfigurationMetadata: {},
+    runtimeMetadata: [],
+    serverVersion: "test",
+    sourceImage: "local-test",
+    sourceImageDigest: "sha256:test",
+  });
+
+  assert.equal(bundle.configurationTypes[0]?.type, "IOS_RECURSIVE");
 });
 
 function writeMinimalRelutionJar(path: string): void {

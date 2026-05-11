@@ -9,9 +9,10 @@ export const NATIVE_ADD_PREFIX = "native:";
 export const APPLE_COMPAT_ADD_PREFIX = "apple-compat:";
 export const APPLE_SCHEMA_ADD_PREFIX = "apple-profile:";
 export const CUSTOM_SETTINGS_ADD_VALUE = "custom-settings";
+const NETWORK_EDITOR_TOKEN_STORAGE_KEY = "relutionEditorToken";
 
 export async function loadState(): Promise<AppState> {
-  const response = await fetch("/api/state");
+  const response = await fetch("/api/state", { headers: networkEditorAuthHeaders() });
   const state = await readJsonResponse<AppState>(response);
   if (!response.ok) {
     throw new Error(`Failed to load editor state: ${JSON.stringify(state)}`);
@@ -22,9 +23,40 @@ export async function loadState(): Promise<AppState> {
 export async function postJson(url: string, body: unknown): Promise<Response> {
   return await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", ...networkEditorAuthHeaders() },
     body: JSON.stringify(body),
   });
+}
+
+export function networkEditorAuthHeaders(): Record<string, string> {
+  const token = networkEditorToken();
+  return token === undefined ? {} : { "x-relution-editor-token": token };
+}
+
+function networkEditorToken(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+  const fragmentToken = tokenFromHash(window.location.hash);
+  if (fragmentToken !== undefined) {
+    window.sessionStorage.setItem(NETWORK_EDITOR_TOKEN_STORAGE_KEY, fragmentToken);
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    return fragmentToken;
+  }
+  return window.sessionStorage.getItem(NETWORK_EDITOR_TOKEN_STORAGE_KEY) ?? undefined;
+}
+
+function tokenFromHash(hash: string): string | undefined {
+  const prefix = "#editorToken=";
+  if (!hash.startsWith(prefix)) {
+    return undefined;
+  }
+  const encodedToken = hash.slice(prefix.length);
+  try {
+    return decodeURIComponent(encodedToken);
+  } catch {
+    return encodedToken;
+  }
 }
 
 export async function readJsonResponse<T>(response: Response): Promise<T> {

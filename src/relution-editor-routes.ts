@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
-import { outboundHostPolicyError } from "./outbound-host-policy.js";
+import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   assessRelutionDevices,
   auditRelutionDevices,
@@ -72,11 +72,11 @@ export async function handleRelutionApiRequest(
     return true;
   }
   if (url.pathname === "/api/relution/test" && request.method === "POST") {
-    sendJson(response, 200, await testRelutionConnection(requireConnection(runtime)));
+    sendJson(response, 200, await testRelutionConnection(await requireOutboundConnection(runtime, allowLocalServiceHosts)));
     return true;
   }
   if (url.pathname === "/api/relution/devices/query" && request.method === "POST") {
-    const result = await queryRelutionDevices(requireConnection(runtime), parseDeviceQuery(await readJsonBody(request)));
+    const result = await queryRelutionDevices(await requireOutboundConnection(runtime, allowLocalServiceHosts), parseDeviceQuery(await readJsonBody(request)));
     runtime.lastDevices = result.devices;
     sendJson(response, 200, result);
     return true;
@@ -91,7 +91,7 @@ export async function handleRelutionApiRequest(
   }
   if (url.pathname === "/api/relution/devices/audit" && request.method === "POST") {
     const body = await readJsonBody(request);
-    const result = await auditRelutionDevices(requireConnection(runtime), parseDeviceQuery(body), parseAssessmentOptions(body));
+    const result = await auditRelutionDevices(await requireOutboundConnection(runtime, allowLocalServiceHosts), parseDeviceQuery(body), parseAssessmentOptions(body));
     runtime.lastDevices = result.query.devices;
     runtime.lastAssessment = result.report;
     sendJson(response, 200, result);
@@ -169,6 +169,12 @@ function requireConnection(runtime: RelutionEditorRuntime): RelutionConnection {
     throw badRequest("Relution API session is not configured");
   }
   return runtime.connection;
+}
+
+async function requireOutboundConnection(runtime: RelutionEditorRuntime, allowLocalServiceHosts: boolean): Promise<RelutionConnection> {
+  const connection = requireConnection(runtime);
+  await assertOutboundHostAllowed("Relution", connection.host, allowLocalServiceHosts);
+  return connection;
 }
 
 function parseDevices(body: Record<string, unknown>): RelutionDeviceSummary[] | undefined {

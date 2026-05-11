@@ -35,6 +35,9 @@ export type {
 } from "./compliance-types.js";
 
 export function buildComplianceReport(input: BuildComplianceReportInput): ComplianceReport {
+  // Compliance is evaluated against the selected local policy version only.
+  // The recommendation corpus can contain display platforms that map to a
+  // different Relution import platform, so applicability is checked per source.
   const selectedSources = input.sources.filter((source) => input.catalogs[source] !== undefined);
   const target = selectedPolicyTarget(input.workspace, input.selection);
   const results: ComplianceRecommendationResult[] = [];
@@ -77,6 +80,9 @@ export function buildComplianceReport(input: BuildComplianceReportInput): Compli
 }
 
 export function applyComplianceRemediationToWorkspace(input: ApplyComplianceRemediationInput): ApplyComplianceRemediationResult {
+  // Remediation is deliberately report-driven: first compute the same result the
+  // UI shows, then apply the selected option to a clone. This keeps "what would
+  // be fixed" and "what was fixed" on the same mapping rules.
   const report = buildComplianceReport(input);
   const result = report.results.find((candidate) => candidate.source === input.source && candidate.recommendationId === input.recommendationId);
   if (result === undefined) {

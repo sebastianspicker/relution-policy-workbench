@@ -2,6 +2,7 @@
   "name": "relution-policy-workbench",
   "version": "0.1.0",
   "description": "Local Relution .rexp policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "bin": {

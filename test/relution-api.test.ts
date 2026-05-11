@@ -8,6 +8,7 @@ import {
   publicRelutionSession,
   queryRelutionDevices,
 } from "../src/relution-api.js";
+import { handleRelutionApiRequest } from "../src/relution-editor-routes.js";
 
 test("normalizes Relution connection settings without exposing the token publicly", () => {
   const connection = normalizeRelutionConnection({
@@ -124,6 +125,38 @@ test("blocks non-read-only Relution API requests at the low-level client boundar
     () => assertRelutionReadOnlyRequest("PUT", "/api/v2/policies/123"),
     /Blocked non-read-only Relution API request/u,
   );
+});
+
+test("Relution editor routes re-check outbound host policy before each request", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response("{}");
+  };
+  try {
+    await assert.rejects(
+      handleRelutionApiRequest(
+        new URL("http://localhost/api/relution/test"),
+        { method: "POST" } as never,
+        {} as never,
+        {
+          lastDevices: [],
+          connection: normalizeRelutionConnection({
+            protocol: "http",
+            host: "127.0.0.1",
+            apiToken: "secret-token",
+          }),
+        },
+        "/tmp/workspace",
+        false,
+      ),
+      /blocked local\/private address/u,
+    );
+    assert.equal(fetchCalled, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("assesses device status and policy status into report findings", () => {

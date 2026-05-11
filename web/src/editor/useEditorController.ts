@@ -13,6 +13,7 @@ import {
   asRecord,
   emptyAppleSchemaCatalog,
   loadState,
+  networkEditorAuthHeaders,
   postJson,
   readJsonResponse,
   selectedConfiguration,
@@ -461,7 +462,7 @@ function useRecommendationData(props: {
     let cancelled = false;
     props.setRecommendationsLoading(true);
     props.setRecommendationsError(undefined);
-    void fetch("/api/recommendations")
+    void fetch("/api/recommendations", { headers: networkEditorAuthHeaders() })
       .then(async (response) => {
         const result = await readJsonResponse<RecommendationIndexResponse>(response);
         if (!response.ok) {
@@ -493,7 +494,7 @@ function useRecommendationData(props: {
     let cancelled = false;
     props.setRecommendationsLoading(true);
     props.setRecommendationsError(undefined);
-    void fetch(`/api/recommendations/${props.recommendationSource}`)
+    void fetch(`/api/recommendations/${props.recommendationSource}`, { headers: networkEditorAuthHeaders() })
       .then(async (response) => {
         const result = await readJsonResponse<RecommendationCatalogResponse>(response);
         if (!response.ok) {

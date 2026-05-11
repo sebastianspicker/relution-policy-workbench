@@ -1,8 +1,13 @@
 node_modules/
 dist/
 dist-web/
+.venv/
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.pyright/
+.cache/
+*.tsbuildinfo
 .DS_Store
 __pycache__/
 *.pyc
@@ -56,6 +61,7 @@ LIVE_AUDIT*.md
 Plan.md
 FINDINGS*.md
 REVIEW*.md
+SECURITY_NOTES*.md
 TODO*.md
 .agents/
 .codex/

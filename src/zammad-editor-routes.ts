@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { badRequest, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
-import { outboundHostPolicyError } from "./outbound-host-policy.js";
+import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   createZammadTicket,
   normalizeZammadConnection,
@@ -64,12 +64,12 @@ export async function handleZammadApiRequest(
     return true;
   }
   if (url.pathname === "/api/zammad/test" && request.method === "POST") {
-    sendJson(response, 200, await testZammadConnection(requireConnection(runtime)));
+    sendJson(response, 200, await testZammadConnection(await requireOutboundConnection(runtime, allowLocalServiceHosts)));
     return true;
   }
   if (url.pathname === "/api/zammad/tickets" && request.method === "POST") {
     const draft = parseTicketDraft(await readJsonBody(request));
-    sendJson(response, 200, { ticket: await createZammadTicket(requireConnection(runtime), draft), draft });
+    sendJson(response, 200, { ticket: await createZammadTicket(await requireOutboundConnection(runtime, allowLocalServiceHosts), draft), draft });
     return true;
   }
   sendJson(response, 404, { error: `Unknown Zammad endpoint: ${request.method ?? "GET"} ${url.pathname}` });
@@ -81,6 +81,12 @@ function requireConnection(runtime: ZammadEditorRuntime): ZammadConnection {
     throw badRequest("Zammad API session is not configured");
   }
   return runtime.connection;
+}
+
+async function requireOutboundConnection(runtime: ZammadEditorRuntime, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {
+  const connection = requireConnection(runtime);
+  await assertOutboundHostAllowed("Zammad", connection.host, allowLocalServiceHosts);
+  return connection;
 }
 
 function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {

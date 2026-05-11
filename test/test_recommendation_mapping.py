@@ -6,6 +6,7 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "tools"
 sys.path.insert(0, str(TOOLS_DIR))
 
 from build_relution_import_artifacts import (  # noqa: E402
+    SourceConfig,
     classify_mapping_update,
     classify_recommendation_mapping_change,
     classify_source_change,
@@ -13,7 +14,14 @@ from build_relution_import_artifacts import (  # noqa: E402
     exact_leaf_difference_is_hard,
     extracted_action,
     manual_promotion_ruleset_mapping,
+    importable_native_mappings,
     semantic_support_level,
+    write_settings_files,
+)
+from _harvest_vendor_guidance_modules.vendor_sources import (  # noqa: E402
+    safe_vendor_source_id,
+    validate_vendor_source_url,
+    vendor_download_path,
 )
 from harvest_cis_benchmarks import cis_semantic_candidates_for, cis_semantic_evidence_sources_for, merge_candidates  # noqa: E402
 from recommendation_mapping import build_setting_index, semantic_candidates_for, semantic_concepts_for, semantic_concepts_for_field, semantic_no_concept_reason  # noqa: E402
@@ -21,6 +29,67 @@ from recommendation_mapping import build_setting_index, semantic_candidates_for,
 
 def evidence(text: str, *, source: str = "bsi-requirement", confidence: float = 0.8) -> list[dict[str, object]]:
     return [{"source": source, "text": text, "confidence": confidence}]
+
+
+def test_vendor_source_ids_and_urls_reject_local_path_inputs(tmp_path: Path) -> None:
+    assert safe_vendor_source_id("microsoft-windows-11-baseline") == "microsoft-windows-11-baseline"
+    try:
+        safe_vendor_source_id("../escape")
+    except ValueError as error:
+        assert "Unsafe vendor source id" in str(error)
+    else:
+        raise AssertionError("unsafe vendor source id was accepted")
+
+    for url in ("file:///etc/passwd", "http://127.0.0.1/source.html"):
+        try:
+            validate_vendor_source_url(url)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"unsafe vendor source URL was accepted: {url}")
+
+    try:
+        vendor_download_path(tmp_path, "raw", "../../escape.html")
+    except ValueError as error:
+        assert "escapes output directory" in str(error)
+    else:
+        raise AssertionError("escaping vendor download path was accepted")
+
+
+def test_exact_relution_mappings_reject_path_like_target_types() -> None:
+    recommendation = {
+        "relutionMapping": {
+            "status": "exact",
+            "rulesetMappings": [
+                {"kind": "relution-native", "type": "../../escape", "values": {"enabled": True}},
+                {"kind": "relution-native", "type": "IOS_PASSCODE", "values": {"enabled": True}},
+            ],
+        },
+    }
+
+    assert importable_native_mappings(recommendation) == [
+        {"kind": "relution-native", "type": "IOS_PASSCODE", "values": {"enabled": True}},
+    ]
+
+
+def test_setting_bundle_writer_rejects_paths_outside_settings_root(tmp_path: Path) -> None:
+    config = SourceConfig(
+        source="vendor",
+        label="Vendor",
+        root=tmp_path,
+        recommendation_catalog_path=tmp_path / "recommendations.json",
+        ruleset_path=tmp_path / "ruleset.json",
+        settings_catalog_path=tmp_path / "settings.json",
+        baseline_path=tmp_path / "baseline.json",
+        readme_path=tmp_path / "README.md",
+    )
+
+    try:
+        write_settings_files(config, {"bundles": [{"importFilePath": "../escape.json", "details": {"type": "IOS_PASSCODE"}}]})
+    except ValueError as error:
+        assert "escapes expected root" in str(error)
+    else:
+        raise AssertionError("escaping setting bundle path was accepted")
 
 
 def concept_ids(platform: str, text: str) -> set[str]:

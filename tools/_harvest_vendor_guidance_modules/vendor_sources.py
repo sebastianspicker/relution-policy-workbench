@@ -4,12 +4,15 @@ from __future__ import annotations
 import argparse
 from html.parser import HTMLParser
 import hashlib
+import ipaddress
 import json
 import re
 import shutil
+import socket
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 sys.dont_write_bytecode = True
@@ -43,6 +46,8 @@ PUBLIC_TOKEN_REDACTIONS: tuple[tuple[bytes, bytes], ...] = (
     (rb"AIza[0-9A-Za-z_-]{30,45}", b"[REDACTED_GOOGLE_API_KEY]"),
     (rb"pk_live_[0-9A-Za-z]{40,120}", b"[REDACTED_STRIPE_PUBLISHABLE_KEY]"),
 )
+MAX_VENDOR_DOWNLOAD_BYTES = 25 * 1024 * 1024
+SAFE_SOURCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 CURATED_PLATFORM_GUIDANCE: list[dict[str, Any]] = [
     {
@@ -498,19 +503,23 @@ def refresh_downloads(output_vendor_dir: Path) -> None:
     output_vendor_dir.mkdir(parents=True, exist_ok=True)
     manifest = []
     for source in sources:
-        source_id = str(source["id"])
+        source_id = safe_vendor_source_id(str(source["id"]))
         url = str(source["url"])
+        validate_vendor_source_url(url)
         raw_suffix = ".zip" if url.lower().endswith(".zip") else ".html"
-        raw_path = output_vendor_dir / "downloads" / "raw" / f"{source_id}{raw_suffix}"
-        headers_path = output_vendor_dir / "downloads" / "headers" / f"{source_id}.headers.txt"
-        text_path = output_vendor_dir / "downloads" / "text" / f"{source_id}.txt"
+        raw_path = vendor_download_path(output_vendor_dir, "raw", f"{source_id}{raw_suffix}")
+        headers_path = vendor_download_path(output_vendor_dir, "headers", f"{source_id}.headers.txt")
+        text_path = vendor_download_path(output_vendor_dir, "text", f"{source_id}.txt")
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         headers_path.parent.mkdir(parents=True, exist_ok=True)
         text_path.parent.mkdir(parents=True, exist_ok=True)
 
         request = Request(url, headers={"User-Agent": "relution-policy-workbench-vendor-harvester/1.0"})
         with urlopen(request, timeout=60) as response:
-            body = response.read()
+            validate_vendor_source_url(response.url)
+            body = response.read(MAX_VENDOR_DOWNLOAD_BYTES + 1)
+            if len(body) > MAX_VENDOR_DOWNLOAD_BYTES:
+                raise ValueError(f"Vendor source {source_id} exceeds {MAX_VENDOR_DOWNLOAD_BYTES} bytes")
             headers = dict(response.headers.items())
             final_url = response.url
         if raw_suffix == ".html":
@@ -532,6 +541,42 @@ def refresh_downloads(output_vendor_dir: Path) -> None:
             }
         )
     write_json(output_vendor_dir / "downloads" / "manifest.json", manifest)
+
+
+def safe_vendor_source_id(source_id: str) -> str:
+    if not SAFE_SOURCE_ID_RE.fullmatch(source_id):
+        raise ValueError(f"Unsafe vendor source id: {source_id}")
+    return source_id
+
+
+def vendor_download_path(output_vendor_dir: Path, subdir: str, file_name: str) -> Path:
+    root = (output_vendor_dir / "downloads").resolve()
+    target = (root / subdir / file_name).resolve()
+    if target == root or root not in target.parents:
+        raise ValueError(f"Vendor download path escapes output directory: {target}")
+    return target
+
+
+def validate_vendor_source_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme not in {"http", "https"}:
+        raise ValueError(f"Unsupported vendor source URL scheme: {parsed.scheme}")
+    if parsed.hostname is None:
+        raise ValueError(f"Vendor source URL is missing a hostname: {url}")
+    for resolved_ip in resolved_vendor_url_ips(parsed.hostname):
+        if resolved_ip.is_private or resolved_ip.is_loopback or resolved_ip.is_link_local or resolved_ip.is_multicast or resolved_ip.is_unspecified:
+            raise ValueError(f"Vendor source URL resolves to a local or private address: {url}")
+
+
+def resolved_vendor_url_ips(hostname: str) -> list[ipaddress.IPv4Address | ipaddress.IPv6Address]:
+    try:
+        return [ipaddress.ip_address(hostname)]
+    except ValueError:
+        pass
+    addresses: list[ipaddress.IPv4Address | ipaddress.IPv6Address] = []
+    for result in socket.getaddrinfo(hostname, None, type=socket.SOCK_STREAM):
+        addresses.append(ipaddress.ip_address(result[4][0]))
+    return addresses
 
 
 def redact_public_tokens(body: bytes) -> bytes:

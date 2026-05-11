@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { deflateRawSync } from "node:zlib";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAppleCompatReport } from "../src/apple-compat.js";
@@ -78,6 +79,15 @@ test("readZip rejects archives whose aggregate inflated size exceeds the configu
   assert.throws(
     () => readZip(archive, { maxTotalUncompressedBytes: 12 }),
     /uncompressed data exceeds the supported size limit/u,
+  );
+});
+
+test("readZip bounds actual deflate output before accepting declared inflated size", () => {
+  const archive = zipWithUnderstatedInflatedSize("metadata.json", Buffer.alloc(20 * 1024 * 1024, "A"), 1);
+
+  assert.throws(
+    () => readZip(archive, { maxEntries: 10, maxTotalCompressedBytes: 64 * 1024 * 1024, maxTotalUncompressedBytes: 128 * 1024 * 1024 }),
+    /Cannot create a Buffer larger than 1 bytes|unexpected inflated size/u,
   );
 });
 
@@ -290,6 +300,40 @@ test("loads templates harvested from Relution Server 26.1.1", () => {
   const updateType = systemUpdate?.fields.find((field) => field.path === "systemUpdateType");
   assert.equal(updateType?.enumLabels.SYSTEM_UPDATE_TYPE_UNSPECIFIED, "System Update Type Unspecified");
 });
+
+function zipWithUnderstatedInflatedSize(name: string, data: Buffer, declaredUncompressedSize: number): Buffer {
+  const nameBuffer = Buffer.from(name, "utf8");
+  const compressed = deflateRawSync(data, { level: 9 });
+  const localHeader = Buffer.alloc(30);
+  localHeader.writeUInt32LE(0x04034b50, 0);
+  localHeader.writeUInt16LE(20, 4);
+  localHeader.writeUInt16LE(0x0800, 6);
+  localHeader.writeUInt16LE(8, 8);
+  localHeader.writeUInt32LE(compressed.length, 18);
+  localHeader.writeUInt32LE(declaredUncompressedSize, 22);
+  localHeader.writeUInt16LE(nameBuffer.length, 26);
+
+  const centralHeader = Buffer.alloc(46);
+  centralHeader.writeUInt32LE(0x02014b50, 0);
+  centralHeader.writeUInt16LE(20, 4);
+  centralHeader.writeUInt16LE(20, 6);
+  centralHeader.writeUInt16LE(0x0800, 8);
+  centralHeader.writeUInt16LE(8, 10);
+  centralHeader.writeUInt32LE(compressed.length, 20);
+  centralHeader.writeUInt32LE(declaredUncompressedSize, 24);
+  centralHeader.writeUInt16LE(nameBuffer.length, 28);
+
+  const centralDirectoryOffset = localHeader.length + nameBuffer.length + compressed.length;
+  const centralDirectorySize = centralHeader.length + nameBuffer.length;
+  const endOfCentralDirectory = Buffer.alloc(22);
+  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
+  endOfCentralDirectory.writeUInt16LE(1, 8);
+  endOfCentralDirectory.writeUInt16LE(1, 10);
+  endOfCentralDirectory.writeUInt32LE(centralDirectorySize, 12);
+  endOfCentralDirectory.writeUInt32LE(centralDirectoryOffset, 16);
+
+  return Buffer.concat([localHeader, nameBuffer, compressed, centralHeader, nameBuffer, endOfCentralDirectory]);
+}
 
 test("templates expose friendly labels for every configuration and field", () => {
   const bundle = loadTemplateBundle();

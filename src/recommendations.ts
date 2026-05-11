@@ -33,6 +33,10 @@ const COVERAGE_PATH = "example/recommendation-coverage/relution-achievability-ma
 const SEMANTIC_INDEX_PATH = "example/recommendation-coverage/relution-semantic-index.json";
 const UNIFIED_ANALYSIS_PATH = "example/recommendation-coverage/unified-recommendation-analysis.json";
 
+// Each source has three related artifacts: human/control recommendations,
+// importable ruleset mappings, and optional pre-built native setting bundles.
+// The UI can still load when one source is unavailable; callers receive an
+// unavailable catalog instead of a thrown read error.
 const SOURCE_FILES: Record<RecommendationSource, RecommendationSourceFiles> = {
   bsi: {
     label: "BSI",

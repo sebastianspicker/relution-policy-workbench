@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { type IncomingMessage, type ServerResponse } from "node:http";
+import { type IncomingMessage } from "node:http";
 import { RECOMMENDATION_SOURCES, type RecommendationSource } from "./recommendation-types.js";
 import { type ComplianceSelection, type ComplianceSourceArtifacts } from "./compliance.js";
 import { isRecommendationSource, loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
@@ -45,12 +45,24 @@ export async function readJsonBody(request: IncomingMessage, limitBytes = DEFAUL
 }
 
 export function assertSafeMutatingApiRequest(request: IncomingMessage, options: EditorServerOptions): void {
-  const host = requireRequestHost(request);
-  if (options.allowNetworkHost !== true && !isLoopbackHostname(host.hostname)) {
-    throw new HttpError(403, "Mutating editor API requests require a loopback Host header");
-  }
+  // The local editor has no login layer. Mutating requests are therefore scoped
+  // to loopback/same-origin JSON so a random web page cannot submit form-style
+  // requests that rewrite the user's workspace.
+  const host = assertSafeApiRequestHost(request, options, "Mutating editor API requests");
   assertSameOrigin(request, host.host);
   assertJsonContentType(request);
+}
+
+export function assertSafeApiRequestHost(
+  request: IncomingMessage,
+  options: EditorServerOptions,
+  label = "Editor API requests",
+): { host: string; hostname: string } {
+  const host = requireRequestHost(request, label);
+  if (options.allowNetworkHost !== true && !isLoopbackHostname(host.hostname)) {
+    throw new HttpError(403, `${label} require a loopback Host header`);
+  }
+  return host;
 }
 
 export function createNetworkApiToken(): string {
@@ -59,26 +71,7 @@ export function createNetworkApiToken(): string {
 
 export function editorUrlWithNetworkToken(host: string, port: number, token: string | undefined): string {
   const baseUrl = `http://${host}:${String(port)}/`;
-  return token === undefined ? baseUrl : `${baseUrl}?editorToken=${token}`;
-}
-
-export function handleNetworkTokenBootstrap(
-  url: URL,
-  request: IncomingMessage,
-  response: ServerResponse,
-  token: string | undefined,
-): boolean {
-  if (token === undefined || request.method !== "GET" || url.searchParams.get("editorToken") !== token) {
-    return false;
-  }
-
-  url.searchParams.delete("editorToken");
-  response.writeHead(302, {
-    "location": `${url.pathname}${url.search}${url.hash}`,
-    "set-cookie": `relution_editor_token=${token}; HttpOnly; SameSite=Strict; Path=/`,
-  });
-  response.end();
-  return true;
+  return token === undefined ? baseUrl : `${baseUrl}#editorToken=${encodeURIComponent(token)}`;
 }
 
 export function assertNetworkApiToken(request: IncomingMessage, token: string | undefined): void {
@@ -88,16 +81,13 @@ export function assertNetworkApiToken(request: IncomingMessage, token: string | 
   if (firstHeaderValue(request.headers["x-relution-editor-token"]) === token) {
     return;
   }
-  if (cookieValue(request.headers.cookie, "relution_editor_token") === token) {
-    return;
-  }
   throw new HttpError(403, "Network editor API requests require the editor token");
 }
 
-function requireRequestHost(request: IncomingMessage): { host: string; hostname: string } {
+function requireRequestHost(request: IncomingMessage, label: string): { host: string; hostname: string } {
   const host = firstHeaderValue(request.headers.host);
   if (host === undefined || host.trim().length === 0) {
-    throw new HttpError(400, "Mutating editor API requests require a Host header");
+    throw new HttpError(400, `${label} require a Host header`);
   }
   let parsed: URL;
   try {
@@ -140,19 +130,6 @@ export function assertSafeEditorHost(host: string, allowNetworkHost: boolean): v
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
-}
-
-function cookieValue(cookieHeader: string | undefined, name: string): string | undefined {
-  if (cookieHeader === undefined) {
-    return undefined;
-  }
-  for (const part of cookieHeader.split(";")) {
-    const [rawName, ...rawValue] = part.trim().split("=");
-    if (rawName === name) {
-      return rawValue.join("=");
-    }
-  }
-  return undefined;
 }
 
 function normalizeHostname(hostname: string): string {

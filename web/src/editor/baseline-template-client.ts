@@ -1,5 +1,5 @@
 import type { BaselineTemplatePlatform, BaselineTemplateShape, BaselineTemplateTier } from "../../../src/baseline-templates.js";
-import { readJsonResponse } from "./editor-utils.js";
+import { networkEditorAuthHeaders, readJsonResponse } from "./editor-utils.js";
 
 export interface BaselineTemplateClientSelection {
   readonly platform: BaselineTemplatePlatform;
@@ -78,7 +78,7 @@ export async function fetchBaselineTemplateRuleset(template: BaselineTemplateCli
     tier: String(template.tier),
     shape: template.shape,
   });
-  const response = await fetch(`/api/baseline-templates/template?${params.toString()}`);
+  const response = await fetch(`/api/baseline-templates/template?${params.toString()}`, { headers: networkEditorAuthHeaders() });
   const parsed = await readJsonResponse<unknown>(response);
   if (!response.ok) {
     throw new Error(JSON.stringify(parsed));

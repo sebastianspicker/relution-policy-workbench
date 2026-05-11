@@ -10,7 +10,7 @@ import type {
   BaselineTemplateTier,
 } from "../../../src/baseline-templates.js";
 import { RECOMMENDATION_SOURCES } from "../../../src/recommendation-types.js";
-import { readJsonResponse } from "./editor-utils.js";
+import { networkEditorAuthHeaders, readJsonResponse } from "./editor-utils.js";
 import {
   buildExpertRuleset,
   effectiveMappings,
@@ -49,7 +49,7 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
 
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/baseline-templates").then(async (response) => {
+    void fetch("/api/baseline-templates", { headers: networkEditorAuthHeaders() }).then(async (response) => {
       const result = await readJsonResponse<BaselineTemplateOptionsResponse>(response);
       if (cancelled) return;
       if (!response.ok) {
@@ -76,7 +76,7 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
     setExpertOptions(undefined);
     setExpertError(undefined);
     const params = new URLSearchParams({ platform, shape });
-    void fetch(`/api/baseline-templates/expert?${params.toString()}`).then(async (response) => {
+    void fetch(`/api/baseline-templates/expert?${params.toString()}`, { headers: networkEditorAuthHeaders() }).then(async (response) => {
       const result = await readJsonResponse<BaselineExpertOptionsResponse>(response);
       if (cancelled) return;
       if (!response.ok) {

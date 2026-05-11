@@ -136,6 +136,9 @@ export function saveWorkspace(workspaceDir: string, workspace: PolicyWorkspace):
   assertWorkspacePathUsesNoSymlink(workspaceDir, "report.json");
   assertWorkspacePathUsesNoSymlink(workspaceDir, "policies");
 
+  // The editor stores a complete workspace surface, not individual patch files.
+  // Stage first, then swap the managed files so a failed write cannot leave a
+  // half-updated metadata/report/policies set behind.
   const serialized = serializeWorkspace(workspace);
   const resolvedWorkspaceDir = resolve(workspaceDir);
   mkdirSync(resolvedWorkspaceDir, { recursive: true });
@@ -298,6 +301,9 @@ export function createConfiguration(template: ConfigurationTemplate, bundle: Rel
   detailRecord.uuid = randomUUID().toUpperCase();
   detailRecord.enabled = true;
   if (template.type === "APPLE_MOBILECONFIG") {
+    // Relution accepts APPLE_MOBILECONFIG only when these transport fields are
+    // present; most harvested schemas do not describe them as regular required
+    // OpenAPI fields.
     detailRecord.displayName = "Custom .mobileconfig";
     detailRecord.rawContent = "";
     detailRecord.payloadContent = {};
@@ -650,6 +656,9 @@ function resolveWorkspacePath(workspaceDir: string, relativePath: string): strin
 }
 
 function assertWorkspacePathUsesNoSymlink(workspaceDir: string, relativePath: string): void {
+  // Workspace writes are user-directed local filesystem writes. Reject symlinks
+  // across the whole managed path so a workspace cannot redirect saves outside
+  // the selected root.
   const resolvedRoot = resolve(workspaceDir);
   if (existsSync(resolvedRoot) && lstatSync(resolvedRoot).isSymbolicLink()) {
     throw new Error(`Workspace path must not use symlinks: ${workspaceDir}`);
