@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { networkEditorAuthHeaders } from "./editor-utils.js";
 import { IconInspector, IconRedo, IconUndo } from "./icons.js";
 import type { EditorController } from "./types.js";
 
@@ -59,9 +60,9 @@ export function WorkspaceToolbar(props: {
             Build .rexp
           </button>
           {c.hasFreshBuild ? (
-            <a className="button-link" href="/api/output">
+            <button type="button" className="button-link" onClick={() => void downloadOutputArchive()}>
               Download
-            </a>
+            </button>
           ) : (
             <button type="button" disabled>
               Download
@@ -82,4 +83,24 @@ export function WorkspaceToolbar(props: {
       </div>
     </header>
   );
+}
+
+async function downloadOutputArchive(): Promise<void> {
+  const response = await fetch("/api/output", { headers: networkEditorAuthHeaders() });
+  if (!response.ok) {
+    throw new Error(`Failed to download output archive: ${response.statusText}`);
+  }
+  const blobUrl = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = blobUrl;
+  link.download = outputArchiveFileName(response.headers.get("content-disposition"));
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
+function outputArchiveFileName(contentDisposition: string | null): string {
+  const match = /filename="([^"]+)"/u.exec(contentDisposition ?? "");
+  return match?.[1] ?? "relution-policy.rexp";
 }

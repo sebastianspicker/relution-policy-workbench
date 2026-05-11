@@ -10,7 +10,13 @@ sys.dont_write_bytecode = True
 
 
 def load_tool_modules(target_globals: dict[str, Any], module_dir: Path, module_names: list[str]) -> None:
-    """Load split tool modules into a shared global namespace."""
+    """Load split script modules into one namespace.
+
+    The artifact generators started as single-file scripts and were later split
+    to stay under the repository line budget. They still share constants and
+    helper functions intentionally, so this loader preserves script-style global
+    visibility without turning the tools directory into an import package.
+    """
     entry_file = target_globals.get("__file__")
     shared_globals = {
         key: value

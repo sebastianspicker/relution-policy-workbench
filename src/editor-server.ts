@@ -53,8 +53,8 @@ import {
 import { loadTemplateBundle, listTemplates, type RelutionTemplateBundle } from "./templates.js";
 import type { AppleSchemaCatalog } from "./apple-schema.js";
 import {
-  HttpError, assertNetworkApiToken, assertSafeEditorHost, assertSafeMutatingApiRequest,
-  badRequest, createNetworkApiToken, editorUrlWithNetworkToken, handleNetworkTokenBootstrap,
+  HttpError, assertNetworkApiToken, assertSafeApiRequestHost, assertSafeEditorHost, assertSafeMutatingApiRequest,
+  badRequest, createNetworkApiToken, editorUrlWithNetworkToken,
   loadComplianceArtifacts,
   optionalRecord,
   optionalString,
@@ -154,8 +154,8 @@ async function handleRequest(
 ): Promise<void> {
   const url = new URL(request.url ?? "/", "http://localhost");
   const context: EditorRequestContext = { options, bundle, appleSchema, runtimeState };
-  if (handleNetworkTokenBootstrap(url, request, response, runtimeState.networkApiToken)) return;
   if (url.pathname.startsWith("/api/")) {
+    assertSafeApiRequestHost(request, options);
     assertNetworkApiToken(request, runtimeState.networkApiToken);
   }
   if (url.pathname.startsWith("/api/") && request.method === "POST") {
@@ -711,7 +711,6 @@ function rollbackPersistedEditorState(
     throw new Error(`${originalMessage}; ${rollbackErrors.join("; ")}`);
   }
 }
-
 
 export function editorFileUrl(): string {
   return pathToFileURL(join(STATIC_ROOT, "index.html")).toString();

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
 import yaml from "js-yaml";
 import { createTemplateBundle, type JsonObject, type RuntimeConfigurationTypeMetadata } from "./templates.js";
@@ -150,7 +150,7 @@ function reflectRuntimeMetadata(jar: Buffer): RuntimeConfigurationTypeMetadata[]
     mkdirSync(libDir, { recursive: true });
     for (const entry of entries) {
       if (entry.name.startsWith("BOOT-INF/classes/") && !entry.name.endsWith("/")) {
-        const target = join(classesDir, entry.name.slice("BOOT-INF/classes/".length));
+        const target = resolveTemplateRefreshEntryTarget(classesDir, entry.name.slice("BOOT-INF/classes/".length));
         mkdirSync(dirname(target), { recursive: true });
         writeFileSync(target, entry.data);
       }
@@ -173,6 +173,15 @@ function reflectRuntimeMetadata(jar: Buffer): RuntimeConfigurationTypeMetadata[]
   } finally {
     rmSync(workDir, { recursive: true, force: true });
   }
+}
+
+export function resolveTemplateRefreshEntryTarget(root: string, relativePath: string): string {
+  const resolvedRoot = resolve(root);
+  const target = resolve(resolvedRoot, relativePath);
+  if (target === resolvedRoot || target.startsWith(`${resolvedRoot}${sep}`)) {
+    return target;
+  }
+  throw new Error(`Template refresh entry escapes extraction root: ${relativePath}`);
 }
 
 function runJdk(workDir: string, command: string[]): string {

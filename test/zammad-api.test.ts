@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeZammadConnection, publicZammadSession, createZammadTicket } from "../src/zammad-api.js";
+import { handleZammadApiRequest } from "../src/zammad-editor-routes.js";
 import { buildZammadTicketDraft } from "../src/zammad-ticket-drafts.js";
 
 test("normalizes Zammad connection settings without exposing the token publicly", () => {
@@ -117,6 +118,38 @@ test("sanitizes failed Zammad API errors", async () => {
         return true;
       },
     );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Zammad editor routes re-check outbound host policy before each request", async () => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response("{}");
+  };
+  try {
+    await assert.rejects(
+      handleZammadApiRequest(
+        new URL("http://localhost/api/zammad/test"),
+        { method: "POST" } as never,
+        {} as never,
+        {
+          connection: normalizeZammadConnection({
+            protocol: "http",
+            host: "127.0.0.1",
+            apiToken: "secret-token",
+            group: "IT",
+            customer: "it@example.test",
+          }),
+        },
+        false,
+      ),
+      /blocked local\/private address/u,
+    );
+    assert.equal(fetchCalled, false);
   } finally {
     globalThis.fetch = originalFetch;
   }

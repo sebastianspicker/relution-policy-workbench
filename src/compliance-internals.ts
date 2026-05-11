@@ -45,6 +45,9 @@ import {
   uniqueStrings,
 } from "./compliance-values.js";
 
+// Most Relution native configuration types are single-instance per policy
+// version. Windows Custom CSP is different: each row is its own setting, and
+// the CSP name is the domain identity used for matching and updates.
 const MULTI_INSTANCE_NATIVE_TYPES = new Set(["WINDOWS_CUSTOM_CSP"]);
 
 export function evaluateRecommendation(
@@ -286,6 +289,9 @@ export function applyRecommendationMappings(
   templateBundle: RelutionTemplateBundle,
   appleSchema: AppleSchemaCatalog,
 ): void {
+  // A recommendation may contribute several mappings for the same target.
+  // Merge them before applying so one remediation creates or updates a single
+  // configuration per target instead of producing duplicate partial settings.
   const grouped = new Map<string, { mapping: RecommendationRulesetMapping; values: JsonRecord }>();
   for (const mapping of recommendation.relutionMapping.rulesetMappings.filter(supportedComplianceMapping)) {
     const key = mapping.kind === "relution-native"

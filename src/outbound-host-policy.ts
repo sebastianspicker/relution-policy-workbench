@@ -39,6 +39,17 @@ export async function outboundHostPolicyError(
   return `${serviceName} host resolves to a blocked local/private address (${blockedAddress}); use --allow-local-service-hosts only for local Docker or lab targets`;
 }
 
+export async function assertOutboundHostAllowed(
+  serviceName: string,
+  host: string,
+  allowLocalServiceHosts: boolean,
+): Promise<void> {
+  const policyError = await outboundHostPolicyError(serviceName, host, allowLocalServiceHosts);
+  if (policyError !== undefined) {
+    throw new Error(policyError);
+  }
+}
+
 async function resolveServiceAddresses(serviceName: string, hostname: string): Promise<string[]> {
   const literalFamily = isIP(hostname);
   if (literalFamily !== 0) {

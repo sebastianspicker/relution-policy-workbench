@@ -18,12 +18,12 @@ describe("WorkspaceToolbar", () => {
     expect(screen.queryByRole("link", { name: /download/i })).toBeNull();
   });
 
-  it("shows a real download link after a fresh build exists", () => {
+  it("shows a download action after a fresh build exists", () => {
     render(<WorkspaceToolbar controller={createEditorControllerStub({ hasFreshBuild: true })} {...defaultProps} />);
 
-    const downloadLink = screen.getByRole("link", { name: /download/i });
+    const downloadButton = screen.getByRole("button", { name: /download/i });
 
-    expect(downloadLink.getAttribute("href")).toBe("/api/output");
+    expect((downloadButton as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("exposes redo action", () => {

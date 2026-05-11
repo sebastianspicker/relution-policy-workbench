@@ -448,7 +448,12 @@ function collectFields(
   return fields;
 }
 
-function resolveAllOf(schema: unknown, schemas: Record<string, JsonObject>): JsonObject[] {
+function resolveAllOf(schema: unknown, schemas: Record<string, JsonObject>, seenRefs = new Set<string>()): JsonObject[] {
+  const ref = schemaRefName(schema);
+  if (ref !== undefined && seenRefs.has(ref)) {
+    return [];
+  }
+  const nextSeenRefs = ref === undefined ? seenRefs : new Set([...seenRefs, ref]);
   const resolved = resolveSchema(schema, schemas);
   if (resolved === undefined) {
     return [];
@@ -457,7 +462,7 @@ function resolveAllOf(schema: unknown, schemas: Record<string, JsonObject>): Jso
   if (!Array.isArray(allOf)) {
     return [resolved];
   }
-  return [resolved, ...allOf.flatMap((entry) => resolveAllOf(entry, schemas))];
+  return [resolved, ...allOf.flatMap((entry) => resolveAllOf(entry, schemas, nextSeenRefs))];
 }
 
 function resolveSchema(schema: unknown, schemas: Record<string, JsonObject>): JsonObject | undefined {
@@ -474,6 +479,14 @@ function resolveSchema(schema: unknown, schemas: Record<string, JsonObject>): Js
     return record;
   }
   return schemas[schemaName] ?? record;
+}
+
+function schemaRefName(schema: unknown): string | undefined {
+  const record = asMaybeObject(schema);
+  if (record === undefined || typeof record.$ref !== "string") {
+    return undefined;
+  }
+  return record.$ref.split("/").at(-1);
 }
 
 function enumValues(schema: unknown): string[] {

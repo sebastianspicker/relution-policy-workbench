@@ -229,7 +229,7 @@ function decompressEntry(name: string, compressionMethod: number, compressedData
     return Buffer.from(compressedData);
   }
   if (compressionMethod === METHOD_DEFLATED) {
-    const data = inflateRawSync(compressedData);
+    const data = inflateRawSync(compressedData, { maxOutputLength: uncompressedSize });
     if (data.length !== uncompressedSize) {
       throw new Error(`ZIP entry ${name} has an unexpected inflated size`);
     }

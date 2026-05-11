@@ -1,5 +1,7 @@
 # Relution Policy Workbench
 
+[![CI](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml)
+
 Local Relution `.rexp` policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.
 
 The project is built for administrators and developers who need a local, reviewable workflow for Relution policy exports, Apple `.mobileconfig` payloads, BSI/CIS/vendor baseline mappings, and read-only Relution device audits. It does not require a hosted service. The browser editor and CLI work against local files by default, and production Relution API usage is intentionally read-only.
@@ -31,6 +33,8 @@ pnpm rexp
 ```
 
 `pnpm rexp` creates `.rexp-editor/workspace` on first launch and serves the editor at `http://127.0.0.1:8787/`. You only need an encryption key when importing an encrypted `.rexp` or building an importable encrypted archive.
+
+Optional local environment variables are documented in `.env.example`. Keep real `.env` files private; they are ignored by git.
 
 Open an existing export, decrypt it into a local workspace, start the editor, and write a rebuilt archive:
 
@@ -98,6 +102,19 @@ flowchart LR
 ```
 
 The implementation is split into a TypeScript CLI/backend in `src/`, the React editor in `web/src/`, test coverage in `test/` and `e2e/`, and evidence/build tooling in `tools/`. The editor server is intentionally local-first: it mutates local workspaces and local reports, not production Relution policy objects.
+
+### Repository Map
+
+- `src/cli.ts`: CLI command routing for archive inspection, workspace serving, template refreshes, Apple schema work, recommendation audits, and read-only Relution dashboard commands.
+- `src/rexp.ts`: `.rexp` ZIP, encryption, hash verification, extraction, and packing core shared by the CLI and editor server.
+- `src/workspace.ts`, `src/workspace-validation.ts`, `src/sidecar.ts`: local plaintext workspace model, validation, atomic persistence, and editor-only sidecar artifacts such as DDM drafts and mobileconfig restore entries.
+- `src/editor-server.ts` and `src/*-routes.ts`: local HTTP API that serves the built React app, mutates the workspace, builds archives, and routes supported external workflows such as read-only Relution audits and optional Zammad ticket drafts.
+- `web/src/editor/`: React editor shell, controller hooks, policy tree, settings panels, compliance UI, generated field editors, and browser-side import helpers.
+- `src/recommendations.ts`, `src/compliance*.ts`, `src/baseline-*.ts`: checked-in BSI/CIS/vendor recommendation catalogs, baseline template loading, compliance evaluation, and local remediation application.
+- `src/relution-*.ts` and `src/zammad-*.ts`: read-only Relution device audit integration plus optional local/Zammad ticket draft support.
+- `tools/`: Python and Node generators for harvested evidence, recommendation mappings, baseline templates, and drift reports.
+- `example/`, `data/`, and `docs/`: committed sample exports, generated machine-readable evidence, rendered reports, and README screenshots.
+- `test/`, `e2e/`, `e2e-readme/`, `.github/workflows/`: Node/Python/unit/browser/Docker verification and CI entry points.
 
 ### Archive Lifecycle
 
@@ -398,7 +415,7 @@ Run a deep local audit of the harvested Relution configuration surface and mock 
 pnpm rexp audit \
   --key "$RELUTION_REXP_KEY" \
   --json-out data/relution-26.1.1/audit-report.json \
-  --markdown-out AUDIT.md
+  --markdown-out reports/relution-audit.md
 ```
 
 The audit checks:
@@ -409,7 +426,7 @@ The audit checks:
 - local mock import/export compatibility by creating, validating, packing, verifying, extracting, and re-reading one `.rexp` per configuration type
 - the provided example export, when present
 
-The JSON report contains the full parameter matrix under `configurationTypes[].fields`; the Markdown report summarizes coverage and failures.
+The JSON report contains the full parameter matrix under `configurationTypes[].fields`; the Markdown report summarizes coverage and failures. The `reports/` directory is intended for local audit output and is ignored by git.
 
 Companion evidence docs:
 
@@ -429,7 +446,7 @@ pnpm typecheck
 pnpm test
 pnpm test:e2e:web
 ruff check .
-python3 -m pytest
+uv run pytest
 docker compose -f docker-compose.relution-e2e.yml config --quiet
 ```
 
@@ -471,3 +488,7 @@ RELUTION_DOCKER_KEEP=1
 RELUTION_E2E_ACCESS_TOKEN=<optional-dashboard-token-override>
 RELUTION_E2E_MANAGEMENT_ACCESS_TOKEN=<optional-management-token>
 ```
+
+## License
+
+MIT. See `LICENSE`.

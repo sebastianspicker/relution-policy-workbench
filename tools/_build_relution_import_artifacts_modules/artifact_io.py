@@ -119,7 +119,7 @@ def write_settings_files(config: SourceConfig, settings_catalog: dict[str, Any])
     if settings_root.exists():
         shutil.rmtree(settings_root)
     for bundle in settings_catalog["bundles"]:
-        path = resolve_relative(bundle["importFilePath"])
+        path = resolve_relative(bundle["importFilePath"], root=settings_root)
         path.parent.mkdir(parents=True, exist_ok=True)
         write_json(path, bundle["details"])
 
@@ -247,8 +247,13 @@ def relative_path(path: Path) -> str:
     return path.relative_to(REPO_ROOT).as_posix()
 
 
-def resolve_relative(path: str) -> Path:
-    return REPO_ROOT / Path(path)
+def resolve_relative(path: str, root: Path | None = None) -> Path:
+    resolved = (REPO_ROOT / Path(path)).resolve()
+    if root is not None:
+        resolved_root = root.resolve()
+        if resolved != resolved_root and resolved_root not in resolved.parents:
+            raise ValueError(f"Path escapes expected root: {path}")
+    return resolved
 
 
 def slugify(value: str) -> str:

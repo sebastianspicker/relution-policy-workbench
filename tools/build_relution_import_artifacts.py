@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Build checked-in Relution recommendation and baseline artifacts.
+
+This file is the stable CLI entry point. The implementation lives in split
+modules under `_build_relution_import_artifacts_modules/`, loaded into this
+namespace so existing command behavior and script-level helper sharing remain
+unchanged.
+"""
+
 from pathlib import Path
 import sys
 

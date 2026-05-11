@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Refresh guideline-derived mapping artifacts.
+
+Use `--offline` for the normal reproducible path from checked-in source
+material. Online refresh intentionally fails closed for BSI/CIS until their
+downloaders are explicit and reviewable; vendor guidance is the only refreshable
+source in this wrapper.
+"""
+
 from __future__ import annotations
 
 import argparse
