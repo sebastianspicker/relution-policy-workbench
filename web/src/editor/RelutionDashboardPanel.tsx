@@ -12,6 +12,9 @@ import { postJson, readJsonResponse } from "./editor-utils.js";
 type Protocol = "http" | "https";
 type DeviceFilter = "all" | "noncompliant" | "missing-policy" | "inactive";
 
+const DEVICE_FILTERS = ["all", "noncompliant", "missing-policy", "inactive"] as const satisfies readonly DeviceFilter[];
+const RELUTION_LIST_VALUE_PATTERN = /^[A-Z0-9_-]+$/u;
+
 interface AuditResponse {
   query: RelutionDeviceQueryResult;
   report: RelutionAssessmentReport;
@@ -90,8 +93,8 @@ export function RelutionDashboardPanel(): JSX.Element {
     await run(async () => {
       const response = await postJson("/api/relution/devices/audit", {
         limit: 100,
-        platforms: csvValues(platforms),
-        statuses: csvValues(statuses),
+        platforms: csvValues(platforms, "platform"),
+        statuses: csvValues(statuses, "status"),
         expectedPoliciesByPlatform: expectedPoliciesByPlatform(expectedPolicies),
       });
       const result = await readJsonResponse<AuditResponse & { error?: string }>(response);
@@ -217,7 +220,7 @@ export function RelutionDashboardPanel(): JSX.Element {
           <h3>Devices</h3>
           <div className="recommendation-controls">
             <label>Filter
-              <select value={filter} onChange={(event) => setFilter(event.target.value as DeviceFilter)}>
+              <select value={filter} onChange={(event) => setFilter(parseDeviceFilter(event.target.value))}>
                 <option value="all">All</option>
                 <option value="noncompliant">Non-compliant</option>
                 <option value="missing-policy">Missing policy</option>
@@ -317,10 +320,18 @@ function DeviceFindingList(props: {
       {props.assessments.map((entry) => (
         <div key={entry.device.uuid ?? entry.device.name} className="recommendation-card">
           <strong>{entry.device.name}</strong>
-          <span>{entry.device.platform ?? "unknown platform"} · {entry.device.userEmail ?? entry.device.userName ?? "unknown user"}</span>
-          <span>Status: {entry.device.status ?? "unknown"} · Policy: {entry.device.policyStatus ?? "unknown"}</span>
+          <span>
+            {entry.device.platform ?? "unknown platform"}
+            <AccessibleSeparator />
+            {entry.device.userEmail ?? entry.device.userName ?? "unknown user"}
+          </span>
+          <span>
+            Status: {entry.device.status ?? "unknown"}
+            <AccessibleSeparator />
+            Policy: {entry.device.policyStatus ?? "unknown"}
+          </span>
           <span>Last connection: {entry.device.lastConnectionDate ?? "unknown"}{entry.device.inactiveDays === undefined ? "" : ` (${String(entry.device.inactiveDays)}d)`}</span>
-          <span>Assigned policies: {entry.device.assignedPolicies?.join(", ") ?? "unknown"}</span>
+          <span>Assigned policies: {assignedPolicyText(entry.device.assignedPolicies)}</span>
           {entry.issues.length === 0 ? <span>Issues: none</span> : entry.issues.map((issue) => (
             <button key={issue.id} type="button" disabled={!props.zammadReady} onClick={() => props.onTicketDraft(buildZammadTicketDraft(entry, issue))}>
               Ticket: {issue.id}
@@ -330,6 +341,20 @@ function DeviceFindingList(props: {
       ))}
     </div>
   );
+}
+
+function AccessibleSeparator(): JSX.Element {
+  return (
+    <>
+      <span aria-hidden="true"> · </span>
+      <span className="visually-hidden">, </span>
+    </>
+  );
+}
+
+function assignedPolicyText(policies: readonly (string | undefined)[] | undefined): string {
+  const assigned = policies?.filter((policy): policy is string => typeof policy === "string" && policy.length > 0) ?? [];
+  return assigned.length === 0 ? "none" : assigned.join(", ");
 }
 
 function ZammadSection(props: {
@@ -403,14 +428,35 @@ function expectedPoliciesByPlatform(value: string): Record<string, string[]> | u
   for (const pair of pairs) {
     const [platform, policies] = pair.split("=");
     if (platform === undefined || policies === undefined) {
-      continue;
+      throw new Error("Expected policies must use PLATFORM=Policy A,Policy B entries separated by semicolons.");
     }
-    result[platform.trim()] = policies.split(",").map((policy) => policy.trim()).filter((policy) => policy.length > 0);
+    const platformKey = platform.trim();
+    if (!RELUTION_LIST_VALUE_PATTERN.test(platformKey)) {
+      throw new Error(`Invalid expected-policy platform: ${platformKey}`);
+    }
+    const policyList = policies.split(",").map((policy) => policy.trim()).filter((policy) => policy.length > 0);
+    if (policyList.length === 0) {
+      throw new Error(`Expected-policy platform ${platformKey} must include at least one policy name.`);
+    }
+    result[platformKey] = policyList;
   }
   return result;
 }
 
-function csvValues(value: string): string[] | undefined {
+function csvValues(value: string, fieldLabel: string): string[] | undefined {
   const values = value.split(",").map((entry) => entry.trim()).filter((entry) => entry.length > 0);
+  const invalid = values.find((entry) => !RELUTION_LIST_VALUE_PATTERN.test(entry));
+  if (invalid !== undefined) {
+    throw new Error(`Invalid Relution ${fieldLabel}: ${invalid}`);
+  }
   return values.length === 0 ? undefined : values;
+}
+
+function parseDeviceFilter(value: string): DeviceFilter {
+  for (const filter of DEVICE_FILTERS) {
+    if (filter === value) {
+      return filter;
+    }
+  }
+  throw new Error(`Unsupported device filter: ${value}`);
 }

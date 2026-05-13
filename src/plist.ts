@@ -58,7 +58,7 @@ export function inspectMobileConfigText(rawContent: string): MobileConfigInspect
   const displayName = firstPlistStringForKey(trimmed, "PayloadDisplayName") ?? "Custom .mobileconfig";
   const payloadTypes = allPlistStringsForKey(trimmed, "PayloadType");
   const firstLevelPayloadType = payloadTypeName(payloadTypes[0]);
-  const secondLevelPayloadType = payloadTypeName(payloadTypes.find((value) => value !== "Configuration"));
+  const secondLevelPayloadType = payloadTypeName(payloadTypes.find((value) => value !== "Configuration") ?? firstLevelPayloadType);
   return {
     rawContent,
     signatureState,

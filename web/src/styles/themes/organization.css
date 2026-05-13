@@ -38,6 +38,7 @@
   --ci-color-danger-bg: #ffe8f5;
   --ci-color-danger-text: #8d004f;
 
+  /* Radius scale: organization branding uses sharper 2px corners across controls and cards. */
   --ci-radius-control: 2px;
   --ci-radius-card: 2px;
   --ci-shadow-card: none;

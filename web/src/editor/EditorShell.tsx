@@ -4,7 +4,7 @@ import { BaselinePanel } from "./BaselinePanel.js";
 import { ConfigurationInspector } from "./ConfigurationInspector.js";
 import { ConfigurationPickerModal } from "./ConfigurationPickerModal.js";
 import { EditorBreadcrumb } from "./EditorBreadcrumb.js";
-import { asRecord } from "./editor-utils.js";
+import { asRecord, cx } from "./editor-utils.js";
 import { AppleCompatFields } from "./fields/AppleCompatFields.js";
 import { AppleSchemaFields } from "./fields/AppleSchemaFields.js";
 import { GeneratedFields } from "./fields/GeneratedFields.js";
@@ -46,7 +46,6 @@ type EditorShellProps = {
 };
 
 export function EditorShell({ controller, theme, onThemeChange }: EditorShellProps): JSX.Element {
-  const c = controller;
   const [appSection, setAppSection] = useState<AppSection>("policies");
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -68,41 +67,39 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
       if (!modifier) return;
       if (event.key === "s") {
         event.preventDefault();
-        void c.saveWorkspace();
+        void controller.saveWorkspace();
       } else if (event.key === "b") {
         event.preventDefault();
-        void c.buildArchive();
+        void controller.buildArchive();
       } else if (event.key === "i") {
         event.preventDefault();
         setInspectorPinned((prev) => !prev);
       } else if (event.key === "z" && event.shiftKey) {
         event.preventDefault();
-        c.redoWorkspace();
+        controller.redoWorkspace();
       } else if (event.key === "z") {
         event.preventDefault();
-        c.undoWorkspace();
+        controller.undoWorkspace();
       } else if (event.key === "y") {
         event.preventDefault();
-        c.redoWorkspace();
+        controller.redoWorkspace();
       }
     }
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [c]);
+  }, [controller]);
 
-  const workspaceClassName = [
+  const workspaceClassName = cx(
     "workspace-grid",
     appSection === "policies" && navigationOpen ? "show-navigation" : "",
     appSection === "policies" && inspectorOpen ? "show-inspector" : "",
     inspectorPinned ? "inspector-pinned" : "",
-  ]
-    .filter(Boolean)
-    .join(" ");
+  );
 
   return (
     <main className="editor-root" data-theme={theme}>
       <WorkspaceToolbar
-        controller={c}
+        controller={controller}
         inspectorPinned={inspectorPinned}
         onToggleInspector={() => setInspectorPinned((prev) => !prev)}
       />
@@ -146,26 +143,26 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
 
         <aside id="editor-navigation-pane" className="sidebar">
           <PolicyNavigator
-            policies={c.state.workspace.policies}
-            selection={c.selection}
-            templatesByType={c.templatesByType}
-            newPolicyName={c.newPolicyName}
-            newPolicyPlatform={c.newPolicyPlatform}
-            creatablePlatforms={c.creatablePlatforms}
-            isDirty={c.isDirty}
-            onSelect={c.setSelection}
-            onMoveConfiguration={(targetSelection, direction) => void c.moveConfiguration(targetSelection, direction)}
-            onRemoveConfiguration={(targetSelection) => void c.removeConfiguration(targetSelection)}
-            onNewPolicyNameChange={c.setNewPolicyName}
-            onNewPolicyPlatformChange={c.setNewPolicyPlatform}
-            onCreatePolicy={() => void c.addPolicy()}
+            policies={controller.state.workspace.policies}
+            selection={controller.selection}
+            templatesByType={controller.templatesByType}
+            newPolicyName={controller.newPolicyName}
+            newPolicyPlatform={controller.newPolicyPlatform}
+            creatablePlatforms={controller.creatablePlatforms}
+            isDirty={controller.isDirty}
+            onSelect={controller.setSelection}
+            onMoveConfiguration={(targetSelection, direction) => void controller.moveConfiguration(targetSelection, direction)}
+            onRemoveConfiguration={(targetSelection) => void controller.removeConfiguration(targetSelection)}
+            onNewPolicyNameChange={controller.setNewPolicyName}
+            onNewPolicyPlatformChange={controller.setNewPolicyPlatform}
+            onCreatePolicy={() => void controller.addPolicy()}
           />
         </aside>
 
         <section className="editor-panel">
           {appSection === "baseline" ? (
             <div className="center-section">
-              <BaselinePanel controller={c} />
+              <BaselinePanel controller={controller} />
             </div>
           ) : appSection === "dashboard" ? (
             <div className="center-section center-section--wide">
@@ -173,16 +170,16 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
             </div>
           ) : appSection === "settings" ? (
             <div className="center-section center-section--narrow">
-              <SettingsPanel controller={c} theme={theme} onThemeChange={onThemeChange} />
+              <SettingsPanel controller={controller} theme={theme} onThemeChange={onThemeChange} />
             </div>
-          ) : c.selection === undefined ? (
+          ) : controller.selection === undefined ? (
             <EditorWelcome />
           ) : (
-            <EditorWorkspace controller={c} />
+            <EditorWorkspace controller={controller} />
           )}
         </section>
 
-        <ConfigurationInspector controller={c} id="editor-inspector-pane" />
+        <ConfigurationInspector controller={controller} id="editor-inspector-pane" />
       </section>
     </main>
   );
@@ -216,11 +213,11 @@ function AppRail({
   );
 }
 
-function EditorWorkspace({ controller: c }: { readonly controller: EditorController }): JSX.Element {
+function EditorWorkspace({ controller }: { readonly controller: EditorController }): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const hasConfig = c.configuration !== undefined;
+  const hasConfig = controller.configuration !== undefined;
 
-  const versionName = getVersionName(c);
+  const versionName = getVersionName(controller);
 
   function openPicker(): void {
     setPickerOpen(true);
@@ -231,19 +228,19 @@ function EditorWorkspace({ controller: c }: { readonly controller: EditorControl
 
   const pickerModal = pickerOpen ? (
     <ConfigurationPickerModal
-      availableTemplates={c.availableTemplates}
-      presentNativeTypes={c.presentNativeTypes}
-      availableAppleCompatSettings={c.availableAppleCompatSettings}
-      availableAppleSchemaProfiles={c.availableAppleSchemaProfiles}
-      customSettingsAvailable={c.policy?.document.platform === "MACOS"}
-      selectedType={c.selectedType}
-      query={c.addQuery}
-      group={c.addGroup}
-      onSelectedTypeChange={c.setSelectedType}
-      onQueryChange={c.setAddQuery}
-      onGroupChange={c.setAddGroup}
+      availableTemplates={controller.availableTemplates}
+      presentNativeTypes={controller.presentNativeTypes}
+      availableAppleCompatSettings={controller.availableAppleCompatSettings}
+      availableAppleSchemaProfiles={controller.availableAppleSchemaProfiles}
+      customSettingsAvailable={controller.policy?.document.platform === "MACOS"}
+      selectedType={controller.selectedType}
+      query={controller.addQuery}
+      group={controller.addGroup}
+      onSelectedTypeChange={controller.setSelectedType}
+      onQueryChange={controller.setAddQuery}
+      onGroupChange={controller.setAddGroup}
       onAdd={() => {
-        void c.addConfiguration();
+        void controller.addConfiguration();
         closePicker();
       }}
       onClose={closePicker}
@@ -251,19 +248,15 @@ function EditorWorkspace({ controller: c }: { readonly controller: EditorControl
   ) : null;
 
   if (!hasConfig) {
-    const name = typeof c.policy?.document.name === "string" ? c.policy.document.name : "";
+    const name = typeof controller.policy?.document.name === "string" ? controller.policy.document.name : "";
     const description =
-      typeof c.policy?.document.description === "string" ? c.policy.document.description : "";
+      typeof controller.policy?.document.description === "string" ? controller.policy.document.description : "";
     const platform =
-      typeof c.policy?.document.platform === "string" ? c.policy.document.platform : "";
+      typeof controller.policy?.document.platform === "string" ? controller.policy.document.platform : "";
     return (
       <>
         <EditorBreadcrumb
-          policy={c.policy}
-          template={undefined}
-          appleCompatSetting={undefined}
-          appleSchemaProfile={undefined}
-          hasConfiguration={false}
+          policy={controller.policy}
           versionName={versionName}
         />
         <div className="policy-version-context">
@@ -275,21 +268,21 @@ function EditorWorkspace({ controller: c }: { readonly controller: EditorControl
               className="pvc-name"
               aria-label="Policy name"
               value={name}
-              onChange={(e) => c.renameSelectedPolicy(e.target.value)}
+              onChange={(e) => controller.renameSelectedPolicy(e.target.value)}
             />
             <textarea
               className="pvc-description"
               aria-label="Policy description"
               placeholder="Add a description…"
               value={description}
-              onChange={(e) => c.updateSelectedPolicyDescription(e.target.value)}
+              onChange={(e) => controller.updateSelectedPolicyDescription(e.target.value)}
             />
           </div>
           <div className="pvc-actions">
-            <button type="button" onClick={c.duplicateSelectedPolicy}>
+            <button type="button" onClick={controller.duplicateSelectedPolicy}>
               Duplicate
             </button>
-            <button type="button" className="btn-danger" onClick={c.deleteSelectedPolicy}>
+            <button type="button" className="btn-danger" onClick={controller.deleteSelectedPolicy}>
               Delete
             </button>
           </div>
@@ -313,34 +306,30 @@ function EditorWorkspace({ controller: c }: { readonly controller: EditorControl
   return (
     <>
       <EditorBreadcrumb
-        policy={c.policy}
-        template={c.template}
-        appleCompatSetting={c.appleCompatSetting}
-        appleSchemaProfile={c.appleSchemaProfile}
-        hasConfiguration={hasConfig}
+        policy={controller.policy}
         versionName={versionName}
       />
       <div className="panel-header">
         <div>
           <h1>
-            {c.appleCompatSetting !== undefined
-              ? `${c.appleCompatSetting.label} *`
-              : c.appleSchemaProfile !== undefined
-              ? `${c.appleSchemaProfile.title} *`
-              : c.template?.label ?? "Configuration"}
+            {controller.appleCompatSetting !== undefined
+              ? `${controller.appleCompatSetting.label} *`
+              : controller.appleSchemaProfile !== undefined
+              ? `${controller.appleSchemaProfile.title} *`
+              : controller.template?.label ?? "Configuration"}
           </h1>
           <p>
-            {c.appleCompatSetting !== undefined
-              ? `APPLE_MOBILECONFIG | ${c.appleCompatSetting.payloadType}`
-              : c.appleSchemaProfile !== undefined
-              ? `APPLE_MOBILECONFIG | ${c.appleSchemaProfile.identifier} | Apple schema ${c.state.appleSchema.source.revision}`
-              : c.template === undefined
+            {controller.appleCompatSetting !== undefined
+              ? `APPLE_MOBILECONFIG | ${controller.appleCompatSetting.payloadType}`
+              : controller.appleSchemaProfile !== undefined
+              ? `APPLE_MOBILECONFIG | ${controller.appleSchemaProfile.identifier} | Apple schema ${controller.state.appleSchema.source.revision}`
+              : controller.template === undefined
               ? "Select or add a configuration."
-              : `${c.template.type} | ${c.template.schemaName} | ${c.template.multiConfig ? "multi" : "single"}`}
-            {c.appleCompatSetting !== undefined ? (
-              <InfoButton label={c.appleCompatSetting.label} description={APPLE_COMPAT_HINT} source="Relution APPLE_MOBILECONFIG" />
-            ) : c.template?.description !== undefined ? (
-              <InfoButton label={c.template.label} description={c.template.description} source={c.template.descriptionSource} />
+              : `${controller.template.type} | ${controller.template.schemaName} | ${controller.template.multiConfig ? "multi" : "single"}`}
+            {controller.appleCompatSetting !== undefined ? (
+              <InfoButton label={controller.appleCompatSetting.label} description={APPLE_COMPAT_HINT} source="Relution APPLE_MOBILECONFIG" />
+            ) : controller.template?.description !== undefined ? (
+              <InfoButton label={controller.template.label} description={controller.template.description} source={controller.template.descriptionSource} />
             ) : null}
           </p>
         </div>
@@ -351,52 +340,52 @@ function EditorWorkspace({ controller: c }: { readonly controller: EditorControl
           <JsonTemplateImportControl
             label="Apply JSON"
             ariaLabel="Selected setting JSON file"
-            disabled={c.configuration === undefined}
-            onFileChange={c.setJsonTemplateFile}
-            onImport={() => void c.importJsonTemplates()}
+            disabled={controller.configuration === undefined}
+            onFileChange={controller.setJsonTemplateFile}
+            onImport={() => void controller.importJsonTemplates()}
           />
         </div>
       </div>
       {pickerModal}
       <div className="editor-content">
-        <EditorFields controller={c} />
+        <EditorFields controller={controller} />
       </div>
     </>
   );
 }
 
-function EditorFields({ controller: c }: { readonly controller: EditorController }): JSX.Element {
-  if (c.configuration !== undefined && c.details !== undefined && c.appleCompatSetting !== undefined) {
+function EditorFields({ controller }: { readonly controller: EditorController }): JSX.Element {
+  if (controller.configuration !== undefined && controller.details !== undefined && controller.appleCompatSetting !== undefined) {
     return (
       <AppleCompatFields
-        setting={c.appleCompatSetting}
-        details={c.details}
-        onError={c.setStatus}
-        onChange={(nextDetails) => c.updateSelectedConfiguration({ ...c.configuration, details: nextDetails })}
+        setting={controller.appleCompatSetting}
+        details={controller.details}
+        onError={controller.setStatus}
+        onChange={(nextDetails) => controller.updateSelectedConfiguration({ ...controller.configuration, details: nextDetails })}
       />
     );
   }
-  if (c.configuration !== undefined && c.details !== undefined && c.appleSchemaProfile !== undefined) {
+  if (controller.configuration !== undefined && controller.details !== undefined && controller.appleSchemaProfile !== undefined) {
     return (
       <AppleSchemaFields
-        entry={c.appleSchemaProfile}
-        details={c.details}
-        onError={c.setStatus}
-        onChange={(nextDetails) => c.updateSelectedConfiguration({ ...c.configuration, details: nextDetails })}
+        entry={controller.appleSchemaProfile}
+        details={controller.details}
+        onError={controller.setStatus}
+        onChange={(nextDetails) => controller.updateSelectedConfiguration({ ...controller.configuration, details: nextDetails })}
       />
     );
   }
-  if (c.configuration !== undefined && c.details !== undefined && c.details.type === "APPLE_MOBILECONFIG") {
+  if (controller.configuration !== undefined && controller.details !== undefined && controller.details.type === "APPLE_MOBILECONFIG") {
     return (
       <MobileConfigFields
-        details={c.details}
-        onError={c.setStatus}
-        onChange={(nextDetails) => c.updateSelectedConfiguration({ ...c.configuration, details: nextDetails })}
+        details={controller.details}
+        onError={controller.setStatus}
+        onChange={(nextDetails) => controller.updateSelectedConfiguration({ ...controller.configuration, details: nextDetails })}
       />
     );
   }
-  if (c.configuration !== undefined && c.details !== undefined && c.template !== undefined) {
-    return <GeneratedFields template={c.template} details={c.details} onChange={(nextDetails) => c.updateSelectedConfiguration({ ...c.configuration, details: nextDetails })} />;
+  if (controller.configuration !== undefined && controller.details !== undefined && controller.template !== undefined) {
+    return <GeneratedFields template={controller.template} details={controller.details} onChange={(nextDetails) => controller.updateSelectedConfiguration({ ...controller.configuration, details: nextDetails })} />;
   }
   return <div className="empty-state">No editable configuration selected.</div>;
 }
@@ -430,14 +419,14 @@ function EditorWelcome(): JSX.Element {
   );
 }
 
-function getVersionName(c: EditorController): string | undefined {
-  if (c.selection === undefined || c.policy === undefined) {
+function getVersionName(controller: EditorController): string | undefined {
+  if (controller.selection === undefined || controller.policy === undefined) {
     return undefined;
   }
-  const versions = Array.isArray(c.policy.document.versions) ? c.policy.document.versions : [];
-  const version = asRecord(versions[c.selection.versionIndex]);
+  const versions = Array.isArray(controller.policy.document.versions) ? controller.policy.document.versions : [];
+  const version = asRecord(versions[controller.selection.versionIndex]);
   if (typeof version?.name === "string" && version.name.length > 0) {
     return version.name;
   }
-  return `Version ${c.selection.versionIndex + 1}`;
+  return `Version ${controller.selection.versionIndex + 1}`;
 }

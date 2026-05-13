@@ -69,4 +69,12 @@ describe("SettingsPanel", () => {
 
     expect(clearButton.disabled).toBe(true);
   });
+
+  it("shows explicit encryption key state instead of overloading the input placeholder", () => {
+    const state = createAppState();
+    render(<SettingsPanel controller={createEditorControllerStub({ state: { ...state, keySet: true } })} {...defaultProps} />);
+
+    expect(screen.getByText(/key set/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText("Enter encryption key...")).toBeTruthy();
+  });
 });

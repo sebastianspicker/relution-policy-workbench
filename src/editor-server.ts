@@ -7,21 +7,11 @@ import { createAppleCompatReport } from "./apple-compat.js";
 import { loadAppleSchemaCatalog } from "./apple-schema-catalog.js";
 import { baselineTemplateApiResponse } from "./baseline-template-routes.js";
 import { createDdmArtifact, createMdmCommandArtifact, findAppleSchemaEntry } from "./apple-schema.js";
+import { applyComplianceRemediationToWorkspace, buildComplianceReport } from "./compliance.js";
 import {
-  applyComplianceRemediationToWorkspace,
-  buildComplianceReport,
-} from "./compliance.js";
-import {
-  addDdmArtifact,
-  addMdmCommandArtifact,
-  loadEditorSidecar,
-  replaceEditorSidecarFromWorkspace,
-  reconcileMobileConfigRestoreEntries,
-  recordMobileConfigRestoreEntries,
-  removeDdmArtifact,
-  removeMdmCommandArtifact,
-  updateDdmArtifact,
-  updateMdmCommandArtifact,
+  addDdmArtifact, addMdmCommandArtifact, loadEditorSidecar, replaceEditorSidecarFromWorkspace,
+  reconcileMobileConfigRestoreEntries, recordMobileConfigRestoreEntries, removeDdmArtifact,
+  removeMdmCommandArtifact, updateDdmArtifact, updateMdmCommandArtifact,
 } from "./sidecar.js";
 import { inspectMobileConfigText } from "./plist.js";
 import { type RecommendationSource } from "./recommendation-types.js";
@@ -37,18 +27,9 @@ import { extractRexp, packPlainDirectory, verifyRexp } from "./rexp.js";
 import { createRelutionEditorRuntime, handleRelutionApiRequest, type RelutionEditorRuntime } from "./relution-editor-routes.js";
 import { createZammadEditorRuntime, handleZammadApiRequest, type ZammadEditorRuntime } from "./zammad-editor-routes.js";
 import {
-  addAppleCompatConfigurationToWorkspace,
-  addAppleSchemaProfileToWorkspace,
-  addConfigurationToWorkspace,
-  addCustomSettingsToWorkspace,
-  addPolicyToWorkspace,
-  loadWorkspace,
-  moveConfigurationInWorkspace,
-  replaceWorkspace,
-  removeConfigurationFromWorkspace,
-  saveWorkspace,
-  validateWorkspace,
-  type PolicyWorkspace,
+  addAppleCompatConfigurationToWorkspace, addAppleSchemaProfileToWorkspace, addConfigurationToWorkspace,
+  addCustomSettingsToWorkspace, addPolicyToWorkspace, loadWorkspace, moveConfigurationInWorkspace,
+  replaceWorkspace, removeConfigurationFromWorkspace, saveWorkspace, validateWorkspace, type PolicyWorkspace,
 } from "./workspace.js";
 import { loadTemplateBundle, listTemplates, type RelutionTemplateBundle } from "./templates.js";
 import type { AppleSchemaCatalog } from "./apple-schema.js";
@@ -67,6 +48,7 @@ import {
   requireString,
   shouldServeSpaIndex,
   uniqueRecommendationSources,
+  type JsonRecord,
 } from "./editor-server-helpers.js";
 
 export interface EditorServerOptions {
@@ -85,7 +67,6 @@ export interface EditorServerHandle {
   close: () => Promise<void>;
 }
 
-type JsonRecord = Record<string, unknown>;
 interface EditorRuntimeState {
   key: string;
   relution: RelutionEditorRuntime;
@@ -115,6 +96,9 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const server = createServer((request, response) => {
     void handleRequest(request, response, options, bundle, appleSchema, runtimeState).catch((error: unknown) => {
       const status = error instanceof HttpError ? error.status : 500;
+      if (status >= 500) {
+        console.error(error);
+      }
       sendJson(response, status, { error: error instanceof Error ? error.message : String(error) });
     });
   });
@@ -230,6 +214,9 @@ async function handleRequest(
   if (url.pathname === "/api/ddm/artifact" && request.method === "POST") {
     const body = await readJsonBody(request);
     const entry = requireAppleSchemaEntry(appleSchema, requireString(body, "schemaId"));
+    if (entry.kind === undefined) {
+      throw badRequest(`Apple schema entry has no kind: ${entry.id}`);
+    }
     if (!entry.kind.startsWith("ddm-") || entry.kind === "ddm-status") {
       throw badRequest(`Apple schema entry is not a DDM authoring declaration: ${entry.id}`);
     }
@@ -600,7 +587,12 @@ function serveStatic(pathname: string, response: ServerResponse): void {
     sendText(response, 404, "Editor assets are missing. Run pnpm build first.");
     return;
   }
-  response.writeHead(200, { "content-type": contentType(file) });
+  const type = contentType(file);
+  if (type === undefined) {
+    sendText(response, 404, "Editor asset type is not supported.");
+    return;
+  }
+  response.writeHead(200, { "content-type": type, "x-content-type-options": "nosniff" });
   response.end(readFileSync(file));
 }
 
@@ -628,7 +620,7 @@ function sendText(response: ServerResponse, status: number, value: string): void
   response.end(value);
 }
 
-function contentType(path: string): string {
+function contentType(path: string): string | undefined {
   switch (extname(path)) {
     case ".html":
       return "text/html; charset=utf-8";
@@ -639,7 +631,7 @@ function contentType(path: string): string {
     case ".svg":
       return "image/svg+xml";
     default:
-      return "application/octet-stream";
+      return undefined;
   }
 }
 

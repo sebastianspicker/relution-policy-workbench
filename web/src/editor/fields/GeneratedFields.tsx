@@ -1,9 +1,10 @@
 import { useEffect, useState, type JSX } from "react";
 import type { ConfigurationTemplate, TemplateField } from "../../../../src/templates.js";
-import { deletePath, getPath, isPrimitiveKind, objectListRows, setPath, textAreaValue } from "../editor-utils.js";
+import { deletePath, emptyObjectListRow, getPath, isPrimitiveKind, objectListRows, parseIntegerValue, setPath, textAreaValue } from "../editor-utils.js";
 import type { JsonRecord } from "../types.js";
 import { InfoButton } from "./InfoButton.js";
 
+/** Select sentinel for generated optional fields; choosing it emits an explicit JSON null instead of omitting the path. */
 const NULL_OPTION_VALUE = "__NULL__";
 
 type FieldTreeNode = {
@@ -102,7 +103,7 @@ function FieldInput(props: {
         <FieldCaption field={props.field} />
         <div className="object-list-rows">
           {rows.map((row, rowIndex) => (
-            <div className="object-list-row" key={rowIndex}>
+            <div className="object-list-row" key={objectListRowKey(row)}>
               <div className="object-list-header">
                 <strong>
                   {props.field.label} {rowIndex + 1}
@@ -258,6 +259,11 @@ function FieldInput(props: {
   );
 }
 
+function objectListRowKey(row: JsonRecord): string {
+  const explicit = row.uuid ?? row.id ?? row.identifier ?? row.name;
+  return typeof explicit === "string" && explicit.length > 0 ? explicit : JSON.stringify(row);
+}
+
 function JsonFieldInput(props: {
   field: TemplateField;
   nested?: boolean;
@@ -272,9 +278,13 @@ function JsonFieldInput(props: {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (draft !== canonicalJson) {
+      setError("Unsaved JSON draft preserved. Apply or clear it before switching fields.");
+      return;
+    }
     setDraft(canonicalJson);
     setError("");
-  }, [canonicalJson, props.field.path]);
+  }, [canonicalJson, draft, props.field.path]);
 
   function applyDraft(): void {
     try {
@@ -392,51 +402,6 @@ function parseArrayEntries(field: TemplateField, rawValue: string): unknown[] | 
     return numericEntries.every((entry) => Number.isFinite(entry)) ? numericEntries : undefined;
   }
   return undefined;
-}
-
-function parseIntegerValue(rawValue: string): number | undefined {
-  const trimmed = rawValue.trim();
-  if (!/^-?\d+$/u.test(trimmed)) {
-    return undefined;
-  }
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : undefined;
-}
-
-function emptyObjectListRow(field: TemplateField): JsonRecord {
-  const row: JsonRecord = {};
-  for (const itemField of field.itemFields ?? []) {
-    const defaultValue = defaultValueForField(itemField);
-    if (defaultValue !== undefined) {
-      setPath(row, itemField.path, structuredClone(defaultValue));
-    }
-  }
-  return row;
-}
-
-function defaultValueForField(field: TemplateField): unknown {
-  if (field.defaultValue !== undefined) {
-    return field.defaultValue;
-  }
-  if (field.enumValues.length > 0) {
-    return field.enumValues[0];
-  }
-  if (!field.required) {
-    return undefined;
-  }
-  if (field.kind === "boolean") {
-    return false;
-  }
-  if (field.kind === "integer" || field.kind === "number") {
-    return 0;
-  }
-  if (field.kind === "array") {
-    return [];
-  }
-  if (field.kind === "object") {
-    return {};
-  }
-  return "";
 }
 
 function buildFieldTree(fields: TemplateField[]): FieldTreeNode[] {

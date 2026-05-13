@@ -16,20 +16,13 @@ import {
   readJsonResponse,
   versionRecord,
 } from "./editor-utils.js";
-import type {
-  AddPolicyResponse,
-  AppState,
-  JsonRecord,
-  Selection,
-  WorkspaceResponse,
-} from "./types.js";
+import type { AddPolicyResponse, AppState, JsonRecord, Selection, WorkspaceResponse } from "./types.js";
 import { mergeSettingDetails, parseSettingDetailsJson } from "./json-template-import.js";
 import { importRulesetWorkspace } from "./ruleset-import.js";
 import { duplicatePolicy, recordPolicyInReport, removePolicyFromReport, updateReportPolicyName } from "./workspace-mutations.js";
 import { ALL_RECOMMENDATION_PLATFORMS, filterActionableRecommendationRuleset, policyPlatform, preferredRecommendationPlatform } from "./recommendation-platform.js";
 import { clearWorkspaceHistory, createWorkspaceHistoryActions, pushUndoState } from "./workspace-history.js";
 import { createBaselineTemplateApplyActions } from "./baseline-template-client.js";
-
 import type { UseEditorControllerActionsInput, EditorControllerActions } from "./useEditorControllerActionTypes.js";
 
 export function useEditorControllerActions(input: UseEditorControllerActionsInput): EditorControllerActions {
@@ -93,6 +86,10 @@ function markWorkspaceDirty(nextWorkspace: PolicyWorkspace, nextSelection: Selec
   setIsDirty(true);
   setHasFreshBuild(false);
   setStatus(message);
+}
+
+function handleImportError(error: unknown, kind: string): void {
+  setStatus(`${kind} failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 async function saveWorkspace(nextWorkspace = currentState.workspace): Promise<void> {
@@ -261,34 +258,38 @@ async function importArchive(): Promise<void> {
   if (isDirty && !window.confirm("Importing replaces the current workspace. Continue?")) {
     return;
   }
-  const body: JsonRecord = {
-    fileName: importFile.name,
-    dataBase64: await fileToBase64(importFile),
-  };
-  const key = keyValue.trim();
-  if (key.length > 0) {
-    body.key = key;
+  try {
+    const body: JsonRecord = {
+      fileName: importFile.name,
+      dataBase64: await fileToBase64(importFile),
+    };
+    const key = keyValue.trim();
+    if (key.length > 0) {
+      body.key = key;
+    }
+    const response = await postJson("/api/import", body);
+    const result = await readJsonResponse<WorkspaceResponse | JsonRecord>(response);
+    if (!response.ok) {
+      setStatus(`Import blocked: ${JSON.stringify(result)}`);
+      return;
+    }
+    const imported = result as WorkspaceResponse;
+    setState({
+      ...currentState,
+      workspace: imported.workspace,
+      validation: imported.validation,
+      keySet: imported.keySet ?? currentState.keySet,
+      sidecar: imported.sidecar ?? currentState.sidecar,
+    });
+    setIsDirty(false);
+    setHasFreshBuild(false);
+    clearWorkspaceHistory(historyInput);
+    setSelection(firstConfigurationSelection(imported.workspace));
+    setSelectedType("");
+    setStatus(`Imported ${importFile.name}`);
+  } catch (error) {
+    handleImportError(error, "Import");
   }
-  const response = await postJson("/api/import", body);
-  const result = await readJsonResponse<WorkspaceResponse | JsonRecord>(response);
-  if (!response.ok) {
-    setStatus(`Import blocked: ${JSON.stringify(result)}`);
-    return;
-  }
-  const imported = result as WorkspaceResponse;
-  setState({
-    ...currentState,
-    workspace: imported.workspace,
-    validation: imported.validation,
-    keySet: imported.keySet ?? currentState.keySet,
-    sidecar: imported.sidecar ?? currentState.sidecar,
-  });
-  setIsDirty(false);
-  setHasFreshBuild(false);
-  clearWorkspaceHistory(historyInput);
-  setSelection(firstConfigurationSelection(imported.workspace));
-  setSelectedType("");
-  setStatus(`Imported ${importFile.name}`);
 }
 
 async function importJsonTemplates(): Promise<void> {
@@ -306,7 +307,7 @@ async function importJsonTemplates(): Promise<void> {
     setStatus(`Applied ${jsonTemplateFile.name} to selected setting`);
     setInspectorTab("validation");
   } catch (error) {
-    setStatus(`Setting JSON import failed: ${error instanceof Error ? error.message : String(error)}`);
+    handleImportError(error, "Setting JSON import");
   }
 }
 
@@ -322,7 +323,7 @@ async function importRuleset(): Promise<void> {
     const parsed = JSON.parse(await rulesetFile.text()) as unknown;
     await applyRulesetJson(rulesetFile.name, parsed);
   } catch (error) {
-    setStatus(`Ruleset import failed: ${error instanceof Error ? error.message : String(error)}`);
+    handleImportError(error, "Ruleset import");
   }
 }
 
@@ -345,7 +346,7 @@ async function importRecommendationRuleset(): Promise<void> {
   try {
     await applyRulesetJson(recommendationCatalog.ruleset.name, ruleset);
   } catch (error) {
-    setStatus(`Bundled ruleset import failed: ${error instanceof Error ? error.message : String(error)}`);
+    handleImportError(error, "Bundled ruleset import");
   }
 }
 

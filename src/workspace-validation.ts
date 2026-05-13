@@ -2,8 +2,7 @@ import { Ajv, type ErrorObject, type ValidateFunction } from "ajv/dist/ajv.js";
 import { inspectMobileConfigText } from "./plist.js";
 import { findTemplate, type RelutionTemplateBundle } from "./templates.js";
 import type { PolicyWorkspace, SchemaCompatibilityIssue, WorkspaceValidationError, WorkspaceValidationResult } from "./workspace.js";
-
-type JsonRecord = Record<string, unknown>;
+import { asRecord, stringValue, type JsonRecord } from "./utils/json-guards.js";
 
 interface ValidatorContext {
   ajv: Ajv;
@@ -81,17 +80,6 @@ function configurationDetails(value: unknown): JsonRecord | undefined {
   const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonRecord) : undefined;
   const details = record?.details;
   return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as JsonRecord) : undefined;
-}
-
-function asRecord(value: unknown, label: string): JsonRecord {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${label} is not an object`);
-  }
-  return value as JsonRecord;
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }
 
 function formatAjvError(error: ErrorObject): string {

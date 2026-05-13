@@ -123,62 +123,26 @@ export function loadRecommendationCatalog(source: RecommendationSource, options:
 
 export function loadRecommendationCoverage(options: RecommendationCatalogOptions = {}): RecommendationCoverageMatrix {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
-  const cached = coverageCache.get(rootDir);
-  if (cached !== undefined) {
-    return cached;
-  }
   const path = resolve(rootDir, COVERAGE_PATH);
-  if (!existsSync(path)) {
-    throw new Error(`Recommendation coverage matrix not found: ${path}`);
-  }
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  const record = asRecord(parsed);
-  if (record === undefined || !Array.isArray(record.rows) || asRecord(record.summary) === undefined) {
-    throw new Error(`Invalid recommendation coverage matrix: ${path}`);
-  }
-  const matrix = parsed as RecommendationCoverageMatrix;
-  coverageCache.set(rootDir, matrix);
-  return matrix;
+  return loadJsonCatalog(coverageCache, rootDir, path, "Recommendation coverage matrix", (record) =>
+    Array.isArray(record.rows) && asRecord(record.summary) !== undefined,
+  );
 }
 
 export function loadRecommendationSemanticIndex(options: RecommendationCatalogOptions = {}): RecommendationSemanticIndex {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
-  const cached = semanticIndexCache.get(rootDir);
-  if (cached !== undefined) {
-    return cached;
-  }
   const path = resolve(rootDir, SEMANTIC_INDEX_PATH);
-  if (!existsSync(path)) {
-    throw new Error(`Recommendation semantic index not found: ${path}`);
-  }
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  const record = asRecord(parsed);
-  if (record === undefined || !Array.isArray(record.concepts) || !Array.isArray(record.relutionTargets) || !Array.isArray(record.recommendations)) {
-    throw new Error(`Invalid recommendation semantic index: ${path}`);
-  }
-  const index = parsed as RecommendationSemanticIndex;
-  semanticIndexCache.set(rootDir, index);
-  return index;
+  return loadJsonCatalog(semanticIndexCache, rootDir, path, "Recommendation semantic index", (record) =>
+    Array.isArray(record.concepts) && Array.isArray(record.relutionTargets) && Array.isArray(record.recommendations),
+  );
 }
 
 export function loadUnifiedRecommendationAnalysis(options: RecommendationCatalogOptions = {}): RecommendationUnifiedAnalysis {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
-  const cached = unifiedAnalysisCache.get(rootDir);
-  if (cached !== undefined) {
-    return cached;
-  }
   const path = resolve(rootDir, UNIFIED_ANALYSIS_PATH);
-  if (!existsSync(path)) {
-    throw new Error(`Unified recommendation analysis not found: ${path}`);
-  }
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  const record = asRecord(parsed);
-  if (record === undefined || !Array.isArray(record.commonGroups) || !Array.isArray(record.contradictions) || !Array.isArray(record.differences)) {
-    throw new Error(`Invalid unified recommendation analysis: ${path}`);
-  }
-  const analysis = parsed as RecommendationUnifiedAnalysis;
-  unifiedAnalysisCache.set(rootDir, analysis);
-  return analysis;
+  return loadJsonCatalog(unifiedAnalysisCache, rootDir, path, "Unified recommendation analysis", (record) =>
+    Array.isArray(record.commonGroups) && Array.isArray(record.contradictions) && Array.isArray(record.differences),
+  );
 }
 
 export function loadRecommendationSettingBundleCatalog(
@@ -187,21 +151,33 @@ export function loadRecommendationSettingBundleCatalog(
 ): RecommendationSettingBundleCatalog {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
   const cacheKey = `${rootDir}:${source}`;
-  const cached = settingsCatalogCache.get(cacheKey);
+  const path = resolve(rootDir, SOURCE_FILES[source].settingBundleCatalogPath);
+  return loadJsonCatalog(settingsCatalogCache, cacheKey, path, "Recommendation setting bundle catalog", (record) =>
+    Array.isArray(record.bundles) && Array.isArray(record.variantGroups) && Array.isArray(record.nonImportableRecommendations),
+  );
+}
+
+function loadJsonCatalog<T>(
+  cache: Map<string, T>,
+  cacheKey: string,
+  path: string,
+  label: string,
+  isValid: (record: Record<string, unknown>) => boolean,
+): T {
+  const cached = cache.get(cacheKey);
   if (cached !== undefined) {
     return cached;
   }
-  const path = resolve(rootDir, SOURCE_FILES[source].settingBundleCatalogPath);
   if (!existsSync(path)) {
-    throw new Error(`Recommendation setting bundle catalog not found: ${path}`);
+    throw new Error(`${label} not found: ${path}`);
   }
   const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
   const record = asRecord(parsed);
-  if (record === undefined || !Array.isArray(record.bundles) || !Array.isArray(record.variantGroups) || !Array.isArray(record.nonImportableRecommendations)) {
-    throw new Error(`Invalid recommendation setting bundle catalog: ${path}`);
+  if (record === undefined || !isValid(record)) {
+    throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
   }
-  const catalog = parsed as RecommendationSettingBundleCatalog;
-  settingsCatalogCache.set(cacheKey, catalog);
+  const catalog = parsed as T;
+  cache.set(cacheKey, catalog);
   return catalog;
 }
 

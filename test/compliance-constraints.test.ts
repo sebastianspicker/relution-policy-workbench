@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildComplianceReport,
-  type ComplianceSourceArtifacts,
+  type ComplianceSourceCatalogs,
 } from "../src/compliance.js";
 import type { AppleSchemaCatalog } from "../src/apple-schema.js";
 import type {
@@ -45,7 +45,7 @@ test("buildComplianceReport treats array contains-all constraints as compliant f
 function createArtifacts(
   source: RecommendationSource,
   recommendations: RecommendationRecord[],
-): Partial<Record<RecommendationSource, ComplianceSourceArtifacts>> {
+): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
   return {
     [source]: {
       recommendationCatalog: {

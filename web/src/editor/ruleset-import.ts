@@ -7,7 +7,7 @@ import {
 } from "../../../src/apple-schema.js";
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../../../src/templates.js";
 import type { PolicyWorkspace } from "../../../src/workspace.js";
-import { asRecord } from "./editor-utils.js";
+import { asRecord, newBrowserUuid } from "./editor-utils.js";
 import type { JsonRecord } from "./types.js";
 
 export interface RulesetImportReport {
@@ -360,15 +360,4 @@ function createExportReport(policies: readonly { readonly uuid: string; readonly
     failedPolicies: {},
     exportFile: { uuid: null, name: null, contentType: null, size: 0, modificationDate: 0, properties: {}, hashcode: null, link: null },
   };
-}
-
-function newBrowserUuid(): string {
-  if (globalThis.crypto?.randomUUID !== undefined) {
-    return globalThis.crypto.randomUUID().toUpperCase();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/gu, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === "x" ? random : (random & 0x3) | 0x8;
-    return value.toString(16).toUpperCase();
-  });
 }

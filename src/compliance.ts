@@ -16,7 +16,7 @@ import type {
   BuildComplianceReportInput,
   ComplianceRecommendationResult,
   ComplianceReport,
-  ComplianceSourceArtifacts,
+  ComplianceSourceCatalogs,
 } from "./compliance-types.js";
 
 export type {
@@ -30,7 +30,7 @@ export type {
   ComplianceRemediationOption,
   ComplianceReport,
   ComplianceSelection,
-  ComplianceSourceArtifacts,
+  ComplianceSourceCatalogs,
   ComplianceStatus,
 } from "./compliance-types.js";
 

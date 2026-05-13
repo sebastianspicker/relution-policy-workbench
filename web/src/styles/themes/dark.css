@@ -7,6 +7,7 @@
   --ci-color-page: #0f1114;
   --ci-color-surface: #1a1d21;
   --ci-color-surface-muted: #22262c;
+  --ci-color-surface-hover: rgb(255 255 255 / 0.12);
   --ci-color-panel: #141618;
   --ci-color-text: #e2e6ec;
   --ci-color-heading: #f0f4f8;
@@ -31,15 +32,20 @@
   --ci-color-active-bg: #1a2d42;
 
   --ci-color-success-bg: #0e2318;
-  --ci-color-success-text: #5ec988;
+  --ci-color-success-text: #7dd99c;
   --ci-color-info-bg: #0d1e30;
-  --ci-color-info-text: #6baede;
+  --ci-color-info-text: #8dc9f0;
   --ci-color-warning-bg: #251c06;
-  --ci-color-warning-text: #e0ac2a;
+  --ci-color-warning-text: #f0c94f;
   --ci-color-danger-bg: #250e0e;
   --ci-color-danger-text: #e07070;
 
+  /* Radius scale: dark mode preserves the default geometry so only contrast and surface depth change. */
   --ci-radius-control: 5px;
   --ci-radius-card: 6px;
   --ci-shadow-card: 0 1px 3px rgb(0 0 0 / 0.4), 0 1px 2px rgb(0 0 0 / 0.3);
+  --z-dropdown: 100;
+  --z-popover: 200;
+  --z-modal: 500;
+  --z-toast: 1000;
 }

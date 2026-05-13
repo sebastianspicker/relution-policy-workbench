@@ -1,15 +1,8 @@
 import type { JSX } from "react";
-import type { AppleCompatSetting } from "../../../src/apple-compat.js";
-import type { AppleSchemaEntry } from "../../../src/apple-schema.js";
-import type { ConfigurationTemplate } from "../../../src/templates.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
 
 type EditorBreadcrumbProps = {
   readonly policy: WorkspacePolicy | undefined;
-  readonly template: ConfigurationTemplate | undefined;
-  readonly appleCompatSetting: AppleCompatSetting | undefined;
-  readonly appleSchemaProfile: AppleSchemaEntry | undefined;
-  readonly hasConfiguration: boolean;
   readonly versionName?: string | undefined;
 };
 

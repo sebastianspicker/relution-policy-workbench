@@ -82,3 +82,17 @@ test("new --force resets stale editor sidecar state", () => {
   assert.equal(second.status, 0, `${second.stderr}\n${second.stdout}`);
   assert.equal(existsSync(join(workspace, "editor-sidecar.json")), false);
 });
+
+test("RELUTION_REXP_KEY rejects obvious weak defaults", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["dist/src/cli.js", "verify", "missing.rexp"],
+    {
+      encoding: "utf8",
+      env: { ...process.env, RELUTION_REXP_KEY: "key123" },
+    },
+  );
+
+  assert.notEqual(result.status, 0, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /RELUTION_REXP_KEY must be at least 16 characters/u);
+});

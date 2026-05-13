@@ -557,14 +557,7 @@ function field(
   payloadKey?: string,
   options?: string[],
 ): AppleCompatField {
-  const output: AppleCompatField = { id, label, kind, description, defaultValue };
-  if (payloadKey !== undefined) {
-    output.payloadKey = payloadKey;
-  }
-  if (options !== undefined) {
-    output.options = options;
-  }
-  return output;
+  return buildField({ id, label, kind, description, defaultValue }, { payloadKey, options });
 }
 
 function objectListField(
@@ -587,12 +580,16 @@ function objectField(
   payloadKey?: string,
   options?: string[],
 ): AppleCompatObjectField {
-  const output: AppleCompatObjectField = { id, label, kind, description, defaultValue };
-  if (payloadKey !== undefined) {
-    output.payloadKey = payloadKey;
-  }
-  if (options !== undefined) {
-    output.options = options;
-  }
-  return output;
+  return buildField({ id, label, kind, description, defaultValue }, { payloadKey, options });
+}
+
+function buildField<T extends AppleCompatField | AppleCompatObjectField>(
+  base: T,
+  optionals: { readonly payloadKey?: string | undefined; readonly options?: string[] | undefined },
+): T {
+  return {
+    ...base,
+    ...(optionals.payloadKey === undefined ? {} : { payloadKey: optionals.payloadKey }),
+    ...(optionals.options === undefined ? {} : { options: optionals.options }),
+  };
 }

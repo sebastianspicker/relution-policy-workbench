@@ -1,14 +1,17 @@
 import { randomBytes } from "node:crypto";
 import { type IncomingMessage } from "node:http";
+import { isIP } from "node:net";
 import { RECOMMENDATION_SOURCES, type RecommendationSource } from "./recommendation-types.js";
-import { type ComplianceSelection, type ComplianceSourceArtifacts } from "./compliance.js";
+import { type ComplianceSelection, type ComplianceSourceCatalogs } from "./compliance.js";
 import { isRecommendationSource, loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
 import { type PolicyWorkspace } from "./workspace.js";
 import type { EditorServerOptions } from "./editor-server.js";
 
-type JsonRecord = Record<string, unknown>;
+export type JsonRecord = Record<string, unknown>;
 
 const DEFAULT_JSON_BODY_LIMIT_BYTES = 1024 * 1024;
+const DEFAULT_JSON_MAX_DEPTH = 200;
+const DEFAULT_JSON_MAX_ARRAY_ITEMS = 10_000;
 
 export class HttpError extends Error {
   readonly status: number;
@@ -31,6 +34,7 @@ export async function readJsonBody(request: IncomingMessage, limitBytes = DEFAUL
     chunks.push(buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");
+  assertJsonShapeWithinLimits(text);
   let parsed: unknown;
   try {
     parsed = JSON.parse(text.length === 0 ? "{}" : text) as unknown;
@@ -95,7 +99,7 @@ function requireRequestHost(request: IncomingMessage, label: string): { host: st
   } catch {
     throw new HttpError(400, `Invalid Host header: ${host}`);
   }
-  return { host: parsed.host.toLowerCase(), hostname: normalizeHostname(parsed.hostname) };
+  return { host: normalizedUrlHost(parsed), hostname: normalizeHostname(parsed.hostname) };
 }
 
 function assertSameOrigin(request: IncomingMessage, requestHost: string): void {
@@ -109,7 +113,7 @@ function assertSameOrigin(request: IncomingMessage, requestHost: string): void {
   } catch {
     throw new HttpError(403, `Invalid Origin header: ${origin}`);
   }
-  if (parsed.protocol !== "http:" || parsed.host.toLowerCase() !== requestHost) {
+  if (parsed.protocol !== "http:" || normalizedUrlHost(parsed) !== requestHost) {
     throw new HttpError(403, `Mutating editor API requests require same-origin requests: ${origin}`);
   }
 }
@@ -137,7 +141,72 @@ function normalizeHostname(hostname: string): string {
 }
 
 function isLoopbackHostname(hostname: string): boolean {
-  return hostname === "localhost" || hostname === "::1" || hostname === "0:0:0:0:0:0:0:1" || hostname.startsWith("127.");
+  if (hostname === "localhost") {
+    return true;
+  }
+  const normalized = normalizeHostname(hostname);
+  if (normalized === "::1" || normalized === "0:0:0:0:0:0:0:1") {
+    return true;
+  }
+  const mappedIpv4 = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/u)?.[1];
+  const ipv4 = mappedIpv4 ?? normalized;
+  return isIP(ipv4) === 4 && ipv4.startsWith("127.");
+}
+
+function normalizedUrlHost(url: URL): string {
+  const hostname = normalizeHostname(url.hostname);
+  if (url.port.length === 0 || (url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
+    return hostname.includes(":") ? `[${hostname}]` : hostname;
+  }
+  return `${hostname.includes(":") ? `[${hostname}]` : hostname}:${url.port}`;
+}
+
+function assertJsonShapeWithinLimits(text: string): void {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  const arrayItemCounts: number[] = [];
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{" || char === "[") {
+      depth += 1;
+      if (depth > DEFAULT_JSON_MAX_DEPTH) {
+        throw new HttpError(413, `JSON body exceeds maximum nesting depth ${String(DEFAULT_JSON_MAX_DEPTH)}`);
+      }
+      if (char === "[") {
+        arrayItemCounts.push(0);
+      }
+      continue;
+    }
+    if (char === "}" || char === "]") {
+      if (char === "]") {
+        arrayItemCounts.pop();
+      }
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (char === "," && arrayItemCounts.length > 0) {
+      const nextCount = (arrayItemCounts.at(-1) ?? 0) + 1;
+      arrayItemCounts[arrayItemCounts.length - 1] = nextCount;
+      if (nextCount >= DEFAULT_JSON_MAX_ARRAY_ITEMS) {
+        throw new HttpError(413, `JSON array exceeds ${String(DEFAULT_JSON_MAX_ARRAY_ITEMS)} items`);
+      }
+    }
+  }
 }
 
 export function parseWorkspaceBody(body: JsonRecord): PolicyWorkspace {
@@ -189,8 +258,8 @@ export function parseRecommendationSourceBody(body: JsonRecord): RecommendationS
 
 export function loadComplianceArtifacts(
   sources: RecommendationSource[],
-): Partial<Record<RecommendationSource, ComplianceSourceArtifacts>> {
-  const artifacts: Partial<Record<RecommendationSource, ComplianceSourceArtifacts>> = {};
+): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
+  const artifacts: Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> = {};
   for (const source of sources) {
     const recommendationCatalog = loadRecommendationCatalog(source);
     if (!recommendationCatalog.available) {
@@ -199,7 +268,8 @@ export function loadComplianceArtifacts(
     let settingBundleCatalog: ReturnType<typeof loadRecommendationSettingBundleCatalog> | undefined;
     try {
       settingBundleCatalog = loadRecommendationSettingBundleCatalog(source);
-    } catch {
+    } catch (error) {
+      console.warn(`Compliance setting-bundle catalog unavailable for ${source}: ${error instanceof Error ? error.message : String(error)}`);
       settingBundleCatalog = undefined;
     }
     artifacts[source] = settingBundleCatalog === undefined

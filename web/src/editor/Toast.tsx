@@ -12,7 +12,11 @@ type ToastContextValue = {
   readonly toast: (message: string, kind?: ToastKind) => void;
 };
 
-const ToastContext = createContext<ToastContextValue>({ toast: () => {} });
+const ToastContext = createContext<ToastContextValue>({
+  toast: () => {
+    throw new Error("useToast must be used inside <ToastProvider>");
+  },
+});
 
 export function useToast(): ToastContextValue {
   return useContext(ToastContext);

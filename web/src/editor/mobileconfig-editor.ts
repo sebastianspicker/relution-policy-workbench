@@ -2,6 +2,13 @@ import { inspectMobileConfigText } from "../../../src/plist.js";
 import { asRecord } from "./editor-utils.js";
 import type { JsonRecord } from "./types.js";
 
+const PAYLOAD_TYPE_NAMES = {
+  Command: "COMMAND",
+  Configuration: "CONFIGURATION",
+} as const;
+
+type PayloadTypeKind = keyof typeof PAYLOAD_TYPE_NAMES;
+
 export function updateMobileConfigDetails(details: JsonRecord, rawContent: string): JsonRecord {
   if (rawContent.trim().length === 0) {
     return {
@@ -136,6 +143,10 @@ function firstElement(element: Element): Element | undefined {
   return Array.from(element.children)[0];
 }
 
-function payloadTypeName(value: unknown): string {
-  return value === "Command" ? "COMMAND" : "CONFIGURATION";
+function payloadTypeName(value: unknown): (typeof PAYLOAD_TYPE_NAMES)[PayloadTypeKind] {
+  return isPayloadTypeKind(value) ? PAYLOAD_TYPE_NAMES[value] : PAYLOAD_TYPE_NAMES.Configuration;
+}
+
+function isPayloadTypeKind(value: unknown): value is PayloadTypeKind {
+  return typeof value === "string" && value in PAYLOAD_TYPE_NAMES;
 }

@@ -65,7 +65,7 @@ export interface AppleCompatReportEntry {
 export type AppleCompatBuilder = "pppc" | "managed-preferences" | "associated-domains" | "managed-login-items" | "generic-json";
 export type JsonRecord = Record<string, unknown>;
 
-export const PROFILE_EDITOR_META_KEY = "relutionProfileEditor";
+export { PROFILE_EDITOR_META_KEY } from "./profile-editor-meta.js";
 export const PROFILE_IDENTIFIER_PREFIX = "io.relution-policy-workbench.apple-gap";
 export const APPLE_COMMON_PLATFORMS = ["IOS", "MACOS", "TVOS", "WATCHOS", "VISIONOS"];
 export const APPLE_PROFILE_SOURCE = "https://developer.apple.com/documentation/devicemanagement/profile-specific-payload-keys";

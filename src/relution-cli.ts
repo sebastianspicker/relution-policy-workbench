@@ -93,15 +93,9 @@ function connectionFromArgs(args: RelutionCliArgs): ReturnType<typeof normalizeR
   const protocol = optionalProtocol(args);
   const port = optionalInteger(args, "port");
   const basePath = optionalString(args, "base-path");
-  if (protocol !== undefined) {
-    input.protocol = protocol;
-  }
-  if (port !== undefined) {
-    input.port = port;
-  }
-  if (basePath !== undefined) {
-    input.basePath = basePath;
-  }
+  assignIfDefined(input, "protocol", protocol);
+  assignIfDefined(input, "port", port);
+  assignIfDefined(input, "basePath", basePath);
   return normalizeRelutionConnection(input);
 }
 
@@ -115,16 +109,20 @@ function queryFromArgs(args: RelutionCliArgs): RelutionDeviceQueryInput {
   const search = optionalString(args, "search");
   const sortField = optionalSortField(args);
   const sortAscending = optionalBoolean(args, "sort-ascending");
-  if (search !== undefined) {
-    query.search = search;
-  }
-  if (sortField !== undefined) {
-    query.sortField = sortField;
-  }
-  if (sortAscending !== undefined) {
-    query.sortAscending = sortAscending;
-  }
+  assignIfDefined(query, "search", search);
+  assignIfDefined(query, "sortField", sortField);
+  assignIfDefined(query, "sortAscending", sortAscending);
   return query;
+}
+
+function assignIfDefined<Target extends object, Key extends keyof Target>(
+  target: Target,
+  key: Key,
+  value: Target[Key] | undefined,
+): void {
+  if (value !== undefined) {
+    target[key] = value;
+  }
 }
 
 function assignNumber(target: RelutionDeviceQueryInput, key: "limit" | "offset", value: number | undefined): void {

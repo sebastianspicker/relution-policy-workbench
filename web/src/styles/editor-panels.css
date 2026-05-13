@@ -22,7 +22,7 @@
 
 .panel-header {
   display: grid;
-  gap: 14px;
+  gap: var(--spacing-lg, 12px);
   margin-bottom: 20px;
   padding: 16px 20px 18px;
   border-bottom: 1px solid var(--ci-color-border, #cad2dc);
@@ -302,10 +302,6 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.status-bar-message--idle {
-  /* empty placeholder */
 }
 
 .editor-breadcrumb {

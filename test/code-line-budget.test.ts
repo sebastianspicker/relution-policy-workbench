@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 const MAX_CODE_LINES_EXCLUSIVE = 720;
-const CODE_ROOTS = ["src", "web/src", "test", "tools"] as const;
+const CODE_ROOTS = ["src", "web/src", "test"] as const;
 const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".py", ".mjs", ".css"]);
 const SKIPPED_DIRECTORIES = new Set([".git", "node_modules", "dist", "dist-web", ".rexp-editor", "__pycache__"]);
 

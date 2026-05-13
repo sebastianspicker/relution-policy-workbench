@@ -91,6 +91,12 @@ test("readZip bounds actual deflate output before accepting declared inflated si
   );
 });
 
+test("readZip handles an empty ZIP archive", () => {
+  const archive = writeZip([]);
+
+  assert.deepEqual(readZip(archive), [], "empty zip should parse as an empty entry list");
+});
+
 test("packPlainDirectory rejects symlinked managed input paths", () => {
   const scenarios = [
     {

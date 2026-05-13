@@ -1,13 +1,12 @@
 import { existsSync } from "node:fs";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
 import test from "node:test";
+import { makeTempDir } from "./rexp-helpers.js";
 
 test("serve creates a blank workspace and does not require an encryption key", () => {
-  const root = mkdtempSync(join(tmpdir(), "relution-cli-"));
+  const root = makeTempDir("relution-cli");
   const workspace = join(root, "workspace");
   const out = join(root, "out.rexp");
   const result = spawnSync(
@@ -17,16 +16,16 @@ test("serve creates a blank workspace and does not require an encryption key", (
   );
 
   assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
-  assert.equal(existsSync(join(workspace, "metadata.json")), true);
-  assert.equal(existsSync(join(workspace, "report.json")), true);
-  assert.match(result.stdout, /Created workspace/u);
-  assert.match(result.stdout, /Key: not set/u);
+  assert.equal(existsSync(join(workspace, "metadata.json")), true, "serve should create workspace metadata");
+  assert.equal(existsSync(join(workspace, "report.json")), true, "serve should create workspace report");
+  assert.match(result.stdout, /Created workspace/u, "serve should report workspace creation");
+  assert.match(result.stdout, /Key: not set/u, "serve without key should report key state");
 });
 
 test("serve package smoke works outside the repo cwd", () => {
   const packageRoot = resolve(".");
-  const foreignCwd = mkdtempSync(join(tmpdir(), "relution-cli-cwd-"));
-  const root = mkdtempSync(join(tmpdir(), "relution-cli-"));
+  const foreignCwd = makeTempDir("relution-cli-cwd");
+  const root = makeTempDir("relution-cli");
   const workspace = join(root, "workspace");
   const out = join(root, "out.rexp");
   const result = spawnSync(
@@ -39,7 +38,7 @@ test("serve package smoke works outside the repo cwd", () => {
   );
 
   assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
-  assert.equal(existsSync(join(workspace, "metadata.json")), true);
-  assert.equal(existsSync(join(workspace, "report.json")), true);
-  assert.match(result.stdout, /Relution policy workbench:/u);
+  assert.equal(existsSync(join(workspace, "metadata.json")), true, "package smoke should create workspace metadata");
+  assert.equal(existsSync(join(workspace, "report.json")), true, "package smoke should create workspace report");
+  assert.match(result.stdout, /Relution policy workbench:/u, "package smoke should print server URL");
 });

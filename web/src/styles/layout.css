@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--spacing-lg, 12px);
   padding: 10px 20px;
   flex-wrap: wrap;
 }
@@ -150,6 +150,7 @@
   background: color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 12%, transparent);
   color: var(--ci-color-primary, #1d6fb8);
   border-color: transparent;
+  transition: inherit;
 }
 
 .toolbar-confirm-row {

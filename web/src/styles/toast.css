@@ -4,7 +4,7 @@
   position: fixed;
   bottom: 40px;
   right: 20px;
-  z-index: 1000;
+  z-index: var(--z-toast, 1000);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -49,6 +49,24 @@
   color: var(--ci-color-danger-text, #8c2525);
 }
 
+[data-theme="dark"] .toast--info {
+  background: var(--ci-color-info-bg);
+  border-color: var(--ci-color-info-text);
+  color: var(--ci-color-info-text);
+}
+
+[data-theme="dark"] .toast--success {
+  background: var(--ci-color-success-bg);
+  border-color: var(--ci-color-success-text);
+  color: var(--ci-color-success-text);
+}
+
+[data-theme="dark"] .toast--error {
+  background: var(--ci-color-danger-bg);
+  border-color: var(--ci-color-danger-text);
+  color: var(--ci-color-danger-text);
+}
+
 .toast-message {
   flex: 1;
   min-width: 0;
@@ -72,7 +90,7 @@
 
 .toast-dismiss:hover {
   opacity: 1;
-  background: rgb(0 0 0 / 0.08);
+  background: var(--ci-color-surface-hover, rgb(0 0 0 / 0.08));
 }
 
 /* ---- Status bar error state ---- */

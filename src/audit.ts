@@ -11,6 +11,7 @@ import {
   validateWorkspace,
   type WorkspaceValidationError,
 } from "./workspace.js";
+import { asOptionalRecord } from "./utils/json-guards.js";
 
 export interface AuditOptions {
   bundle: RelutionTemplateBundle;
@@ -303,7 +304,8 @@ function runTemplateRoundtrip(bundle: RelutionTemplateBundle, template: Configur
 
     extractRexp(out, extracted, key, { force: true });
     result.extractOk = true;
-    const extractedPolicy = JSON.parse(readFileSync(join(extracted, policyPath), "utf8")) as unknown;
+    const extractedPolicyPath = join(extracted, policyPath);
+    const extractedPolicy = parseAuditJsonFile(extractedPolicyPath);
     result.detailsTypeOk = extractedDetailsType(extractedPolicy) === template.type;
     if (!result.detailsTypeOk) {
       result.errors.push(`details.type mismatch after extract`);
@@ -313,6 +315,15 @@ function runTemplateRoundtrip(bundle: RelutionTemplateBundle, template: Configur
   }
 
   return result;
+}
+
+function parseAuditJsonFile(path: string): unknown {
+  try {
+    return JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not parse audit file ${path}: ${message}`);
+  }
 }
 
 function auditSampleExport(bundle: RelutionTemplateBundle, sampleRexp: string, key: string): SampleExportAudit {
@@ -341,27 +352,14 @@ function requiredPolicyPath(workspace: { policies: Array<{ path: string }> }): s
 }
 
 function extractedDetailsType(value: unknown): string | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  const record = value as Record<string, unknown>;
+  const record = asOptionalRecord(value);
+  if (record === undefined) return undefined;
   const versions = Array.isArray(record.versions) ? record.versions : [];
-  const firstVersion = versions[0];
-  if (typeof firstVersion !== "object" || firstVersion === null || Array.isArray(firstVersion)) {
-    return undefined;
-  }
-  const configurations = Array.isArray((firstVersion as Record<string, unknown>).configurations)
-    ? ((firstVersion as Record<string, unknown>).configurations as unknown[])
-    : [];
-  const firstConfiguration = configurations[0];
-  if (typeof firstConfiguration !== "object" || firstConfiguration === null || Array.isArray(firstConfiguration)) {
-    return undefined;
-  }
-  const details = (firstConfiguration as Record<string, unknown>).details;
-  if (typeof details !== "object" || details === null || Array.isArray(details)) {
-    return undefined;
-  }
-  const type = (details as Record<string, unknown>).type;
+  const firstVersion = asOptionalRecord(versions[0]);
+  const configurations = Array.isArray(firstVersion?.configurations) ? firstVersion.configurations : [];
+  const firstConfiguration = asOptionalRecord(configurations[0]);
+  const details = asOptionalRecord(firstConfiguration?.details);
+  const type = details?.type;
   return typeof type === "string" ? type : undefined;
 }
 

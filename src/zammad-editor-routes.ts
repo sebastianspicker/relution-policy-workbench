@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { badRequest, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { badRequest, optionalString, readJsonBody, requireString } from "./editor-server-helpers.js";
+import { optionalHttpProtocol, optionalPort } from "./editor-routes-utils.js";
 import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   createZammadTicket,
@@ -8,7 +9,6 @@ import {
   testZammadConnection,
   type ZammadConnection,
   type ZammadConnectionInput,
-  type ZammadProtocol,
 } from "./zammad-api.js";
 import type { ZammadTicketDraft } from "./zammad-ticket-drafts.js";
 
@@ -42,7 +42,7 @@ export async function handleZammadApiRequest(
       group: requireString(body, "group"),
       customer: requireString(body, "customer"),
     };
-    const protocol = optionalProtocol(body);
+    const protocol = optionalHttpProtocol(body);
     const port = optionalPort(body);
     const basePath = optionalString(body, "basePath");
     if (protocol !== undefined) {
@@ -99,6 +99,9 @@ function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {
   if (kind !== "non-compliant-device" && kind !== "inactive-device") {
     throw badRequest(`Unsupported Zammad ticket kind: ${kind}`);
   }
+  if (typeof record.title !== "string" || typeof record.body !== "string" || typeof record.issueId !== "string") {
+    throw badRequest("Ticket draft requires title, body, and issueId strings");
+  }
   const ticketDraft: ZammadTicketDraft = {
     kind,
     title: requireString(record, "title"),
@@ -110,21 +113,6 @@ function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {
     ticketDraft.deviceUuid = deviceUuid;
   }
   return ticketDraft;
-}
-
-function optionalProtocol(body: Record<string, unknown>): ZammadProtocol | undefined {
-  const protocol = optionalString(body, "protocol");
-  if (protocol === undefined) {
-    return undefined;
-  }
-  if (protocol !== "http" && protocol !== "https") {
-    throw badRequest(`Unsupported protocol: ${protocol}`);
-  }
-  return protocol;
-}
-
-function optionalPort(body: Record<string, unknown>): number | undefined {
-  return body.port === undefined ? undefined : requireNumber(body, "port");
 }
 
 function sendJson(response: ServerResponse, status: number, value: unknown): void {

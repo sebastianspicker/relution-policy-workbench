@@ -56,7 +56,7 @@ export function updateAppleCompatDetailsFromPayloadBodyJson(
   payloadBodyJson: string,
 ): JsonRecord {
   const setting = requireAppleCompatSetting(settingId);
-  const payloadBody = parsePayloadBodyJson(payloadBodyJson);
+  const payloadBody = parsePayloadBodyJson(payloadBodyJson, `setting ${settingId} payload body`);
   if (setting.builder === "generic-json") {
     return createAppleCompatDetails(setting, { payloadKeysJson: JSON.stringify(payloadBody, null, 2) }, details, {});
   }
@@ -193,7 +193,7 @@ function createPayload(
         ],
       };
     case "generic-json":
-      return { ...common, ...jsonPayloadKeys(parsePayloadKeysJson(values.payloadKeysJson)) };
+      return { ...common, ...jsonPayloadKeys(parsePayloadKeysJson(values.payloadKeysJson, `setting ${setting.id} payload keys`)) };
   }
 }
 
@@ -211,7 +211,7 @@ function valuesFromPayloadBody(setting: AppleCompatSetting, payloadBody: JsonRec
   switch (setting.builder) {
     case "pppc": {
       const services = asRecord(payloadBody.Services);
-      const [service, serviceRules] = services === undefined ? [] : Object.entries(services)[0] ?? [];
+      const [service, serviceRules] = firstEntry(services);
       const firstRule = Array.isArray(serviceRules) ? asRecord(serviceRules[0]) : undefined;
       return {
         ...values,
@@ -224,11 +224,11 @@ function valuesFromPayloadBody(setting: AppleCompatSetting, payloadBody: JsonRec
     }
     case "managed-preferences": {
       const payloadContent = asRecord(payloadBody.PayloadContent);
-      const [domain, domainPayload] = payloadContent === undefined ? [] : Object.entries(payloadContent)[0] ?? [];
+      const [domain, domainPayload] = firstEntry(payloadContent);
       const forced = asRecord(domainPayload)?.Forced;
       const firstForced = Array.isArray(forced) ? asRecord(forced[0]) : undefined;
       const settings = asRecord(firstForced?.mcx_preference_settings);
-      const [key, value] = settings === undefined ? [] : Object.entries(settings)[0] ?? [];
+      const [key, value] = firstEntry(settings);
       return {
         ...values,
         domain: domain ?? values.domain,
@@ -257,6 +257,10 @@ function valuesFromPayloadBody(setting: AppleCompatSetting, payloadBody: JsonRec
     case "generic-json":
       return { ...values, payloadKeysJson: JSON.stringify(payloadBody, null, 2) };
   }
+}
+
+function firstEntry(record: JsonRecord | undefined): readonly [string | undefined, unknown] {
+  return record === undefined ? [undefined, undefined] : Object.entries(record)[0] ?? [undefined, undefined];
 }
 
 function knownPayloadKeysForSetting(setting: AppleCompatSetting): Set<string> {
@@ -331,7 +335,7 @@ function syncPayloadKeysJsonValues(
   submittedValues: JsonRecord,
   previousDetails?: JsonRecord,
 ): JsonRecord {
-  const payloadKeys = parsePayloadKeysJson(normalized.payloadKeysJson);
+  const payloadKeys = parsePayloadKeysJson(normalized.payloadKeysJson, `setting ${setting.id} payload keys`);
   const previousValues = asRecord(appleCompatMetadata(previousDetails)?.values);
   const previousJson = typeof previousValues?.payloadKeysJson === "string" ? previousValues.payloadKeysJson : undefined;
   const submittedJson = typeof submittedValues.payloadKeysJson === "string" ? submittedValues.payloadKeysJson : undefined;
@@ -507,27 +511,29 @@ function keyValueRecord(value: unknown): JsonRecord {
     const [rawKey, ...rawValue] = line.split(separator);
     const key = rawKey?.trim() ?? "";
     if (key.length > 0) {
+      // Values may themselves contain ":" or "="; only the first separator
+      // splits the key from the value.
       output[key] = rawValue.join(separator).trim();
     }
   }
   return output;
 }
 
-function parsePayloadKeysJson(value: unknown): JsonRecord {
+function parsePayloadKeysJson(value: unknown, label = "payload keys"): JsonRecord {
   const text = typeof value === "string" ? value : "{}";
-  const parsed = JSON.parse(text) as unknown;
+  const parsed = parseJsonWithContext(text, label);
   const record = asRecord(parsed);
   if (record === undefined) {
-    throw new Error("Payload keys JSON must be an object");
+    throw new Error(`${label} JSON must be an object`);
   }
   return record;
 }
 
-function parsePayloadBodyJson(value: string): JsonRecord {
-  const parsed = JSON.parse(value.length === 0 ? "{}" : value) as unknown;
+function parsePayloadBodyJson(value: string, label = "payload body"): JsonRecord {
+  const parsed = parseJsonWithContext(value.length === 0 ? "{}" : value, label);
   const record = asRecord(parsed);
   if (record === undefined) {
-    throw new Error("Payload JSON must be an object");
+    throw new Error(`${label} JSON must be an object`);
   }
   return omitPayloadShell(record);
 }
@@ -557,6 +563,15 @@ function tryParsePayloadKeysJson(value: unknown): JsonRecord | undefined {
     return parsePayloadKeysJson(value);
   } catch {
     return undefined;
+  }
+}
+
+function parseJsonWithContext(text: string, label: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Could not parse ${label} JSON: ${message}`);
   }
 }
 
@@ -599,12 +614,5 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function newUuid(): string {
-  const cryptoObject = globalThis.crypto;
-  if (cryptoObject?.randomUUID !== undefined) {
-    return cryptoObject.randomUUID().toUpperCase();
-  }
-  const suffix = Math.floor(Math.random() * 0xffffffffffff)
-    .toString(16)
-    .padStart(12, "0");
-  return `00000000-0000-4000-8000-${suffix}`.toUpperCase();
+  return globalThis.crypto.randomUUID().toUpperCase();
 }

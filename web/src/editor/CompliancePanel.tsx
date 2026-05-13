@@ -72,11 +72,11 @@ export function CompliancePanel({ controller: c }: { readonly controller: Editor
           </div>
           {report !== undefined ? (
             <div className="compliance-stat-row" role="status" aria-label="Compliance summary">
-              <span className="compliance-stat compliance-stat--compliant">✓ {report.summary.byStatus.compliant}</span>
+              <span className="compliance-stat compliance-stat--compliant"><span role="img" aria-label="Compliant">✓</span> {report.summary.byStatus.compliant}</span>
               <span className="compliance-stat compliance-stat--gap">Gap {report.summary.byStatus["exact-gap"]}</span>
               <span className="compliance-stat compliance-stat--choice">Choice {report.summary.byStatus["choice-required"]}</span>
               <span className="compliance-stat compliance-stat--param">Param {report.summary.byStatus["parameter-required"]}</span>
-              <span className="compliance-stat compliance-stat--unknown">? {report.summary.byStatus["not-checkable"]}</span>
+              <span className="compliance-stat compliance-stat--unknown"><span role="img" aria-label="Not checkable">?</span> {report.summary.byStatus["not-checkable"]}</span>
             </div>
           ) : null}
           {c.complianceError !== undefined ? <p className="error">{c.complianceError}</p> : null}
@@ -85,9 +85,9 @@ export function CompliancePanel({ controller: c }: { readonly controller: Editor
           {report !== undefined && !c.complianceLoading ? (
             <>
               <div className="recommendation-controls">
-                <label>
+                <label htmlFor="compliance-search">
                   Search
-                  <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
+                  <input id="compliance-search" type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
                 </label>
                 <label>
                   Status

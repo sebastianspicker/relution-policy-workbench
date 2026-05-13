@@ -87,14 +87,15 @@ test("editor Relution API session queries devices and writes local reports", asy
 
   const root = mkdtempSync(join(tmpdir(), "relution-editor-api-"));
   const workspace = join(root, "workspace");
+  let handle: Awaited<ReturnType<typeof startEditorServer>> | undefined;
   createNewWorkspace({
     workspace,
     platform: "IOS",
     name: "Relution API Test",
     serverVersion: loadTemplateBundle().serverVersion,
   });
-  const handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0, allowLocalServiceHosts: true });
   try {
+    handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0, allowLocalServiceHosts: true });
     const session = await postJson<{ configured: boolean }>(handle.url, "/api/relution/session", {
       protocol: "https",
       host: "relution.example.test",
@@ -151,7 +152,7 @@ test("editor Relution API session queries devices and writes local reports", asy
     });
     assert.equal(ticket.ticket.number, "240042");
   } finally {
-    await handle.close();
+    await handle?.close();
     globalThis.fetch = originalFetch;
   }
 });

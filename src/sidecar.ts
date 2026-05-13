@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import {
   createDdmArtifact,
@@ -11,6 +11,7 @@ import {
 } from "./apple-schema.js";
 import { inspectMobileConfigText } from "./plist.js";
 import type { PolicyWorkspace } from "./workspace.js";
+import { assertNoSymlinkPath } from "./utils/path-safety.js";
 
 export interface EditorSidecarState {
   version: 1;
@@ -71,9 +72,7 @@ export function saveEditorSidecar(workspaceDir: string, sidecar: EditorSidecarSt
 
 export function resetEditorSidecar(workspaceDir: string): void {
   const resolvedWorkspace = resolve(workspaceDir);
-  if (existsSync(resolvedWorkspace) && lstatSync(resolvedWorkspace).isSymbolicLink()) {
-    throw new Error(`Workspace sidecar path must not use symlinks: ${workspaceDir}`);
-  }
+  assertNoSymlinkPath(workspaceDir, "", "Workspace sidecar path");
   rmSync(join(resolvedWorkspace, SIDECAR_FILE), { recursive: true, force: true });
 }
 
@@ -143,10 +142,7 @@ export function updateDdmArtifact(
   if (index === -1) {
     throw new Error(`Unknown DDM artifact: ${uuid}`);
   }
-  const existing = sidecar.ddmArtifacts[index];
-  if (existing === undefined) {
-    throw new Error(`Unknown DDM artifact: ${uuid}`);
-  }
+  const existing = sidecar.ddmArtifacts[index]!;
   const entry = findAppleSchemaEntry(catalog, existing.schemaId);
   if (entry === undefined) {
     throw new Error(`Unknown Apple schema entry: ${existing.schemaId}`);
@@ -322,14 +318,8 @@ function emptySidecar(): EditorSidecarState {
 
 function resolveEditorSidecarPath(workspaceDir: string): string {
   const resolvedWorkspace = resolve(workspaceDir);
-  if (existsSync(resolvedWorkspace) && lstatSync(resolvedWorkspace).isSymbolicLink()) {
-    throw new Error(`Workspace sidecar path must not use symlinks: ${workspaceDir}`);
-  }
-  const path = join(resolvedWorkspace, SIDECAR_FILE);
-  if (existsSync(path) && lstatSync(path).isSymbolicLink()) {
-    throw new Error(`Workspace sidecar path must not use symlinks: ${SIDECAR_FILE}`);
-  }
-  return path;
+  assertNoSymlinkPath(workspaceDir, SIDECAR_FILE, "Workspace sidecar path");
+  return join(resolvedWorkspace, SIDECAR_FILE);
 }
 
 function isMobileConfigRestoreEntry(value: unknown): value is MobileConfigRestoreEntry {

@@ -73,6 +73,9 @@ function ArtifactCreator(props: {
       <label>
         <span className="field-label">{props.title}</span>
         <select value={props.value} onChange={(event) => props.onChange(event.target.value)}>
+          <option value="" disabled>
+            Select {props.title}...
+          </option>
           {props.entries.map((entry) => (
             <option key={entry.id} value={entry.id}>
               {entry.label}

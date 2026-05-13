@@ -85,6 +85,7 @@ describe("PolicyWizardPanel", () => {
     expect((screen.getByRole("button", { name: /replace workspace with expert selection/i }) as HTMLButtonElement).disabled).toBe(true);
 
     fireEvent.click(screen.getByRole("button", { name: /select all/i }));
+    expect(screen.getByLabelText(/4 of 4 settings selected/i)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /replace workspace with expert selection/i }));
 
     await waitFor(() => expect(controller.applyExpertBaselineSelection).toHaveBeenCalledOnce());

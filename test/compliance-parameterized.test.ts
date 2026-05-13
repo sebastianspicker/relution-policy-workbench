@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { buildComplianceReport } from "../src/compliance.js";
-import type { ComplianceSourceArtifacts } from "../src/compliance-types.js";
+import type { ComplianceSourceCatalogs } from "../src/compliance-types.js";
 import type { RecommendationCatalogResponse, RecommendationRecord } from "../src/recommendation-types.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import type { PolicyWorkspace } from "../src/workspace.js";
@@ -62,7 +62,7 @@ test("parameterized BSI mappings surface as parameter-required compliance work",
     },
     fallbackTranslations: [],
   } satisfies RecommendationRecord;
-  const artifacts: Partial<Record<"bsi", ComplianceSourceArtifacts>> = {
+  const artifacts: Partial<Record<"bsi", ComplianceSourceCatalogs>> = {
     bsi: {
       recommendationCatalog: createCatalog(recommendation),
     },

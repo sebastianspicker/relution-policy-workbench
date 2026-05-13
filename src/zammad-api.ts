@@ -1,4 +1,5 @@
 import type { ZammadTicketDraft } from "./zammad-ticket-drafts.js";
+import { normalizeHttpConnectionInput } from "./connection-normalization.js";
 
 export type ZammadProtocol = "http" | "https";
 
@@ -31,6 +32,13 @@ export interface ZammadPublicSession {
   customer?: string;
 }
 
+export class ZammadNetworkError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ZammadNetworkError";
+  }
+}
+
 export interface ZammadTicketResult {
   id?: number;
   number?: string;
@@ -40,15 +48,6 @@ export interface ZammadTicketResult {
 }
 
 export function normalizeZammadConnection(input: ZammadConnectionInput): ZammadConnection {
-  const parsed = parseHostInput(input.host);
-  const protocol = input.protocol ?? parsed.protocol ?? "https";
-  if (protocol !== "http" && protocol !== "https") {
-    throw new Error(`Unsupported Zammad protocol: ${String(protocol)}`);
-  }
-  const host = parsed.host;
-  if (host.length === 0) {
-    throw new Error("Zammad host is required");
-  }
   const apiToken = input.apiToken.trim();
   if (apiToken.length === 0) {
     throw new Error("Zammad API token is required");
@@ -61,13 +60,8 @@ export function normalizeZammadConnection(input: ZammadConnectionInput): ZammadC
   if (customer.length === 0) {
     throw new Error("Zammad customer is required");
   }
-  const basePath = normalizeBasePath(input.basePath ?? parsed.basePath ?? "");
-  const port = input.port ?? parsed.port;
-  if (port !== undefined && (!Number.isSafeInteger(port) || port < 1 || port > 65535)) {
-    throw new Error(`Invalid Zammad port: ${String(port)}`);
-  }
-  const authority = port === undefined ? host : `${host}:${String(port)}`;
-  return { protocol, host, ...(port === undefined ? {} : { port }), basePath, apiToken, group, customer, baseUrl: `${protocol}://${authority}${basePath}` };
+  const connection = normalizeHttpConnectionInput({ ...input, serviceName: "Zammad" });
+  return { ...connection, apiToken, group, customer };
 }
 
 export function publicZammadSession(connection: ZammadConnection | undefined): ZammadPublicSession {
@@ -118,47 +112,22 @@ export async function createZammadTicket(connection: ZammadConnection, draft: Za
 }
 
 async function zammadFetch(connection: ZammadConnection, path: string, init: RequestInit): Promise<Response> {
-  const response = await fetch(`${connection.baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "accept": "application/json",
-      "content-type": "application/json",
-      "Authorization": `Token token=${connection.apiToken}`,
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${connection.baseUrl}${path}`, {
+      ...init,
+      headers: {
+        "accept": "application/json",
+        "content-type": "application/json",
+        "Authorization": `Token token=${connection.apiToken}`,
+        ...init.headers,
+      },
+    });
+  } catch (error) {
+    throw new ZammadNetworkError(`Zammad API request failed before an HTTP response: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
   if (!response.ok) {
     throw new Error(`Zammad API request failed: ${String(response.status)} ${response.statusText}`);
   }
   return response;
-}
-
-function normalizeBasePath(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed === "/") {
-    return "";
-  }
-  return `/${trimmed.replace(/^\/+|\/+$/gu, "")}`;
-}
-
-function parseHostInput(value: string): { protocol?: ZammadProtocol; host: string; port?: number; basePath?: string } {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return { host: "" };
-  }
-  const urlText = /^https?:\/\//iu.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const parsed = new URL(urlText);
-    const protocol = parsed.protocol === "http:" ? "http" : parsed.protocol === "https:" ? "https" : undefined;
-    const port = parsed.port.length === 0 ? undefined : Number(parsed.port);
-    const basePath = parsed.pathname === "/" ? undefined : parsed.pathname;
-    return {
-      ...(protocol === undefined || !/^https?:\/\//iu.test(trimmed) ? {} : { protocol }),
-      host: parsed.hostname,
-      ...(port === undefined ? {} : { port }),
-      ...(basePath === undefined ? {} : { basePath }),
-    };
-  } catch {
-    return { host: trimmed.replace(/^https?:\/\//iu, "").replace(/\/.*$/u, "") };
-  }
 }

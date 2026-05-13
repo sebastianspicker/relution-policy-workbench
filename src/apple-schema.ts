@@ -1,4 +1,5 @@
 import { buildMobileConfig, plistValueFromUnknown, type PlistDataValue, type PlistValue } from "./plist.js";
+import { PROFILE_EDITOR_META_KEY } from "./profile-editor-meta.js";
 
 export type AppleSchemaKind =
   | "profile"
@@ -87,9 +88,23 @@ export interface CustomSettingsInput {
 
 type JsonRecord = Record<string, unknown>;
 
-const PROFILE_EDITOR_META_KEY = "relutionProfileEditor";
 const PROFILE_IDENTIFIER_PREFIX = "io.relution-policy-workbench.apple-schema";
 const CUSTOM_SETTINGS_ID = "jamf-application-custom-settings";
+const CUSTOM_SETTINGS_PROFILE_ENTRY: Omit<AppleSchemaEntry, "title" | "fields"> = {
+  id: CUSTOM_SETTINGS_ID,
+  kind: "profile",
+  description: "Jamf-style custom managed preferences payload.",
+  identifier: "com.apple.ManagedClient.preferences",
+  sourcePath: "local/custom-settings",
+  availability: {
+    platforms: ["MACOS"],
+    allowMultiple: true,
+    requiresMdm: false,
+    deprecated: false,
+    notes: [],
+  },
+  deprecated: false,
+};
 const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "PayloadType", "PayloadUUID", "PayloadVersion"]);
 
 export function appleSchemaEntriesForPlatform(
@@ -183,20 +198,8 @@ export function extractAppleSchemaValues(details: JsonRecord | undefined, entry:
 
 export function createCustomSettingsConfiguration(input: CustomSettingsInput): JsonRecord {
   const entry: AppleSchemaEntry = {
-    id: CUSTOM_SETTINGS_ID,
-    kind: "profile",
+    ...CUSTOM_SETTINGS_PROFILE_ENTRY,
     title: input.displayName ?? "Application & Custom Settings",
-    description: "Jamf-style custom managed preferences payload.",
-    identifier: "com.apple.ManagedClient.preferences",
-    sourcePath: "local/custom-settings",
-    availability: {
-      platforms: ["MACOS"],
-      allowMultiple: true,
-      requiresMdm: false,
-      deprecated: false,
-      notes: [],
-    },
-    deprecated: false,
     fields: [
       field("domain", "PayloadContent", "Preference domain", "string", true, "Preference domain.", input.domain),
       field("settingsJson", "PayloadContent", "Managed settings JSON", "json", true, "Managed preference key/value JSON.", input.settings),

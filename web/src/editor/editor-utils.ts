@@ -1,5 +1,4 @@
 import { findAppleCompatSetting } from "../../../src/apple-compat.js";
-import type { AppleCompatField } from "../../../src/apple-compat.js";
 import type { AppleSchemaCatalog } from "../../../src/apple-schema.js";
 import type { EditorSidecarState } from "../../../src/sidecar.js";
 import type { PolicyWorkspace } from "../../../src/workspace.js";
@@ -77,6 +76,10 @@ export async function fileToBase64(file: File): Promise<string> {
     chunks.push(String.fromCharCode(...bytes.subarray(index, index + chunkSize)));
   }
   return btoa(chunks.join(""));
+}
+
+export function newBrowserUuid(): string {
+  return globalThis.crypto.randomUUID().toUpperCase();
 }
 
 export function firstConfigurationSelection(workspace: PolicyWorkspace): Selection | undefined {
@@ -181,12 +184,66 @@ export function objectListRows(value: unknown): JsonRecord[] {
   return value.map((entry) => asRecord(entry) ?? {});
 }
 
-export function emptyObjectListRow(field: AppleCompatField): JsonRecord {
+type ObjectListItemField = {
+  readonly id?: string;
+  readonly path?: string;
+  readonly defaultValue?: unknown;
+  readonly enumValues?: readonly string[];
+  readonly required?: boolean;
+  readonly kind?: string;
+};
+
+type ObjectListField = {
+  readonly itemFields?: readonly ObjectListItemField[];
+};
+
+export function emptyObjectListRow(field: ObjectListField): JsonRecord {
   const row: JsonRecord = {};
   for (const itemField of field.itemFields ?? []) {
-    row[itemField.id] = structuredClone(itemField.defaultValue) as unknown;
+    const defaultValue = defaultObjectListItemValue(itemField);
+    if (itemField.path !== undefined) {
+      if (defaultValue !== undefined) {
+        setPath(row, itemField.path, structuredClone(defaultValue) as unknown);
+      }
+    } else if (itemField.id !== undefined) {
+      row[itemField.id] = structuredClone(defaultValue) as unknown;
+    }
   }
   return row;
+}
+
+function defaultObjectListItemValue(field: ObjectListItemField): unknown {
+  if (field.defaultValue !== undefined) {
+    return field.defaultValue;
+  }
+  if ((field.enumValues?.length ?? 0) > 0) {
+    return field.enumValues?.[0];
+  }
+  if (field.required === false) {
+    return undefined;
+  }
+  if (field.kind === "boolean") {
+    return false;
+  }
+  if (field.kind === "integer" || field.kind === "number") {
+    return 0;
+  }
+  if (field.kind === "array") {
+    return [];
+  }
+  if (field.kind === "object") {
+    return {};
+  }
+  return field.required === true ? "" : undefined;
+}
+
+export function parseIntegerValue(value: unknown): number | undefined {
+  const trimmed = String(value).trim();
+  if (!/^-?\d+$/u.test(trimmed)) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 export function keyValueEntries(value: unknown): Array<{ key: string; value: string }> {
@@ -273,4 +330,8 @@ export function deletePath(record: JsonRecord, path: string): void {
 
 export function asRecord(value: unknown): JsonRecord | undefined {
   return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonRecord : undefined;
+}
+
+export function cx(...classes: Array<string | false | undefined>): string {
+  return classes.filter((className): className is string => typeof className === "string" && className.length > 0).join(" ");
 }

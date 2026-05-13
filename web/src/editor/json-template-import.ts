@@ -28,9 +28,9 @@ function deepMergePreservingExistingUuids(existingValue: unknown, importedValue:
   const existing = asRecord(existingValue) ?? {};
   const imported = asRecord(importedValue);
   if (imported === undefined) {
-    return structuredClone(existing) as JsonRecord;
+    return { ...existing };
   }
-  const merged = structuredClone(existing) as JsonRecord;
+  const merged: JsonRecord = { ...existing };
   for (const [key, value] of Object.entries(imported)) {
     if (key === "uuid" && typeof merged.uuid === "string" && merged.uuid.length > 0) {
       continue;

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { resolve, sep } from "node:path";
 
 export const BASELINE_TEMPLATE_PLATFORMS = ["WINDOWS", "MACOS", "IOS", "ANDROID_ENTERPRISE"] as const;
@@ -482,11 +482,13 @@ function findTemplateEntry(index: TemplateIndex, selection: BaselineTemplateSele
 
 function safeTemplatePath(indexPath: string): string {
   const file = resolve(indexPath);
-  if (file !== TEMPLATE_ROOT && !file.startsWith(`${TEMPLATE_ROOT}${sep}`)) {
-    throw new Error(`Baseline template path escapes template root: ${indexPath}`);
-  }
   if (!existsSync(file)) {
     throw new Error(`Baseline template file does not exist: ${indexPath}`);
+  }
+  const realRoot = realpathSync(TEMPLATE_ROOT);
+  const realFile = realpathSync(file);
+  if (realFile !== realRoot && !realFile.startsWith(`${realRoot}${sep}`)) {
+    throw new Error(`Baseline template path escapes template root: ${indexPath}`);
   }
   return file;
 }
@@ -503,26 +505,18 @@ function compareOptions(left: BaselineTemplateOption, right: BaselineTemplateOpt
   return BASELINE_TEMPLATE_SHAPES.indexOf(left.shape) - BASELINE_TEMPLATE_SHAPES.indexOf(right.shape);
 }
 
+const TIER_DEFAULTS: Record<BaselineTemplateTier, { readonly label: string; readonly securityLevel: string }> = {
+  1: { label: "Tier 1 - most restrictive Grundschutz baseline", securityLevel: "grundschutz" },
+  2: { label: "Tier 2 - strengthened BSI baseline", securityLevel: "standard-hardening" },
+  3: { label: "Tier 3 - minimum secure BSI Basis baseline", securityLevel: "basis" },
+};
+
 function fallbackTierLabel(tier: BaselineTemplateTier): string {
-  switch (tier) {
-    case 1:
-      return "Tier 1 - most restrictive Grundschutz baseline";
-    case 2:
-      return "Tier 2 - strengthened BSI baseline";
-    case 3:
-      return "Tier 3 - minimum secure BSI Basis baseline";
-  }
+  return TIER_DEFAULTS[tier].label;
 }
 
 function fallbackSecurityLevel(tier: BaselineTemplateTier): string {
-  switch (tier) {
-    case 1:
-      return "grundschutz";
-    case 2:
-      return "standard-hardening";
-    case 3:
-      return "basis";
-  }
+  return TIER_DEFAULTS[tier].securityLevel;
 }
 
 function requireRecord(value: unknown, label: string): Record<string, unknown> {
@@ -552,7 +546,7 @@ function optionalRecord(record: Record<string, unknown>, key: string): Record<st
 
 function requireNumber(record: Record<string, unknown>, key: string): number {
   const value = record[key];
-  if (typeof value !== "number" || !Number.isInteger(value)) {
+  if (typeof value !== "number" || !Number.isInteger(value) || !Number.isFinite(value)) {
     throw new Error(`Expected integer field: ${key}`);
   }
   return value;
@@ -563,20 +557,24 @@ function optionalNumber(record: Record<string, unknown>, key: string): number | 
   if (value === undefined) {
     return undefined;
   }
-  if (typeof value !== "number" || !Number.isInteger(value)) {
+  if (typeof value !== "number" || !Number.isInteger(value) || !Number.isFinite(value)) {
     throw new Error(`Expected integer field: ${key}`);
   }
   return value;
 }
 
 function isBaselineTemplatePlatform(value: string): value is BaselineTemplatePlatform {
-  return BASELINE_TEMPLATE_PLATFORMS.some((platform) => platform === value);
+  return isOneOf(BASELINE_TEMPLATE_PLATFORMS, value);
 }
 
 function isBaselineTemplateTier(value: number): value is BaselineTemplateTier {
-  return BASELINE_TEMPLATE_TIERS.some((tier) => tier === value);
+  return isOneOf(BASELINE_TEMPLATE_TIERS, value);
 }
 
 function isBaselineTemplateShape(value: string): value is BaselineTemplateShape {
-  return BASELINE_TEMPLATE_SHAPES.some((shape) => shape === value);
+  return isOneOf(BASELINE_TEMPLATE_SHAPES, value);
+}
+
+function isOneOf<T>(values: readonly T[], value: unknown): value is T {
+  return values.some((entry) => entry === value);
 }
