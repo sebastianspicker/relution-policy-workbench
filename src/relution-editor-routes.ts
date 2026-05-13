@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { optionalHttpProtocol, optionalPort } from "./editor-routes-utils.js";
 import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   assessRelutionDevices,
@@ -15,7 +16,6 @@ import {
   type RelutionDeviceQueryInput,
   type RelutionDeviceSummary,
   type RelutionDeviceSortField,
-  type RelutionProtocol,
 } from "./relution-api.js";
 import { listRelutionReports, writeRelutionReport } from "./relution-reports.js";
 
@@ -50,7 +50,7 @@ export async function handleRelutionApiRequest(
       host: requireString(body, "host"),
       apiToken: requireString(body, "apiToken"),
     };
-    const protocol = optionalProtocol(body);
+    const protocol = optionalHttpProtocol(body);
     const port = optionalPort(body);
     const basePath = optionalString(body, "basePath");
     if (protocol !== undefined) {
@@ -203,21 +203,6 @@ function parseAssessmentReport(body: Record<string, unknown>): RelutionAssessmen
     throw badRequest("Invalid Relution assessment report");
   }
   return report as unknown as RelutionAssessmentReport;
-}
-
-function optionalProtocol(body: Record<string, unknown>): RelutionProtocol | undefined {
-  const protocol = optionalString(body, "protocol");
-  if (protocol === undefined) {
-    return undefined;
-  }
-  if (protocol !== "http" && protocol !== "https") {
-    throw badRequest(`Unsupported protocol: ${protocol}`);
-  }
-  return protocol;
-}
-
-function optionalPort(body: Record<string, unknown>): number | undefined {
-  return body.port === undefined ? undefined : requireNumber(body, "port");
 }
 
 function optionalPositiveInteger(body: Record<string, unknown>, key: string): number | undefined {

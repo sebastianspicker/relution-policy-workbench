@@ -64,8 +64,7 @@ export async function refreshAppleSchemaCatalog(options: RefreshAppleSchemaOptio
   const normalizedEntries = documents
     .map((document) => normalizeSchemaDocument(document.kind, document.path, document.content))
     .filter((entry): entry is AppleSchemaEntry => entry !== undefined)
-    .map((entry) => ({ ...entry, id: "" }))
-    .sort((left, right) => `${left.kind}:${left.title}`.localeCompare(`${right.kind}:${right.title}`));
+    .map((entry) => ({ ...entry, id: "" }));
   const entries = assignSchemaIds(normalizedEntries)
     .sort((left, right) => `${left.kind}:${left.title}`.localeCompare(`${right.kind}:${right.title}`));
   const catalog: AppleSchemaCatalog = {
@@ -85,6 +84,7 @@ export async function refreshAppleSchemaCatalog(options: RefreshAppleSchemaOptio
 
 async function readRemoteDocuments(revision: string): Promise<Array<{ kind: AppleSchemaKind; path: string; content: string }>> {
   const documents: Array<{ kind: AppleSchemaKind; path: string; content: string }> = [];
+  const errors: string[] = [];
   for (const source of SOURCE_PATHS) {
     const files = await readRemoteDirectory(source.path, revision);
     for (const file of files) {
@@ -93,10 +93,14 @@ async function readRemoteDocuments(revision: string): Promise<Array<{ kind: Appl
       }
       const response = await fetch(file.downloadUrl);
       if (!response.ok) {
-        throw new Error(`Failed to fetch ${file.downloadUrl}: ${response.status} ${response.statusText}`);
+        errors.push(`Failed to fetch ${file.downloadUrl}: ${response.status} ${response.statusText}`);
+        continue;
       }
       documents.push({ kind: source.kind, path: `${source.path}/${file.name}`, content: await response.text() });
     }
+  }
+  if (errors.length > 0) {
+    throw new Error(`Failed to fetch ${errors.length} Apple schema document(s):\n${errors.join("\n")}`);
   }
   return documents;
 }
@@ -342,7 +346,7 @@ function stableSourceSuffix(sourcePath: string): string {
 }
 
 function assertRevisionMatchesOutputPath(revision: string, out: string): void {
-  if (revision === "release" && /apple-device-management-\d/u.test(out)) {
+  if (revision === "release" && /apple-device-management-\d+(?:\.\d+)*\/catalog\.json$/u.test(out)) {
     throw new Error(`Refusing to write floating release data to a version-labeled path: ${out}`);
   }
 }

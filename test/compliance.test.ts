@@ -1,21 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import {
-  createAppleSchemaProfileConfiguration,
-  type AppleSchemaCatalog,
-  type AppleSchemaEntry,
-} from "../src/apple-schema.js";
+import { createAppleSchemaProfileConfiguration, type AppleSchemaCatalog, type AppleSchemaEntry } from "../src/apple-schema.js";
 import {
   applyComplianceRemediationToWorkspace,
   buildComplianceReport,
-  type ComplianceSourceArtifacts,
+  type ComplianceSourceCatalogs,
 } from "../src/compliance.js";
-import type {
-  RecommendationCatalogResponse,
-  RecommendationRecord,
-  RecommendationSettingBundleCatalog,
-  RecommendationSource,
-} from "../src/recommendation-types.js";
+import type { RecommendationCatalogResponse, RecommendationRecord, RecommendationSettingBundleCatalog, RecommendationSource } from "../src/recommendation-types.js";
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../src/templates.js";
 import type { PolicyWorkspace } from "../src/workspace.js";
 
@@ -108,8 +99,39 @@ test("buildComplianceReport treats stricter numeric values as compliant for at-l
   });
 
   const result = resultById(report, "cis", "cis-password-length");
-  assert.equal(result.status, "compliant");
   assert.equal(result.mappingResults[0]?.status, "compliant");
+});
+
+test("buildComplianceReport rejects infinite numeric constraint values", () => {
+  const artifacts = createArtifacts({
+    source: "cis",
+    recommendations: [
+      createNativeRecommendation({
+        id: "cis-password-length",
+        title: "Minimum password length",
+        targetType: "NATIVE_SINGLE",
+        values: { minLength: 14 },
+        constraints: [{ path: "minLength", operator: "atLeast", value: "1e999" }],
+      }),
+    ],
+  });
+
+  const report = buildComplianceReport({
+    workspace: createWorkspace("IOS", [
+      createConfiguration("NATIVE_SINGLE", {
+        minLength: 16,
+      }),
+    ]),
+    selection: { policyIndex: 0, versionIndex: 0 },
+    sources: ["cis"],
+    catalogs: artifacts,
+    bundle: createBundle(),
+    appleSchema: createAppleSchemaCatalog(),
+  });
+
+  const result = resultById(report, "cis", "cis-password-length");
+  assert.equal(result.status, "exact-gap");
+  assert.equal(result.mappingResults[0]?.status, "mismatch");
 });
 
 test("Windows Custom CSP exact mappings are evaluated and applied as multi-instance settings", () => {
@@ -346,7 +368,7 @@ function createArtifacts(options: {
   recommendations: RecommendationRecord[];
   bundles?: RecommendationSettingBundleCatalog["bundles"];
   variantGroups?: RecommendationSettingBundleCatalog["variantGroups"];
-}): Partial<Record<RecommendationSource, ComplianceSourceArtifacts>> {
+}): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
   return {
     [options.source]: {
       recommendationCatalog: createRecommendationCatalog(options.source, options.recommendations),

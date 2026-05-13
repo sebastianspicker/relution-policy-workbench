@@ -38,9 +38,14 @@
   --ci-color-danger-bg: #fdeaea;
   --ci-color-danger-text: #8c2525;
 
+  /* Radius scale: default keeps platform-neutral controls compact, with cards only slightly softer. */
   --ci-radius-control: 5px;
   --ci-radius-card: 6px;
   --ci-shadow-card: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  --z-dropdown: 100;
+  --z-popover: 200;
+  --z-modal: 500;
+  --z-toast: 1000;
 }
 
 :root[data-theme="custom"],
@@ -86,4 +91,8 @@
   --ci-radius-control: 5px;
   --ci-radius-card: 6px;
   --ci-shadow-card: none;
+  --z-dropdown: 100;
+  --z-popover: 200;
+  --z-modal: 500;
+  --z-toast: 1000;
 }

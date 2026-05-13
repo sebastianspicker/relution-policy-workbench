@@ -63,6 +63,18 @@ test("template refresh fails by default when runtime metadata cannot be reflecte
   assert.equal(existsSync(out), false);
 });
 
+test("template refresh reports a clear error when the JAR is absent", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-template-refresh-missing-"));
+  const jarPath = join(root, "missing-relution-exec.jar");
+  const out = join(root, "template-bundle.json");
+
+  assert.throws(
+    () => refreshTemplates({ jar: jarPath, out, serverVersion: "test" }),
+    /no such file|cannot find|missing-relution-exec\.jar/i,
+  );
+  assert.equal(existsSync(out), false, "missing JAR must not create an output bundle");
+});
+
 test("template refresh heuristic fallback requires explicit opt-in", () => {
   const root = mkdtempSync(join(tmpdir(), "relution-template-refresh-heuristic-"));
   const jarPath = join(root, "relution-exec.jar");

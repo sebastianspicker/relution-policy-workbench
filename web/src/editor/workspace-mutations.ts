@@ -1,5 +1,5 @@
 import type { WorkspacePolicy } from "../../../src/workspace.js";
-import { asRecord } from "./editor-utils.js";
+import { asRecord, newBrowserUuid } from "./editor-utils.js";
 import type { JsonRecord } from "./types.js";
 
 export function updateReportPolicyName(policyDocument: JsonRecord, report: JsonRecord, name: string): void {
@@ -52,10 +52,14 @@ export function duplicatePolicy(source: WorkspacePolicy): WorkspacePolicy {
   };
 }
 
-function refreshNestedUuids(value: unknown): void {
+function refreshNestedUuids(value: unknown, visited = new Set<object>()): void {
   if (Array.isArray(value)) {
+    if (visited.has(value)) {
+      return;
+    }
+    visited.add(value);
     for (const entry of value) {
-      refreshNestedUuids(entry);
+      refreshNestedUuids(entry, visited);
     }
     return;
   }
@@ -63,21 +67,14 @@ function refreshNestedUuids(value: unknown): void {
   if (record === undefined) {
     return;
   }
+  if (visited.has(record)) {
+    return;
+  }
+  visited.add(record);
   if (typeof record.uuid === "string") {
     record.uuid = newBrowserUuid();
   }
   for (const entry of Object.values(record)) {
-    refreshNestedUuids(entry);
+    refreshNestedUuids(entry, visited);
   }
-}
-
-function newBrowserUuid(): string {
-  if (globalThis.crypto?.randomUUID !== undefined) {
-    return globalThis.crypto.randomUUID().toUpperCase();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/gu, (token) => {
-    const random = Math.floor(Math.random() * 16);
-    const value = token === "x" ? random : (random & 0x3) | 0x8;
-    return value.toString(16);
-  }).toUpperCase();
 }

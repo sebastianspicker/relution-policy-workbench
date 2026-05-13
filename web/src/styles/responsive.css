@@ -82,3 +82,53 @@
     grid-template-columns: 1fr;
   }
 }
+
+@media (max-width: 768px) {
+  .toolbar-main {
+    align-items: stretch;
+    gap: var(--spacing-md, 8px);
+  }
+
+  .toolbar-brand,
+  .toolbar-primary,
+  .toolbar-group {
+    width: 100%;
+  }
+
+  .toolbar-primary,
+  .toolbar-group {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .center-section {
+    padding: var(--spacing-xl, 16px) var(--spacing-lg, 12px) var(--spacing-2xl, 24px);
+  }
+
+  .panel-header {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .mobile-section-controls,
+  .mobile-pane-controls {
+    gap: var(--spacing-sm, 6px);
+    padding: var(--spacing-md, 8px);
+  }
+
+  .mobile-section-controls button,
+  .mobile-pane-controls button,
+  .configuration-tools button,
+  .template-import button {
+    width: 100%;
+  }
+
+  .policy-navigator {
+    padding: var(--spacing-md, 8px);
+  }
+
+  .panel-header h1 {
+    font-size: 18px;
+  }
+}

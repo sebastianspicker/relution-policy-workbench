@@ -125,9 +125,12 @@ function inactiveRemediationSteps(inactiveDays: number | undefined): string[] {
       "- Verify whether the device is still in active use.",
     ];
   }
-  return [
-    "- Contact the assigned user.",
-    "- Ask the user to connect the device to the network.",
-    "- Verify that Relution receives a fresh check-in.",
-  ];
+  if (inactiveDays < 60) {
+    return [
+      "- Contact the assigned user.",
+      "- Ask the user to connect the device to the network.",
+      "- Verify that Relution receives a fresh check-in.",
+    ];
+  }
+  return ["- Verify the device inactivity evidence before assigning remediation steps."];
 }

@@ -60,13 +60,18 @@ export function WorkspaceToolbar(props: {
             Build .rexp
           </button>
           {c.hasFreshBuild ? (
-            <button type="button" className="button-link" onClick={() => void downloadOutputArchive()}>
+            <button type="button" className="button-link" onClick={() => void downloadOutputArchive().catch(reportDownloadError)}>
               Download
             </button>
           ) : (
-            <button type="button" disabled>
-              Download
-            </button>
+            <>
+              <button type="button" disabled aria-describedby="download-disabled-reason">
+                Download
+              </button>
+              <span id="download-disabled-reason" className="visually-hidden">
+                Create a fresh .rexp archive before downloading.
+              </span>
+            </>
           )}
           <div className="toolbar-separator" aria-hidden="true" />
           <button
@@ -83,6 +88,10 @@ export function WorkspaceToolbar(props: {
       </div>
     </header>
   );
+}
+
+function reportDownloadError(error: unknown): void {
+  console.error(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 async function downloadOutputArchive(): Promise<void> {

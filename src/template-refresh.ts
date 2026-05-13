@@ -168,7 +168,8 @@ function reflectRuntimeMetadata(jar: Buffer): RuntimeConfigurationTypeMetadata[]
       throw new Error("ConfigurationTypeDump did not return an array");
     }
     return parsed.filter(isRuntimeMetadata);
-  } catch {
+  } catch (error) {
+    console.warn(`Runtime metadata reflection failed: ${error instanceof Error ? error.message : String(error)}`);
     return [];
   } finally {
     rmSync(workDir, { recursive: true, force: true });

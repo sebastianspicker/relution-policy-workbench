@@ -2,7 +2,8 @@ import type { Dispatch, SetStateAction } from "react";
 import type { AppState, Selection } from "./types.js";
 import type { WorkspaceHistoryEntry } from "./useEditorControllerActionTypes.js";
 
-const WORKSPACE_HISTORY_LIMIT = 20;
+// Keeps undo useful without retaining large workspace snapshots for the whole session.
+export const WORKSPACE_HISTORY_LIMIT = 20;
 
 export interface WorkspaceHistoryInput {
   readonly currentState: AppState;

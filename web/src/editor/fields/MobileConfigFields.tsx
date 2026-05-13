@@ -48,7 +48,6 @@ export function MobileConfigFields(props: {
                     props.onChange(updateMobileConfigDetails(props.details, text));
                   } catch (error) {
                     props.onError(error instanceof Error ? error.message : String(error));
-                    props.onChange(invalidateMobileConfigDetails(props.details, text));
                   }
                 });
               }

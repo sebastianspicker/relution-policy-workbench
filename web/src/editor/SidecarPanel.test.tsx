@@ -52,6 +52,13 @@ describe("SidecarPanel", () => {
 
     expect(controller.removeDdmArtifact).toHaveBeenCalledWith("artifact-1");
   });
+
+  it("shows disabled placeholders for empty artifact creators", () => {
+    render(<SidecarPanel controller={createEditorControllerStub()} />);
+
+    expect(screen.getByRole("option", { name: /select ddm artifact/i })).toBeTruthy();
+    expect(screen.getByRole("option", { name: /select mdm command draft/i })).toBeTruthy();
+  });
 });
 
 function createController(values: Record<string, unknown>): EditorController {

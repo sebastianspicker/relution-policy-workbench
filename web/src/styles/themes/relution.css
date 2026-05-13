@@ -38,6 +38,7 @@
   --ci-color-danger-bg: #fde8e8;
   --ci-color-danger-text: #7c2525;
 
+  /* Radius scale: Relution keeps tighter controls while cards remain at the shared workbench radius. */
   --ci-radius-control: 4px;
   --ci-radius-card: 6px;
   --ci-shadow-card: 0 10px 24px rgb(61 60 55 / 0.1);

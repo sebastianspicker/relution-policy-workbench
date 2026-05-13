@@ -93,7 +93,7 @@ test("validates generated workspaces larger than the default JSON body limit", a
   });
 
   try {
-    const largeWorkspace = expandWorkspace(workspace, 1_500);
+    const largeWorkspace = expandWorkspace(workspace, 500);
     assert.equal(JSON.stringify({ workspace: largeWorkspace }).length > 1024 * 1024, true);
 
     const response = await postJson(`${handle.url}api/workspace/validate`, { workspace: largeWorkspace });
@@ -160,6 +160,7 @@ function expandWorkspace(workspace: PolicyWorkspace, policyCount: number): Polic
     policy.path = `policies/policy_${policyUuid}.json`;
     policy.document.uuid = policyUuid;
     policy.document.name = `Large Validate Policy ${sequence}`;
+    policy.document.description = "Large validation fixture padding ".repeat(100);
     const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
     const firstVersion = versions[0];
     if (typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)) {

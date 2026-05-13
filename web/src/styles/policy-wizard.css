@@ -165,8 +165,9 @@
 }
 
 .policy-wizard-tier[aria-checked="true"] {
+  border-width: 2px;
   border-color: var(--ci-color-primary, #1d6fb8);
-  box-shadow: inset 0 0 0 1px var(--ci-color-primary, #1d6fb8);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 28%, transparent);
 }
 
 .policy-wizard-tier strong {

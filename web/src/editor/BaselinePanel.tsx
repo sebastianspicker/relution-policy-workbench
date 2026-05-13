@@ -21,9 +21,11 @@ export function BaselinePanel({ controller }: { readonly controller: EditorContr
         {BASELINE_TABS.map((t) => (
           <button
             key={t.id}
+            id={baselineTabId(t.id)}
             type="button"
             role="tab"
             aria-selected={tab === t.id}
+            aria-controls={baselinePanelId(t.id)}
             className={tab === t.id ? "active" : ""}
             onClick={() => setTab(t.id)}
           >
@@ -32,7 +34,7 @@ export function BaselinePanel({ controller }: { readonly controller: EditorContr
         ))}
       </div>
 
-      <div role="tabpanel" aria-label={BASELINE_TABS.find((t) => t.id === tab)?.label}>
+      <div id={baselinePanelId(tab)} role="tabpanel" aria-labelledby={baselineTabId(tab)}>
         {tab === "wizard" ? (
           <PolicyWizardPanel controller={controller} />
         ) : tab === "recommendations" ? (
@@ -43,4 +45,12 @@ export function BaselinePanel({ controller }: { readonly controller: EditorContr
       </div>
     </div>
   );
+}
+
+function baselineTabId(tab: BaselineTab): string {
+  return `baseline-tab-${tab}`;
+}
+
+function baselinePanelId(tab: BaselineTab): string {
+  return `baseline-panel-${tab}`;
 }

@@ -104,6 +104,29 @@ describe("RelutionDashboardPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /create ticket/i }));
     await screen.findByText(/ticket created: 240042/i);
   });
+
+  it("rejects malformed audit filters before calling the audit endpoint", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
+      if (url === "/api/relution/session") {
+        return jsonResponse({ configured: true, baseUrl: "https://relution.example.test", tokenConfigured: true, mode: "read-only" });
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<RelutionDashboardPanel />);
+
+    fireEvent.change(screen.getAllByLabelText(/server/i)[0]!, { target: { value: "relution.example.test" } });
+    fireEvent.change(screen.getAllByLabelText(/api token/i)[0]!, { target: { value: "secret-token" } });
+    fireEvent.click(screen.getByRole("button", { name: /set session/i }));
+    await screen.findByText(/relution https:\/\/relution\.example\.test \| read-only/i);
+
+    fireEvent.change(screen.getByLabelText(/platforms/i), { target: { value: "IOS,<script>" } });
+    fireEvent.click(screen.getByRole("button", { name: /run audit/i }));
+
+    await screen.findByText(/invalid relution platform: <script>/i);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 function jsonResponse(body: unknown): Response {

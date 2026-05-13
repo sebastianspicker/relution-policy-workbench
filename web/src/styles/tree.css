@@ -35,6 +35,13 @@
   pointer-events: auto;
 }
 
+@media (hover: none), (pointer: coarse) {
+  .tree-item-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 .icon-button {
   display: inline-grid;
   place-items: center;

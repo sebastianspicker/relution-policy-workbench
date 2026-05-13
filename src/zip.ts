@@ -39,7 +39,9 @@ const MAX_ENTRY_SIZE_BYTES = 16 * 1024 * 1024;
 const DEFAULT_MAX_ENTRIES = 10000;
 const DEFAULT_MAX_TOTAL_COMPRESSED_BYTES = 256 * 1024 * 1024;
 const DEFAULT_MAX_TOTAL_UNCOMPRESSED_BYTES = 512 * 1024 * 1024;
-
+const LOCAL_FILE_HEADER_SIZE = 30; // ZIP APPNOTE local file header, excluding variable name/extra fields.
+const CENTRAL_DIRECTORY_HEADER_SIZE = 46; // ZIP APPNOTE central directory file header, excluding variable fields.
+const END_OF_CENTRAL_DIRECTORY_SIZE = 22; // ZIP APPNOTE end of central directory record, excluding comment.
 const CRC_TABLE = buildCrcTable();
 
 export function readZip(buffer: Buffer, options: ReadZipOptions = {}): ZipEntry[] {
@@ -96,11 +98,7 @@ export function crc32(buffer: Buffer): number {
   let crc = 0xffffffff;
   for (const byte of buffer) {
     const tableIndex = (crc ^ byte) & 0xff;
-    const tableValue = CRC_TABLE[tableIndex];
-    if (tableValue === undefined) {
-      throw new Error("CRC table lookup failed");
-    }
-    crc = tableValue ^ (crc >>> 8);
+    crc = CRC_TABLE[tableIndex]! ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
@@ -244,7 +242,7 @@ function createLocalHeader(
   compressedSize: number,
   uncompressedSize: number,
 ): Buffer {
-  const header = Buffer.alloc(30);
+  const header = Buffer.alloc(LOCAL_FILE_HEADER_SIZE);
   header.writeUInt32LE(LOCAL_FILE_HEADER_SIGNATURE, 0);
   header.writeUInt16LE(20, 4);
   header.writeUInt16LE(UTF8_FLAG, 6);
@@ -265,7 +263,7 @@ function createCentralDirectoryHeader(
   uncompressedSize: number,
   localHeaderOffset: number,
 ): Buffer {
-  const header = Buffer.alloc(46);
+  const header = Buffer.alloc(CENTRAL_DIRECTORY_HEADER_SIZE);
   header.writeUInt32LE(CENTRAL_DIRECTORY_SIGNATURE, 0);
   header.writeUInt16LE(20, 4);
   header.writeUInt16LE(20, 6);
@@ -290,7 +288,7 @@ function createEndOfCentralDirectory(
   centralDirectorySize: number,
   centralDirectoryOffset: number,
 ): Buffer {
-  const eocd = Buffer.alloc(22);
+  const eocd = Buffer.alloc(END_OF_CENTRAL_DIRECTORY_SIZE);
   eocd.writeUInt32LE(EOCD_SIGNATURE, 0);
   eocd.writeUInt16LE(0, 4);
   eocd.writeUInt16LE(0, 6);

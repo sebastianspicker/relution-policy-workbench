@@ -1,3 +1,5 @@
+import { normalizeHttpConnectionInput } from "./connection-normalization.js";
+
 export type RelutionProtocol = "http" | "https";
 
 export interface RelutionConnectionInput {
@@ -23,6 +25,13 @@ export interface RelutionPublicSession {
   baseUrl?: string;
   tokenConfigured: boolean;
   mode: "read-only";
+}
+
+export class RelutionNetworkError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "RelutionNetworkError";
+  }
 }
 
 export interface RelutionDeviceQueryInput {
@@ -116,32 +125,14 @@ interface RelutionQueryResponse {
 }
 
 export function normalizeRelutionConnection(input: RelutionConnectionInput): RelutionConnection {
-  const parsed = parseHostInput(input.host);
-  const protocol = input.protocol ?? parsed.protocol ?? "https";
-  if (protocol !== "http" && protocol !== "https") {
-    throw new Error(`Unsupported Relution protocol: ${String(protocol)}`);
-  }
-  const host = parsed.host;
-  if (host.length === 0) {
-    throw new Error("Relution host is required");
-  }
   const apiToken = input.apiToken.trim();
   if (apiToken.length === 0) {
     throw new Error("Relution API token is required");
   }
-  const basePath = normalizeBasePath(input.basePath ?? parsed.basePath ?? "");
-  const port = input.port ?? parsed.port;
-  if (port !== undefined && (!Number.isSafeInteger(port) || port < 1 || port > 65535)) {
-    throw new Error(`Invalid Relution port: ${String(port)}`);
-  }
-  const authority = port === undefined ? host : `${host}:${String(port)}`;
+  const connection = normalizeHttpConnectionInput({ ...input, serviceName: "Relution" });
   return {
-    protocol,
-    host,
-    ...(port === undefined ? {} : { port }),
-    basePath,
+    ...connection,
     apiToken,
-    baseUrl: `${protocol}://${authority}${basePath}`,
     mode: "read-only",
   };
 }
@@ -239,16 +230,21 @@ function buildDeviceQueryBody(input: RelutionDeviceQueryInput): Record<string, u
 
 async function relutionFetch(connection: RelutionConnection, path: string, init: RequestInit): Promise<Response> {
   assertRelutionReadOnlyRequest(init.method, path);
-  const response = await fetch(`${connection.baseUrl}${path}`, {
-    ...init,
-    headers: {
-      "accept": "application/json",
-      "accept-charset": "UTF-8",
-      "content-type": "application/json",
-      "X-User-Access-Token": connection.apiToken,
-      ...init.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${connection.baseUrl}${path}`, {
+      ...init,
+      headers: {
+        "accept": "application/json",
+        "accept-charset": "UTF-8",
+        "content-type": "application/json",
+        "X-User-Access-Token": connection.apiToken,
+        ...init.headers,
+      },
+    });
+  } catch (error) {
+    throw new RelutionNetworkError(`Relution API request failed before an HTTP response: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+  }
   if (!response.ok) {
     throw new Error(`Relution API request failed: ${String(response.status)} ${response.statusText}`);
   }
@@ -453,37 +449,7 @@ function stringList(value: unknown): string[] | undefined {
     const name = record === undefined ? undefined : firstString(record, ["name", "policyName", "title", "displayName", "uuid", "id"]);
     return name === undefined ? [] : [name];
   });
-  return names.length === 0 ? [] : names;
-}
-
-function normalizeBasePath(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed === "/") {
-    return "";
-  }
-  return `/${trimmed.replace(/^\/+|\/+$/gu, "")}`;
-}
-
-function parseHostInput(value: string): { protocol?: RelutionProtocol; host: string; port?: number; basePath?: string } {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return { host: "" };
-  }
-  const urlText = /^https?:\/\//iu.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const parsed = new URL(urlText);
-    const protocol = parsed.protocol === "http:" ? "http" : parsed.protocol === "https:" ? "https" : undefined;
-    const port = parsed.port.length === 0 ? undefined : Number(parsed.port);
-    const basePath = parsed.pathname === "/" ? undefined : parsed.pathname;
-    return {
-      ...(protocol === undefined || !/^https?:\/\//iu.test(trimmed) ? {} : { protocol }),
-      host: parsed.hostname,
-      ...(port === undefined ? {} : { port }),
-      ...(basePath === undefined ? {} : { basePath }),
-    };
-  } catch {
-    return { host: trimmed.replace(/^https?:\/\//iu, "").replace(/\/.*$/u, "") };
-  }
+  return names.length === 0 ? undefined : names;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {

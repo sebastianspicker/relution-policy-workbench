@@ -7,11 +7,12 @@ import {
   type AppleSchemaEntry,
   type AppleSchemaField,
 } from "../../../../src/apple-schema.js";
-import { textAreaValue } from "../editor-utils.js";
+import { parseIntegerValue, textAreaValue } from "../editor-utils.js";
 import type { JsonRecord } from "../types.js";
 import { InfoButton } from "./InfoButton.js";
 import { PayloadJsonEditor } from "./PayloadJsonEditor.js";
 
+/** Select sentinel for optional Apple schema fields; choosing it omits the payload key instead of emitting a value. */
 const OMIT_OPTION_VALUE = "__OMIT__";
 
 export function AppleSchemaFields(props: {
@@ -181,15 +182,6 @@ function AppleSchemaFieldInput(props: {
       <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
     </div>
   );
-}
-
-function parseIntegerValue(rawValue: string): number | undefined {
-  const trimmed = rawValue.trim();
-  if (!/^-?\d+$/u.test(trimmed)) {
-    return undefined;
-  }
-  const parsed = Number(trimmed);
-  return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 function AppleSchemaFieldCaption(props: { field: AppleSchemaField }): JSX.Element {

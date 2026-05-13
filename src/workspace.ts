@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { appleCompatSettingsForPlatform, createAppleCompatConfiguration, findAppleCompatSetting } from "./apple-compat.js";
 import {
@@ -11,6 +11,8 @@ import {
   type CustomSettingsInput,
 } from "./apple-schema.js";
 import { findTemplate, defaultValueForSchema, objectProperties, type ConfigurationTemplate, type RelutionTemplateBundle } from "./templates.js";
+import { asOptionalRecord, asRecord, stringValue, type JsonRecord } from "./utils/json-guards.js";
+import { assertNoSymlinkPath } from "./utils/path-safety.js";
 
 export interface PolicyWorkspace {
   metadata: JsonRecord;
@@ -91,8 +93,6 @@ export interface AddPolicyResult {
   workspace: PolicyWorkspace;
   policyPath: string;
 }
-
-type JsonRecord = Record<string, unknown>;
 
 interface CreatedPolicy {
   uuid: string;
@@ -295,8 +295,11 @@ export { validateWorkspace, schemaCompatibilityIssues } from "./workspace-valida
 
 export function createConfiguration(template: ConfigurationTemplate, bundle: RelutionTemplateBundle): JsonRecord {
   const schema = bundle.schemas[template.schemaName];
-  const details = defaultValueForSchema(schema, bundle.schemas);
-  const detailRecord = typeof details === "object" && details !== null && !Array.isArray(details) ? (details as JsonRecord) : {};
+  const details = schema === undefined ? {} : defaultValueForSchema(schema, bundle.schemas);
+  if (typeof details !== "object" || details === null || Array.isArray(details)) {
+    throw new Error(`Default details for ${template.type} must be an object`);
+  }
+  const detailRecord = details as JsonRecord;
   detailRecord.type = template.type;
   detailRecord.uuid = randomUUID().toUpperCase();
   detailRecord.enabled = true;
@@ -570,7 +573,9 @@ function rollbackManagedWorkspaceSurface(
     rmSync(join(workspaceDir, entry), { recursive: entry === "policies", force: true });
   }
   for (const entry of [...movedToBackup].reverse()) {
-    void moveManagedEntry(backupDir, workspaceDir, entry);
+    if (!moveManagedEntry(backupDir, workspaceDir, entry)) {
+      throw new Error(`Failed to restore managed workspace entry during rollback: ${entry}`);
+    }
   }
 }
 
@@ -628,21 +633,6 @@ function configurationDetails(value: unknown): JsonRecord | undefined {
   return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as JsonRecord) : undefined;
 }
 
-function asRecord(value: unknown, label: string): JsonRecord {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error(`${label} is not an object`);
-  }
-  return value as JsonRecord;
-}
-
-function asOptionalRecord(value: unknown): JsonRecord | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonRecord) : undefined;
-}
-
-function stringValue(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
-}
-
 function resolveWorkspacePath(workspaceDir: string, relativePath: string): string {
   if (relativePath !== "metadata.json" && relativePath !== "report.json" && !POLICY_PATH_PATTERN.test(relativePath)) {
     throw new Error(`Workspace path must stay within the managed workspace surface: ${relativePath}`);
@@ -659,19 +649,5 @@ function assertWorkspacePathUsesNoSymlink(workspaceDir: string, relativePath: st
   // Workspace writes are user-directed local filesystem writes. Reject symlinks
   // across the whole managed path so a workspace cannot redirect saves outside
   // the selected root.
-  const resolvedRoot = resolve(workspaceDir);
-  if (existsSync(resolvedRoot) && lstatSync(resolvedRoot).isSymbolicLink()) {
-    throw new Error(`Workspace path must not use symlinks: ${workspaceDir}`);
-  }
-
-  let current = resolvedRoot;
-  for (const segment of relativePath.split(/[\\/]/u).filter((part) => part.length > 0)) {
-    current = join(current, segment);
-    if (!existsSync(current)) {
-      break;
-    }
-    if (lstatSync(current).isSymbolicLink()) {
-      throw new Error(`Workspace path must not use symlinks: ${relativePath}`);
-    }
-  }
+  assertNoSymlinkPath(workspaceDir, relativePath, "Workspace path");
 }

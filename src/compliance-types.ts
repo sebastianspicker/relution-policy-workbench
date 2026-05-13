@@ -20,8 +20,9 @@ export interface ComplianceSelection {
   versionIndex: number;
 }
 
-export interface ComplianceSourceArtifacts {
+export interface ComplianceSourceCatalogs {
   recommendationCatalog: RecommendationCatalogResponse;
+  /** Optional source-specific setting bundles used when remediation can import a concrete Relution setting. */
   settingBundleCatalog?: RecommendationSettingBundleCatalog;
 }
 
@@ -84,7 +85,7 @@ export interface BuildComplianceReportInput {
   workspace: PolicyWorkspace;
   selection: ComplianceSelection;
   sources: RecommendationSource[];
-  catalogs: Partial<Record<RecommendationSource, ComplianceSourceArtifacts>>;
+  catalogs: Partial<Record<RecommendationSource, ComplianceSourceCatalogs>>;
   bundle: RelutionTemplateBundle;
   appleSchema: AppleSchemaCatalog;
 }

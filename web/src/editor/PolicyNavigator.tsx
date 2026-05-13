@@ -1,8 +1,8 @@
-import { useState, type JSX } from "react";
+import { useEffect, useState, type JSX } from "react";
 import { findAppleCompatSettingForDetails } from "../../../src/apple-compat.js";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
-import { asRecord } from "./editor-utils.js";
+import { asRecord, cx } from "./editor-utils.js";
 import { PolicyTree } from "./PolicyTree.js";
 import type { Selection } from "./types.js";
 
@@ -23,6 +23,11 @@ export function PolicyNavigator(props: {
 }): JSX.Element {
   const [query, setQuery] = useState("");
   const [showCreate, setShowCreate] = useState(props.policies.length === 0);
+  useEffect(() => {
+    if (props.policies.length === 0) {
+      setShowCreate(true);
+    }
+  }, [props.policies.length]);
   const visiblePolicies = props.policies
     .map((policy, policyIndex) => ({ policy, policyIndex }))
     .filter(({ policy }) => policyMatches(policy, query, props.templatesByType));
@@ -46,7 +51,7 @@ export function PolicyNavigator(props: {
           +
         </button>
       </div>
-      <div className={`new-policy-form-wrapper${showCreate ? " new-policy-form-wrapper--open" : ""}`}>
+      <div className={cx("new-policy-form-wrapper", showCreate ? "new-policy-form-wrapper--open" : undefined)}>
         <div className="new-policy-form">
           <label>
             <span className="field-label">Name</span>

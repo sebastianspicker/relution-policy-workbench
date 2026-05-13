@@ -16,6 +16,16 @@ const DEFAULT_SERVE_WORKSPACE = ".rexp-editor/workspace";
 const DEFAULT_SERVE_OUTPUT = ".rexp-editor/output.rexp";
 const DEFAULT_SERVE_PLATFORM = "IOS";
 const DEFAULT_SERVE_POLICY_NAME = "Local iOS Policy";
+const BOOLEAN_FLAGS = [
+  "force",
+  "pretty",
+  "json",
+  "once",
+  "sort-ascending",
+  "allow-network-editor",
+  "allow-local-service-hosts",
+  "allow-heuristic-runtime-metadata",
+] as const;
 
 interface ParsedArgs {
   command: string | undefined;
@@ -71,11 +81,11 @@ async function main(argv: string[]): Promise<void> {
         printHelp();
         return;
       default:
-        throw new Error(`Unknown command: ${args.command}`);
+        cliError(`Unknown command: ${args.command}`);
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    console.error(`ERROR: ${message}`);
+    console.error(formatCliError(message));
     process.exitCode = 1;
   }
 }
@@ -137,7 +147,7 @@ async function appleSchemaCommand(args: ParsedArgs): Promise<void> {
 
 function inspectCommand(args: ParsedArgs): void {
   const file = requirePositional(args, 0, "inspect requires a .rexp file");
-  const key = optionalString(args, "key") ?? process.env.RELUTION_REXP_KEY;
+  const key = optionalString(args, "key") ?? optionalEnvRexpKey();
   const result = inspectRexp(file, key);
 
   if (args.options.json === true) {
@@ -251,7 +261,7 @@ function templatesCommand(args: ParsedArgs): void {
 
 function auditCommand(args: ParsedArgs): void {
   const bundle = loadTemplateBundle(optionalString(args, "bundle"));
-  const key = optionalString(args, "key") ?? process.env.RELUTION_REXP_KEY ?? "key123";
+  const key = optionalString(args, "key") ?? optionalEnvRexpKey() ?? "key123";
   const defaultSample = "example/sample-policy-export.rexp";
   const sampleRexp = optionalString(args, "sample") ?? (existsSync(defaultSample) ? defaultSample : undefined);
   const auditOptions: Parameters<typeof createRelutionAuditReport>[0] = { bundle, key };
@@ -343,7 +353,7 @@ async function editCommand(args: ParsedArgs): Promise<void> {
 async function serveCommand(args: ParsedArgs): Promise<void> {
   const workspace = optionalString(args, "workspace") ?? DEFAULT_SERVE_WORKSPACE;
   const out = optionalString(args, "out") ?? defaultServeOutput(workspace);
-  const key = optionalString(args, "key") ?? process.env.RELUTION_REXP_KEY ?? "";
+  const key = optionalString(args, "key") ?? optionalEnvRexpKey() ?? "";
   if (shouldBootstrapWorkspace(workspace)) {
     const bundle = loadTemplateBundle(optionalString(args, "bundle"));
     const platform = optionalString(args, "platform") ?? DEFAULT_SERVE_PLATFORM;
@@ -421,14 +431,14 @@ function parseArgs(argv: string[]): ParsedArgs {
     }
 
     const name = token.slice(2);
-    if (name === "force" || name === "pretty" || name === "json" || name === "once" || name === "sort-ascending" || name === "allow-network-editor" || name === "allow-local-service-hosts" || name === "allow-heuristic-runtime-metadata") {
+    if (isBooleanFlag(name)) {
       options[name] = true;
       continue;
     }
 
     const value = rest[index + 1];
     if (value === undefined || value.startsWith("--")) {
-      throw new Error(`Missing value for --${name}`);
+      cliError(`Missing value for --${name}`);
     }
     options[name] = value;
     index += 1;
@@ -440,13 +450,21 @@ function parseArgs(argv: string[]): ParsedArgs {
 function requirePositional(args: ParsedArgs, index: number, message: string): string {
   const value = args.positionals[index];
   if (value === undefined) {
-    throw new Error(message);
+    cliError(message);
   }
   return value;
 }
 
 function requireKey(args: ParsedArgs): string {
-  return requireString(args, "key", "Missing --key <password> or RELUTION_REXP_KEY");
+  const cliKey = optionalString(args, "key");
+  if (cliKey !== undefined) {
+    return cliKey;
+  }
+  const envKey = optionalEnvRexpKey();
+  if (envKey !== undefined) {
+    return envKey;
+  }
+  cliError("Missing --key <password> or RELUTION_REXP_KEY");
 }
 
 function defaultServeOutput(workspace: string): string {
@@ -454,9 +472,20 @@ function defaultServeOutput(workspace: string): string {
 }
 
 function requireString(args: ParsedArgs, name: string, message: string): string {
-  const value = optionalString(args, name) ?? process.env[name === "key" ? "RELUTION_REXP_KEY" : ""];
+  const value = optionalString(args, name);
   if (typeof value !== "string" || value.length === 0) {
-    throw new Error(message);
+    cliError(message);
+  }
+  return value;
+}
+
+function optionalEnvRexpKey(): string | undefined {
+  const value = process.env.RELUTION_REXP_KEY;
+  if (value === undefined || value.length === 0) {
+    return undefined;
+  }
+  if (value.length < 16 || /^(password|changeme|change_me|secret|key123)$/iu.test(value)) {
+    cliError("RELUTION_REXP_KEY must be at least 16 characters and must not be an obvious default.");
   }
   return value;
 }
@@ -472,13 +501,25 @@ function optionalInteger(args: ParsedArgs, name: string): number | undefined {
     return undefined;
   }
   if (!/^-?\d+$/u.test(value)) {
-    throw new Error(`Expected integer for --${name}`);
+    cliError(`Expected integer for --${name}`);
   }
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed)) {
-    throw new Error(`Expected integer for --${name}`);
+    cliError(`Expected integer for --${name}`);
   }
   return parsed;
+}
+
+function isBooleanFlag(name: string): boolean {
+  return BOOLEAN_FLAGS.some((flag) => flag === name);
+}
+
+function cliError(message: string): never {
+  throw new Error(message.replace(/^ERROR:\s*/iu, ""));
+}
+
+function formatCliError(message: string): string {
+  return `ERROR: ${message.replace(/^ERROR:\s*/iu, "")}`;
 }
 
 function printJson(value: unknown): void {

@@ -3,6 +3,11 @@ import type { WorkspacePolicy } from "../../../src/workspace.js";
 
 export const ALL_RECOMMENDATION_PLATFORMS = "ALL";
 
+/**
+ * Returns the recommendation display platform, not necessarily the Relution
+ * import platform. Callers importing rulesets must map the selected display
+ * platform through the catalog's displayToImportPlatform contract first.
+ */
 export function preferredRecommendationPlatform(
   summary: RecommendationSourceSummary,
   currentPolicyPlatform: string | undefined,

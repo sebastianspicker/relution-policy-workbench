@@ -109,4 +109,16 @@ describe("EditorShell", () => {
     expect(screen.queryByLabelText(/selected setting json file/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /apply json/i })).toBeNull();
   });
+
+  it("maps primary undo and redo keyboard shortcuts to the correct controller actions", () => {
+    const controller = createEditorControllerStub();
+    render(<EditorShell controller={controller} theme="default" onThemeChange={vi.fn()} />);
+
+    fireEvent.keyDown(document, { key: "z", metaKey: true });
+    fireEvent.keyDown(document, { key: "z", metaKey: true, shiftKey: true });
+    fireEvent.keyDown(document, { key: "y", ctrlKey: true });
+
+    expect(controller.undoWorkspace).toHaveBeenCalledTimes(1);
+    expect(controller.redoWorkspace).toHaveBeenCalledTimes(2);
+  });
 });

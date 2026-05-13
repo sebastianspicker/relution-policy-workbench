@@ -2,7 +2,7 @@ import type { JSX } from "react";
 import { findAppleCompatSettingForDetails } from "../../../src/apple-compat.js";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
-import { asRecord } from "./editor-utils.js";
+import { asRecord, cx } from "./editor-utils.js";
 import type { Selection } from "./types.js";
 
 export function PolicyTree(props: {
@@ -34,7 +34,7 @@ export function PolicyTree(props: {
         return (
           <div key={versionIndex} className="version-block">
             <button
-              className={versionActive ? "tree-item version-item active" : "tree-item version-item"}
+              className={cx("tree-item", "version-item", versionActive ? "active" : undefined)}
               onClick={() => props.onSelect({ policyIndex: props.policyIndex, versionIndex })}
             >
               {versionName}
@@ -52,7 +52,7 @@ export function PolicyTree(props: {
                 props.selection.configurationIndex === configurationIndex;
               return (
                 <div className="tree-item-row" key={`${versionIndex}-${configurationIndex}`}>
-                  <button className={active ? "tree-item tree-item-select active" : "tree-item tree-item-select"} onClick={() => props.onSelect(rowSelection)}>
+                  <button className={cx("tree-item", "tree-item-select", active ? "active" : undefined)} onClick={() => props.onSelect(rowSelection)}>
                     <span className="tree-item-label">{label}</span>
                     {appleCompatSetting !== undefined ? (
                       <span className="tree-item-meta">APPLE_MOBILECONFIG / {appleCompatSetting.payloadType}</span>

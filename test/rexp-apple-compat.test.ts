@@ -55,6 +55,15 @@ test("creates every mobileconfig-backed Apple gap configuration", () => {
   }
 });
 
+test("Apple compatibility payload JSON errors include setting context", () => {
+  const configuration = createAppleCompatConfiguration("pppc");
+
+  assert.throws(
+    () => updateAppleCompatDetailsFromPayloadBodyJson(requireRecord(configuration.details), "pppc", "{"),
+    /Could not parse setting pppc payload body JSON/u,
+  );
+});
+
 test("loads the pinned Apple device-management schema catalog", () => {
   const catalog = loadAppleSchemaCatalog();
   const acme = findAppleSchemaEntry(catalog, "profile:com.apple.security.acme");

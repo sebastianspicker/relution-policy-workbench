@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createEditorControllerStub } from "./useEditorController.test-helpers.js";
 import { WorkspaceToolbar } from "./WorkspaceToolbar.js";
@@ -24,6 +24,16 @@ describe("WorkspaceToolbar", () => {
     const downloadButton = screen.getByRole("button", { name: /download/i });
 
     expect((downloadButton as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("reports download failures instead of leaving an unhandled rejection", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(<WorkspaceToolbar controller={createEditorControllerStub({ hasFreshBuild: true })} {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("network down")));
   });
 
   it("exposes redo action", () => {

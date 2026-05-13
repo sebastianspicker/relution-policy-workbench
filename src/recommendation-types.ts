@@ -185,8 +185,11 @@ export interface BsiSemanticConceptEvidence {
   candidateTargets: BsiSemanticConceptCandidateTarget[];
 }
 
+/** Unified recommendation semantics reuse the BSI evidence vocabulary as the cross-source canonical shape. */
 export type RecommendationSemanticConceptEvidenceSource = BsiSemanticConceptEvidenceSource;
+/** Unified recommendation semantics reuse BSI candidate targets so source-specific records can be compared directly. */
 export type RecommendationSemanticConceptCandidateTarget = BsiSemanticConceptCandidateTarget;
+/** Cross-source semantic concept evidence is currently normalized to the BSI concept evidence schema. */
 export type RecommendationSemanticConceptEvidence = BsiSemanticConceptEvidence;
 
 export type CisRecommendationHelperFallbackMethod =
@@ -239,19 +242,25 @@ export interface RecommendationRecordBase {
   semanticNoConceptReason?: string;
 }
 
-export interface BsiRecommendationRecord extends RecommendationRecordBase {
+export interface RecommendationRecordSharedSourceFields {
+  sourceIds: string[];
+  fallbackTranslations?: RecommendationFallbackTranslation[];
+}
+
+export interface BsiRecommendationRecord extends RecommendationRecordBase, RecommendationRecordSharedSourceFields {
   osFamily: string;
   policyName: string;
   moduleId: string;
   moduleTitle: string;
   moduleRole?: string;
-  sourceIds: string[];
   supportingSourceIds: string[];
   category: string;
   requirementId: string;
   status: string;
   protectionLevel: string;
+  /** BSI actor categories associated with the requirement, not application users. */
   actors: string[];
+  /** Requirement text paragraphs extracted from the source requirement. */
   paragraphs: string[];
   requirementText: string;
   reason: string;
@@ -266,7 +275,7 @@ export interface BsiRecommendationRecord extends RecommendationRecordBase {
   semanticNoConceptReason?: string;
 }
 
-export interface CisRecommendationRecord extends RecommendationRecordBase {
+export interface CisRecommendationRecord extends RecommendationRecordBase, RecommendationRecordSharedSourceFields {
   osFamily: string;
   benchmarkId: string;
   benchmarkTitle: string;
@@ -275,7 +284,6 @@ export interface CisRecommendationRecord extends RecommendationRecordBase {
   managementSurface: string;
   sourcePdfPath: string;
   familySourceId?: string;
-  sourceIds: string[];
   recommendationId: string;
   assessmentStatus?: string;
   profileApplicability: string[];
@@ -291,8 +299,7 @@ export interface CisRecommendationRecord extends RecommendationRecordBase {
   helperFallbacks: CisRecommendationHelperFallback[];
 }
 
-export interface VendorRecommendationRecord extends RecommendationRecordBase {
-  sourceIds: string[];
+export interface VendorRecommendationRecord extends RecommendationRecordBase, RecommendationRecordSharedSourceFields {
   section: string;
   recommendedValue: unknown;
   reason: string;

@@ -158,3 +158,40 @@ test("refreshAppleSchemaCatalog allows versioned revisions in version-labeled ou
   assert.equal(catalog.source.revision, "26.4");
   assert.equal(JSON.parse(readFileSync(out, "utf8")).source.revision, "26.4");
 });
+
+test("refreshAppleSchemaCatalog reports all failed remote document downloads", async () => {
+  const originalFetch = globalThis.fetch;
+  const directoryEntries = [
+    { name: "First.yaml", download_url: "https://example.test/First.yaml" },
+    { name: "Second.yaml", download_url: "https://example.test/Second.yaml" },
+  ];
+  globalThis.fetch = async (input: string | URL | Request): Promise<Response> => {
+    const url = String(input);
+    if (url.startsWith("https://api.github.com/")) {
+      return Response.json(directoryEntries);
+    }
+    if (url.endsWith("First.yaml")) {
+      return new Response("missing first", { status: 503, statusText: "Unavailable" });
+    }
+    if (url.endsWith("Second.yaml")) {
+      return new Response("missing second", { status: 404, statusText: "Not Found" });
+    }
+    return new Response("unexpected", { status: 500, statusText: "Unexpected" });
+  };
+
+  try {
+    await assert.rejects(
+      refreshAppleSchemaCatalog({ revision: "test-fixture", out: join(tmpdir(), "relution-apple-remote-failures.json") }),
+      (error: unknown) => {
+        assert.equal(error instanceof Error, true);
+        const message = error instanceof Error ? error.message : "";
+        assert.match(message, /Failed to fetch 18 Apple schema document\(s\)/u);
+        assert.match(message, /https:\/\/example\.test\/First\.yaml: 503 Unavailable/u);
+        assert.match(message, /https:\/\/example\.test\/Second\.yaml: 404 Not Found/u);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

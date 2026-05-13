@@ -8,6 +8,7 @@ import type {
   RecommendationSource,
   RecommendationSourceSummary,
 } from "../../../src/recommendation-types.js";
+import { RECOMMENDATION_SOURCES } from "../../../src/recommendation-types.js";
 import type { PolicyWorkspace, WorkspacePolicy, WorkspaceValidationResult } from "../../../src/workspace.js";
 import {
   asRecord,
@@ -32,10 +33,9 @@ import { ALL_RECOMMENDATION_PLATFORMS, policyPlatform, preferredRecommendationPl
 import { useEditorControllerActions } from "./useEditorControllerActions.js";
 import type { WorkspaceHistoryEntry } from "./useEditorControllerActionTypes.js";
 
-type StateSetter<T> = Dispatch<SetStateAction<T>>;
-
 const LIVE_VALIDATION_DELAY_MS = 250;
 const COMPLIANCE_REFRESH_DELAY_MS = 250;
+const DEFAULT_COMPLIANCE_SOURCES = [...RECOMMENDATION_SOURCES] satisfies RecommendationSource[];
 
 export function useEditorController(): EditorControllerResult {
   const [state, setState] = useState<AppState | undefined>();
@@ -67,7 +67,7 @@ export function useEditorController(): EditorControllerResult {
   const [selectedRecommendationId, setSelectedRecommendationId] = useState<string | undefined>();
   const [recommendationsLoading, setRecommendationsLoading] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState<string | undefined>();
-  const [complianceSources, setComplianceSources] = useState<RecommendationSource[]>(["bsi", "vendor", "cis"]);
+  const [complianceSources, setComplianceSources] = useState<RecommendationSource[]>(() => [...DEFAULT_COMPLIANCE_SOURCES]);
   const [complianceReport, setComplianceReport] = useState<ComplianceReport | undefined>();
   const [complianceLoading, setComplianceLoading] = useState(false);
   const [complianceError, setComplianceError] = useState<string | undefined>();
@@ -314,12 +314,12 @@ export function useEditorController(): EditorControllerResult {
 }
 
 function useInitialEditorState(props: {
-  readonly setLoadError: StateSetter<string | undefined>;
-  readonly setState: StateSetter<AppState | undefined>;
-  readonly setSelection: StateSetter<Selection | undefined>;
-  readonly setRawJsonState: StateSetter<string>;
-  readonly setRawJsonDirty: StateSetter<boolean>;
-  readonly setHasFreshBuild: StateSetter<boolean>;
+  readonly setLoadError: Dispatch<SetStateAction<string | undefined>>;
+  readonly setState: Dispatch<SetStateAction<AppState | undefined>>;
+  readonly setSelection: Dispatch<SetStateAction<Selection | undefined>>;
+  readonly setRawJsonState: Dispatch<SetStateAction<string>>;
+  readonly setRawJsonDirty: Dispatch<SetStateAction<boolean>>;
+  readonly setHasFreshBuild: Dispatch<SetStateAction<boolean>>;
 }): void {
   useEffect(() => {
     let cancelled = false;
@@ -347,8 +347,8 @@ function useInitialEditorState(props: {
 function useLiveValidation(
   isDirty: boolean,
   state: AppState | undefined,
-  setState: StateSetter<AppState | undefined>,
-  setStatus: StateSetter<string>,
+  setState: Dispatch<SetStateAction<AppState | undefined>>,
+  setStatus: Dispatch<SetStateAction<string>>,
 ): void {
   useEffect(() => {
     if (!isDirty || state === undefined) {
@@ -392,8 +392,8 @@ function useRawJsonSync(
   canonicalRawJson: string,
   selectedConfigurationKey: string,
   rawJsonDirty: boolean,
-  setRawJsonState: StateSetter<string>,
-  setRawJsonDirty: StateSetter<boolean>,
+  setRawJsonState: Dispatch<SetStateAction<string>>,
+  setRawJsonDirty: Dispatch<SetStateAction<boolean>>,
 ): void {
   useEffect(() => {
     setRawJsonState(canonicalRawJson);
@@ -415,10 +415,10 @@ function useEditorDefaultSelections(props: {
   readonly mdmCommandSchemaId: string;
   readonly newPolicyPlatform: string;
   readonly policyPath: string | undefined;
-  readonly setDdmSchemaId: StateSetter<string>;
-  readonly setMdmCommandSchemaId: StateSetter<string>;
-  readonly setNewPolicyPlatform: StateSetter<string>;
-  readonly setSelectedType: StateSetter<string>;
+  readonly setDdmSchemaId: Dispatch<SetStateAction<string>>;
+  readonly setMdmCommandSchemaId: Dispatch<SetStateAction<string>>;
+  readonly setNewPolicyPlatform: Dispatch<SetStateAction<string>>;
+  readonly setSelectedType: Dispatch<SetStateAction<string>>;
 }): void {
   useEffect(() => {
     if (props.newPolicyPlatform.length === 0 && props.creatablePlatforms[0] !== undefined) {
@@ -449,11 +449,11 @@ function useRecommendationData(props: {
   readonly recommendationIndex: RecommendationIndexResponse | undefined;
   readonly recommendationSource: RecommendationSource;
   readonly recommendationSummary: RecommendationSourceSummary | undefined;
-  readonly setRecommendationCatalogs: StateSetter<Partial<Record<RecommendationSource, RecommendationCatalogResponse>>>;
-  readonly setRecommendationIndex: StateSetter<RecommendationIndexResponse | undefined>;
-  readonly setRecommendationPlatform: StateSetter<string>;
-  readonly setRecommendationsError: StateSetter<string | undefined>;
-  readonly setRecommendationsLoading: StateSetter<boolean>;
+  readonly setRecommendationCatalogs: Dispatch<SetStateAction<Partial<Record<RecommendationSource, RecommendationCatalogResponse>>>>;
+  readonly setRecommendationIndex: Dispatch<SetStateAction<RecommendationIndexResponse | undefined>>;
+  readonly setRecommendationPlatform: Dispatch<SetStateAction<string>>;
+  readonly setRecommendationsError: Dispatch<SetStateAction<string | undefined>>;
+  readonly setRecommendationsLoading: Dispatch<SetStateAction<boolean>>;
 }): void {
   useEffect(() => {
     if (props.recommendationIndex !== undefined) {
@@ -543,9 +543,9 @@ function useRecommendationData(props: {
 function useComplianceReportRefresh(props: {
   readonly complianceSources: RecommendationSource[];
   readonly selection: Selection | undefined;
-  readonly setComplianceError: StateSetter<string | undefined>;
-  readonly setComplianceLoading: StateSetter<boolean>;
-  readonly setComplianceReport: StateSetter<ComplianceReport | undefined>;
+  readonly setComplianceError: Dispatch<SetStateAction<string | undefined>>;
+  readonly setComplianceLoading: Dispatch<SetStateAction<boolean>>;
+  readonly setComplianceReport: Dispatch<SetStateAction<ComplianceReport | undefined>>;
   readonly state: AppState | undefined;
 }): void {
   useEffect(() => {

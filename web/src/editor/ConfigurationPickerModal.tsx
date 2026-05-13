@@ -33,7 +33,9 @@ export function ConfigurationPickerModal(props: ConfigurationPickerModalProps): 
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    dialogRef.current?.showModal();
+    if (dialogRef.current !== null && !dialogRef.current.open) {
+      dialogRef.current.showModal();
+    }
     searchRef.current?.focus();
   }, []);
 
@@ -126,6 +128,13 @@ export function ConfigurationPickerModal(props: ConfigurationPickerModalProps): 
                         props.onSelectedTypeChange(opt.value);
                         props.onAdd();
                       }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          props.onSelectedTypeChange(opt.value);
+                          props.onAdd();
+                        }
+                      }}
                     >
                       <span className="config-card-label">{opt.label}</span>
                       <span className="config-card-meta">{opt.meta}</span>
@@ -142,6 +151,7 @@ export function ConfigurationPickerModal(props: ConfigurationPickerModalProps): 
             <span className="config-picker-selection">
               <strong>{selectedOption.label}</strong>
               <span className="config-card-meta">{selectedOption.meta}</span>
+              <span className="config-card-meta">Double-click or press Enter to add.</span>
             </span>
           ) : (
             <span className="config-picker-hint">Select a configuration above, or double-click to add immediately.</span>

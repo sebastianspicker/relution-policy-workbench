@@ -1,7 +1,6 @@
 export const THEME_STORAGE_KEY = "relution-policy-workbench:corporate-theme";
 export const CUSTOM_THEME_STORAGE_KEY = "relution-policy-workbench:custom-corporate-theme";
 
-const CORPORATE_THEME_VALUES = ["default", "organization", "relution", "dark", "custom"] as const;
 const CUSTOM_THEME_TOKEN_NAMES = [
   "--ci-color-page",
   "--ci-color-surface",
@@ -11,15 +10,18 @@ const CUSTOM_THEME_TOKEN_NAMES = [
   "--ci-color-primary-contrast",
 ] as const;
 
-export type CorporateTheme = (typeof CORPORATE_THEME_VALUES)[number];
+export const THEME_PACKS = [
+  { value: "default", label: "Default", dataTheme: "default" },
+  { value: "organization", label: "Institution", dataTheme: "organization" },
+  { value: "relution", label: "Relution", dataTheme: "relution" },
+  { value: "dark", label: "Dark", dataTheme: "dark" },
+  { value: "custom", label: "Custom", dataTheme: "custom" },
+] as const;
+
+export type CorporateTheme = (typeof THEME_PACKS)[number]["value"];
 export type CustomThemeTokenName = (typeof CUSTOM_THEME_TOKEN_NAMES)[number];
 export type CustomThemeTokens = Partial<Record<CustomThemeTokenName, string>>;
-
-export type ThemePack = {
-  readonly value: CorporateTheme;
-  readonly label: string;
-  readonly dataTheme: CorporateTheme;
-};
+export type ThemePack = (typeof THEME_PACKS)[number];
 
 export type ThemeReader = Pick<Storage, "getItem">;
 
@@ -37,14 +39,6 @@ export const DEFAULT_CUSTOM_THEME_TOKENS: CustomThemeTokens = {
   "--ci-color-primary-contrast": "#ffffff",
 };
 
-export const THEME_PACKS = [
-  { value: "default", label: "Default", dataTheme: "default" },
-  { value: "organization", label: "Institution", dataTheme: "organization" },
-  { value: "relution", label: "Relution", dataTheme: "relution" },
-  { value: "dark", label: "Dark", dataTheme: "dark" },
-  { value: "custom", label: "Custom", dataTheme: "custom" },
-] as const satisfies readonly ThemePack[];
-
 export const THEME_OPTIONS = THEME_PACKS;
 
 export const CUSTOM_THEME_TOKEN_OPTIONS = [
@@ -57,7 +51,7 @@ export const CUSTOM_THEME_TOKEN_OPTIONS = [
 ] as const satisfies readonly { readonly name: CustomThemeTokenName; readonly label: string }[];
 
 export function isCorporateTheme(value: unknown): value is CorporateTheme {
-  return typeof value === "string" && CORPORATE_THEME_VALUES.some((theme) => theme === value);
+  return typeof value === "string" && THEME_PACKS.some((theme) => theme.value === value);
 }
 
 export function parseCorporateTheme(value: unknown): CorporateTheme {

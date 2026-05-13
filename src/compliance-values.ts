@@ -40,12 +40,12 @@ function arrayContainsAll(actual: unknown, expected: unknown): boolean {
 }
 
 function comparableNumber(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) && Number.isSafeInteger(value) ? value : undefined;
   }
   if (typeof value === "string" && value.trim().length > 0) {
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
+    return Number.isFinite(parsed) && Number.isSafeInteger(parsed) ? parsed : undefined;
   }
   return undefined;
 }
@@ -58,6 +58,8 @@ function valueAtPath(value: unknown, path: string): unknown {
 }
 
 function withoutPaths(value: unknown, paths: Set<string>, prefix = ""): unknown {
+  // Returning undefined is the pruning signal here, so explicit undefined
+  // values are intentionally removed from copied records.
   if (paths.has(prefix)) {
     return undefined;
   }
@@ -112,10 +114,6 @@ export function deepMergePreservingExistingUuids(existingValue: unknown, importe
       : structuredClone(value);
   }
   return merged;
-}
-
-export function mergeRecords(existing: JsonRecord, imported: JsonRecord): JsonRecord {
-  return deepMergePreservingExistingUuids(existing, imported);
 }
 
 export function findSettingBundle(

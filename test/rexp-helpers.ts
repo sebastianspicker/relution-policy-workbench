@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
-import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import type { EditorSidecarState } from "../src/sidecar.js";
 import type { RelutionTemplateBundle } from "../src/templates.js";
 import type { PolicyWorkspace, WorkspaceValidationResult } from "../src/workspace.js";
 
 export const fixture = resolve("example/sample-policy-export.rexp");
 export const password = "key123";
+
+export function makeTempDir(prefix: string): string {
+  return mkdtempSync(join(tmpdir(), `${prefix}-${randomUUID().slice(0, 8)}-`));
+}
 
 export function deterministicRandomBytes(): (size: number) => Buffer {
   let counter = 1;

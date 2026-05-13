@@ -420,7 +420,7 @@ function ExpertWizard(props: {
             <button type="button" onClick={() => props.onSelectedSettingIdsChange(presetSettingIds(expertOptions.settings, props.tier, props.selectedSources))}>
               Select tier {props.tier}
             </button>
-            <button type="button" onClick={() => props.onSelectedSettingIdsChange(presetSettingIds(expertOptions.settings, props.tier, props.selectedSources))}>
+            <button type="button" onClick={() => props.onSelectedSettingIdsChange(expertOptions.settings.filter((setting) => settingMatchesSources(setting, props.selectedSources, props.tier)).map((setting) => setting.id))}>
               Select all
             </button>
             <button type="button" onClick={() => props.onSelectedSettingIdsChange([])}>

@@ -12,6 +12,7 @@ export function SettingsPanel(props: {
   const c = props.controller;
   const [rexpFileName, setRexpFileName] = useState<string>();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const shortcuts = shortcutLabels();
 
   return (
     <div className="settings-panel">
@@ -29,13 +30,16 @@ export function SettingsPanel(props: {
           <h3>Encryption</h3>
           <p className="settings-hint">Required to build or import encrypted archives.</p>
           <div className="settings-field-row">
+            <span className={c.state.keySet ? "settings-key-badge" : "settings-key-badge settings-key-badge--warn"}>
+              {c.state.keySet ? "Key set" : "No key"}
+            </span>
             <input
               className="key-input"
               type="password"
               aria-label="Encryption key"
               value={c.keyValue}
               onChange={(event) => c.setKeyValue(event.target.value)}
-              placeholder={c.state.keySet ? "Key set ●●●" : "Enter encryption key…"}
+              placeholder="Enter encryption key..."
             />
             <button type="button" onClick={() => void c.setActiveKey()}>
               Set key
@@ -83,23 +87,23 @@ export function SettingsPanel(props: {
           <h3>Keyboard shortcuts</h3>
           <dl className="settings-shortcuts">
             <div>
-              <dt><kbd>⌘S</kbd></dt>
+              <dt><kbd>{shortcuts.save}</kbd></dt>
               <dd>Save workspace</dd>
             </div>
             <div>
-              <dt><kbd>⌘B</kbd></dt>
+              <dt><kbd>{shortcuts.build}</kbd></dt>
               <dd>Build .rexp archive</dd>
             </div>
             <div>
-              <dt><kbd>⌘I</kbd></dt>
+              <dt><kbd>{shortcuts.inspector}</kbd></dt>
               <dd>Toggle inspector panel</dd>
             </div>
             <div>
-              <dt><kbd>⌘Z</kbd></dt>
+              <dt><kbd>{shortcuts.undo}</kbd></dt>
               <dd>Undo last change</dd>
             </div>
             <div>
-              <dt><kbd>⇧⌘Z</kbd></dt>
+              <dt><kbd>{shortcuts.redo}</kbd></dt>
               <dd>Redo</dd>
             </div>
           </dl>
@@ -145,4 +149,24 @@ export function SettingsPanel(props: {
       </div>
     </div>
   );
+}
+
+function shortcutLabels(): {
+  readonly save: string;
+  readonly build: string;
+  readonly inspector: string;
+  readonly undo: string;
+  readonly redo: string;
+} {
+  const platform = globalThis.navigator?.platform ?? "";
+  const applePlatform = /Mac|iPhone|iPad|iPod/u.test(platform);
+  const command = applePlatform ? "⌘" : "Ctrl+";
+  const shift = applePlatform ? "⇧" : "Shift+";
+  return {
+    save: `${command}S`,
+    build: `${command}B`,
+    inspector: `${command}I`,
+    undo: `${command}Z`,
+    redo: `${shift}${command}Z`,
+  };
 }

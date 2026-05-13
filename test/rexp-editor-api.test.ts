@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
@@ -66,6 +66,7 @@ test("returns 404 for missing static assets but still serves index for SPA route
   });
 
   try {
+    writeFileSync("dist-web/unsupported.txt", "unsupported");
     const missingAsset = await fetch(`${handle.url}assets/does-not-exist.js`);
     assert.equal(missingAsset.status, 404);
     assert.match(await missingAsset.text(), /missing/i);
@@ -73,7 +74,13 @@ test("returns 404 for missing static assets but still serves index for SPA route
     const spaRoute = await fetch(`${handle.url}policies/editor`);
     assert.equal(spaRoute.status, 200);
     assert.match(spaRoute.headers.get("content-type") ?? "", /text\/html/);
+    assert.equal(spaRoute.headers.get("x-content-type-options"), "nosniff");
+
+    const unsupportedAsset = await fetch(`${handle.url}unsupported.txt`);
+    assert.equal(unsupportedAsset.status, 404);
+    assert.match(await unsupportedAsset.text(), /not supported/i);
   } finally {
+    rmSync("dist-web/unsupported.txt", { force: true });
     await handle.close();
   }
 });

@@ -30,7 +30,7 @@ import type {
   ComplianceMappingResult,
   ComplianceRecommendationResult,
   ComplianceRemediationOption,
-  ComplianceSourceArtifacts,
+  ComplianceSourceCatalogs,
   ComplianceStatus,
   ComplianceSelection,
   JsonRecord,
@@ -40,7 +40,6 @@ import {
   deepMergePreservingExistingUuids,
   deepSubsetMatch,
   mappingValuesMatch,
-  mergeRecords,
   uniqueConfigurationReferences,
   uniqueStrings,
 } from "./compliance-values.js";
@@ -54,7 +53,7 @@ export function evaluateRecommendation(
   source: RecommendationSource,
   recommendation: RecommendationRecord,
   configurations: JsonRecord[],
-  artifacts: ComplianceSourceArtifacts,
+  artifacts: ComplianceSourceCatalogs,
   bundle: RelutionTemplateBundle,
   appleSchema: AppleSchemaCatalog,
 ): ComplianceRecommendationResult {
@@ -160,16 +159,24 @@ function recommendationOption(
   recommendation: RecommendationRecord,
 ): ComplianceRemediationOption {
   const implementation = implementationOf(recommendation);
-  const firstMapping = recommendation.relutionMapping.rulesetMappings[0];
   return {
     id: `recommendation:${source}:${recommendation.id}`,
     kind: "exact-recommendation",
     label: `Apply exact mapping for ${recommendation.title}`,
     surfaces: implementation.surfaces,
     coveredRecommendationIds: [recommendation.id],
-    ...(firstMapping?.kind === "apple-schema-profile" && typeof firstMapping.schemaId === "string" ? { schemaId: firstMapping.schemaId } : {}),
-    ...(firstMapping?.kind === "apple-mobileconfig" && typeof firstMapping.payloadType === "string" ? { payloadType: firstMapping.payloadType } : {}),
+    ...mappingTargetMetadata(recommendation.relutionMapping.rulesetMappings[0]),
   };
+}
+
+function mappingTargetMetadata(mapping: RecommendationRulesetMapping | undefined): Pick<ComplianceRemediationOption, "schemaId" | "payloadType"> {
+  if (mapping?.kind === "apple-schema-profile" && typeof mapping.schemaId === "string") {
+    return { schemaId: mapping.schemaId };
+  }
+  if (mapping?.kind === "apple-mobileconfig" && typeof mapping.payloadType === "string") {
+    return { payloadType: mapping.payloadType };
+  }
+  return {};
 }
 
 function evaluateMapping(
@@ -244,7 +251,7 @@ function evaluateAppleSchemaMapping(
     kind: "apple-schema-profile",
     target: schemaId,
     expectedValues,
-    status: matching.length > 0 ? "compliant" : candidates.length === 0 ? "missing" : candidates.length === 1 ? "mismatch" : "ambiguous",
+    status: determineMappingStatus(matching.length, candidates.length),
     matchingConfigurations: matching.map((entry) => entry.reference),
     candidateConfigurations: candidates.map((entry) => entry.reference),
   };
@@ -273,10 +280,20 @@ function evaluateAppleCompatMapping(
     kind: "apple-mobileconfig",
     target: payloadType,
     expectedValues,
-    status: matching.length > 0 ? "compliant" : candidates.length === 0 ? "missing" : candidates.length === 1 ? "mismatch" : "ambiguous",
+    status: determineMappingStatus(matching.length, candidates.length),
     matchingConfigurations: matching.map((entry) => entry.reference),
     candidateConfigurations: candidates.map((entry) => entry.reference),
   };
+}
+
+function determineMappingStatus(matchingCount: number, candidateCount: number): ComplianceMappingResult["status"] {
+  if (matchingCount > 0) {
+    return "compliant";
+  }
+  if (candidateCount === 0) {
+    return "missing";
+  }
+  return candidateCount === 1 ? "mismatch" : "ambiguous";
 }
 
 export function applyNativeBundle(configurations: JsonRecord[], bundle: RecommendationSettingBundle, templateBundle: RelutionTemplateBundle): void {
@@ -300,7 +317,7 @@ export function applyRecommendationMappings(
         ? `apple-schema-profile:${mapping.schemaId}`
         : `apple-mobileconfig:${mapping.payloadType}`;
     const existing = grouped.get(key);
-    const nextValues = mergeRecords(existing?.values ?? {}, asRecord(mapping.values) ?? {});
+    const nextValues = deepMergePreservingExistingUuids(existing?.values ?? {}, asRecord(mapping.values) ?? {});
     grouped.set(key, { mapping, values: nextValues });
   }
 
@@ -337,10 +354,7 @@ function applyNativeValues(
     throw new Error(`Compliance apply is ambiguous for ${targetType}: multiple target settings share the same identity`);
   }
   if (sameIdentity.length === 1) {
-    const onlyCandidate = sameIdentity[0];
-    if (onlyCandidate === undefined) {
-      throw new Error(`Target configuration is invalid for ${targetType}`);
-    }
+    const onlyCandidate = sameIdentity[0]!;
     const candidate = configurations[onlyCandidate.reference.configurationIndex];
     const candidateRecord = asRecord(candidate);
     if (candidateRecord === undefined) {
@@ -358,10 +372,7 @@ function applyNativeValues(
     throw new Error(`Compliance apply is ambiguous for ${targetType}: multiple target settings exist`);
   }
   if (candidates.length === 1) {
-    const onlyCandidate = candidates[0];
-    if (onlyCandidate === undefined) {
-      throw new Error(`Target configuration is invalid for ${targetType}`);
-    }
+    const onlyCandidate = candidates[0]!;
     const candidate = configurations[onlyCandidate.reference.configurationIndex];
     const candidateRecord = asRecord(candidate);
     if (candidateRecord === undefined) {
@@ -442,21 +453,10 @@ function applyAppleSchemaValues(
   if (matching.length > 0) {
     return;
   }
-  if (candidates.length > 1) {
-    throw new Error(`Compliance apply is ambiguous for ${schemaId}: multiple matching Apple profiles exist`);
-  }
-  if (candidates.length === 1) {
-    const onlyCandidate = candidates[0];
-    if (onlyCandidate === undefined) {
-      throw new Error(`Target Apple schema configuration is invalid for ${schemaId}`);
-    }
-    const candidate = configurations[onlyCandidate.reference.configurationIndex];
-    const candidateRecord = asRecord(candidate);
-    if (candidateRecord === undefined) {
-      throw new Error(`Target Apple schema configuration is invalid for ${schemaId}`);
-    }
+  const candidateRecord = singleApplyCandidate(configurations, candidates, schemaId, "Apple schema configuration", "multiple matching Apple profiles exist");
+  if (candidateRecord !== undefined) {
     const details = asRecord(candidateRecord.details) ?? {};
-    const mergedValues = mergeRecords(extractAppleSchemaValues(details, entry), values);
+    const mergedValues = deepMergePreservingExistingUuids(extractAppleSchemaValues(details, entry), values);
     candidateRecord.details = updateAppleSchemaProfileDetails(details, entry, mergedValues);
     return;
   }
@@ -473,25 +473,35 @@ function applyAppleCompatValues(configurations: JsonRecord[], payloadType: strin
   if (matching.length > 0) {
     return;
   }
-  if (candidates.length > 1) {
-    throw new Error(`Compliance apply is ambiguous for ${payloadType}: multiple matching Apple settings exist`);
-  }
-  if (candidates.length === 1) {
-    const onlyCandidate = candidates[0];
-    if (onlyCandidate === undefined) {
-      throw new Error(`Target Apple mobileconfig configuration is invalid for ${payloadType}`);
-    }
-    const candidate = configurations[onlyCandidate.reference.configurationIndex];
-    const candidateRecord = asRecord(candidate);
-    if (candidateRecord === undefined) {
-      throw new Error(`Target Apple mobileconfig configuration is invalid for ${payloadType}`);
-    }
+  const candidateRecord = singleApplyCandidate(configurations, candidates, payloadType, "Apple mobileconfig configuration", "multiple matching Apple settings exist");
+  if (candidateRecord !== undefined) {
     const details = asRecord(candidateRecord.details) ?? {};
-    const mergedValues = mergeRecords(extractAppleCompatValues(details, setting), values);
+    const mergedValues = deepMergePreservingExistingUuids(extractAppleCompatValues(details, setting), values);
     candidateRecord.details = updateAppleCompatDetails(details, setting.id, mergedValues);
     return;
   }
   configurations.push(createAppleCompatConfiguration(setting.id, values));
+}
+
+function singleApplyCandidate(
+  configurations: JsonRecord[],
+  candidates: Array<{ details: JsonRecord; reference: ComplianceConfigurationReference }>,
+  target: string,
+  targetLabel: string,
+  ambiguityReason: string,
+): JsonRecord | undefined {
+  if (candidates.length > 1) {
+    throw new Error(`Compliance apply is ambiguous for ${target}: ${ambiguityReason}`);
+  }
+  const onlyCandidate = candidates[0];
+  if (onlyCandidate === undefined) {
+    return undefined;
+  }
+  const candidateRecord = asRecord(configurations[onlyCandidate.reference.configurationIndex]);
+  if (candidateRecord === undefined) {
+    throw new Error(`Target ${targetLabel} is invalid for ${target}`);
+  }
+  return candidateRecord;
 }
 
 export function appliesToPolicy(

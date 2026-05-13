@@ -62,6 +62,23 @@
   min-width: 0;
 }
 
+.settings-key-badge {
+  flex: 0 0 auto;
+  border: 1px solid var(--ci-color-success-text, #1f6b3a);
+  border-radius: var(--ci-radius-control, 5px);
+  padding: 4px 7px;
+  color: var(--ci-color-success-text, #1f6b3a);
+  background: var(--ci-color-success-bg, #e7f6ec);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-key-badge--warn {
+  border-color: var(--ci-color-warning-text, #b45309);
+  color: var(--ci-color-warning-text, #b45309);
+  background: var(--ci-color-warning-bg, #fff7df);
+}
+
 .settings-import-group {
   margin-bottom: 12px;
 }

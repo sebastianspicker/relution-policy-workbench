@@ -180,3 +180,20 @@ test("updates report entries when policies are renamed, duplicated, and removed"
   removePolicyFromReport(report, policy.document);
   assert.deepEqual(report.policiesToExport, [duplicate.document.uuid]);
 });
+
+test("duplicates policies with circular nested references without recursing forever", () => {
+  const document: Record<string, unknown> = {
+    uuid: "POLICY-1",
+    name: "Original",
+    versions: [{ uuid: "VERSION-1", configurations: [] }],
+  };
+  document.self = document;
+
+  const duplicate = duplicatePolicy({
+    path: "policies/policy_POLICY-1.json",
+    document,
+  });
+
+  assert.notEqual(duplicate.document.uuid, "POLICY-1");
+  assert.equal(duplicate.document.name, "Original Copy");
+});

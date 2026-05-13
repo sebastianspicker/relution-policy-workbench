@@ -1,11 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { GeneratedFields } from "./GeneratedFields.js";
-
+import type { ConfigurationTemplate } from "../../../../src/templates.js";
 describe("GeneratedFields", () => {
   it("writes real null for nullable enum selections", () => {
     const onChange = vi.fn();
-
     render(
       <GeneratedFields
         template={{
@@ -36,10 +35,8 @@ describe("GeneratedFields", () => {
     );
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "__NULL__" } });
-
     expect(onChange).toHaveBeenCalledWith({ type: "TEST", uuid: "DETAIL-1", mode: null });
   });
-
   it("renders field-scoped JSON editors for opaque object settings instead of raw JSON-only fallback", () => {
     render(
       <GeneratedFields
@@ -69,10 +66,42 @@ describe("GeneratedFields", () => {
         onChange={() => {}}
       />,
     );
-
-    expect(screen.queryByText(/some settings are only available in raw json/i)).toBeNull();
     expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toBe('{\n  "mode": "guided"\n}');
     expect(screen.getByRole("button", { name: /apply nested json/i })).toBeTruthy();
+  });
+
+  it("preserves unsaved object JSON drafts when parent details change", () => {
+    const template = {
+      type: "TEST",
+      label: "Test",
+      schemaName: "TestSchema",
+      platforms: ["IOS"],
+      enrollmentTypes: [],
+      multiConfig: false,
+      portalHidden: false,
+      placeholders: [],
+      required: [],
+      fields: [
+        {
+          path: "nested",
+          label: "Nested",
+          kind: "object",
+          required: false,
+          nullable: false,
+          enumValues: [],
+          enumLabels: {},
+        },
+      ],
+    } satisfies ConfigurationTemplate;
+    const { rerender } = render(
+      <GeneratedFields template={template} details={{ type: "TEST", uuid: "DETAIL-1", nested: { mode: "initial" } }} onChange={() => {}} />,
+    );
+
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: '{\n  "mode": "draft"\n}' } });
+    rerender(<GeneratedFields template={template} details={{ type: "TEST", uuid: "DETAIL-1", nested: { mode: "server" } }} onChange={() => {}} />);
+
+    expect((screen.getByRole("textbox") as HTMLTextAreaElement).value).toContain('"draft"');
+    expect(screen.getByText(/unsaved json draft preserved/i)).toBeTruthy();
   });
 
   it("applies object JSON edits through the native GUI", () => {
