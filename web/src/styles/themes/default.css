@@ -45,7 +45,6 @@
   --z-dropdown: 100;
   --z-popover: 200;
   --z-modal: 500;
-  --z-toast: 1000;
 }
 
 :root[data-theme="custom"],
@@ -94,5 +93,4 @@
   --z-dropdown: 100;
   --z-popover: 200;
   --z-modal: 500;
-  --z-toast: 1000;
 }

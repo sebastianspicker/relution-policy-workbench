@@ -1,5 +1,6 @@
 import type { RecommendationRulesetMapping, RecommendationSettingBundle, RecommendationSettingBundleCatalog } from "./recommendation-types.js";
 import type { ComplianceConfigurationReference, JsonRecord } from "./compliance-types.js";
+import { asRecord } from "./utils/json-guards.js";
 
 export function mappingValuesMatch(mapping: RecommendationRulesetMapping, expectedValues: JsonRecord, actualValues: unknown): boolean {
   const constraints = mapping.constraints?.filter((constraint) => constraint.path.length > 0) ?? [];
@@ -132,12 +133,4 @@ export function uniqueConfigurationReferences(references: ComplianceConfiguratio
     byIndex.set(reference.configurationIndex, reference);
   }
   return [...byIndex.values()].sort((left, right) => left.configurationIndex - right.configurationIndex);
-}
-
-export function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))];
-}
-
-export function asRecord(value: unknown): JsonRecord | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonRecord : undefined;
 }

@@ -2,13 +2,16 @@ import { findAppleCompatSetting } from "../../../src/apple-compat.js";
 import type { AppleSchemaCatalog } from "../../../src/apple-schema.js";
 import type { EditorSidecarState } from "../../../src/sidecar.js";
 import type { PolicyWorkspace } from "../../../src/workspace.js";
+import { asRecord } from "../../../src/utils/json-guards.js";
 import type { AddSelection, AppState, JsonRecord, Selection } from "./types.js";
+
+export { asRecord };
 
 export const NATIVE_ADD_PREFIX = "native:";
 export const APPLE_COMPAT_ADD_PREFIX = "apple-compat:";
 export const APPLE_SCHEMA_ADD_PREFIX = "apple-profile:";
 export const CUSTOM_SETTINGS_ADD_VALUE = "custom-settings";
-const NETWORK_EDITOR_TOKEN_STORAGE_KEY = "relutionEditorToken";
+const NETWORK_EDITOR_TOKEN_STORAGE_NAME = "relutionEditorToken";
 
 export async function loadState(): Promise<AppState> {
   const response = await fetch("/api/state", { headers: networkEditorAuthHeaders() });
@@ -20,16 +23,28 @@ export async function loadState(): Promise<AppState> {
 }
 
 export async function postJson(url: string, body: unknown): Promise<Response> {
-  return await fetch(url, {
+  const fetchImpl = window.fetch.bind(window);
+  return await fetchImpl(editorApiUrl(url), {
     method: "POST",
     headers: { "content-type": "application/json", ...networkEditorAuthHeaders() },
     body: JSON.stringify(body),
   });
 }
 
+function editorApiUrl(url: string): URL {
+  if (typeof window === "undefined") {
+    throw new Error("Editor API requests require a browser window origin.");
+  }
+  const parsed = new URL(url, window.location.origin);
+  if (parsed.origin !== window.location.origin || !parsed.pathname.startsWith("/api/")) {
+    throw new Error(`Blocked editor API request outside same-origin /api/: ${url}`);
+  }
+  return parsed;
+}
+
 export function networkEditorAuthHeaders(): Record<string, string> {
   const token = networkEditorToken();
-  return token === undefined ? {} : { "x-relution-editor-token": token };
+  return typeof token === "undefined" ? {} : { "x-relution-editor-token": token };
 }
 
 function networkEditorToken(): string | undefined {
@@ -38,11 +53,11 @@ function networkEditorToken(): string | undefined {
   }
   const fragmentToken = tokenFromHash(window.location.hash);
   if (fragmentToken !== undefined) {
-    window.sessionStorage.setItem(NETWORK_EDITOR_TOKEN_STORAGE_KEY, fragmentToken);
+    window.sessionStorage.setItem(NETWORK_EDITOR_TOKEN_STORAGE_NAME, fragmentToken);
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     return fragmentToken;
   }
-  return window.sessionStorage.getItem(NETWORK_EDITOR_TOKEN_STORAGE_KEY) ?? undefined;
+  return window.sessionStorage.getItem(NETWORK_EDITOR_TOKEN_STORAGE_NAME) ?? undefined;
 }
 
 function tokenFromHash(hash: string): string | undefined {
@@ -60,8 +75,11 @@ function tokenFromHash(hash: string): string | undefined {
 
 export async function readJsonResponse<T>(response: Response): Promise<T> {
   const text = await response.text();
+  if (text.trim().length === 0) {
+    throw new Error(`Expected JSON from ${response.url}, got empty response`);
+  }
   try {
-    return JSON.parse(text.length === 0 ? "{}" : text) as T;
+    return JSON.parse(text) as T;
   } catch {
     const preview = text.slice(0, 160).replace(/\s+/gu, " ").trim();
     throw new Error(`Expected JSON from ${response.url}, got ${preview || "empty response"}`);
@@ -285,11 +303,14 @@ export function nextHeaderName(entries: Array<{ key: string; value: string }>): 
 export function getPath(record: JsonRecord, path: string): unknown {
   let cursor: unknown = record;
   for (const segment of path.split(".")) {
+    if (!isSafeObjectPathSegment(segment)) {
+      return undefined;
+    }
     const current = asRecord(cursor);
     if (current === undefined) {
       return undefined;
     }
-    cursor = current[segment];
+    cursor = Object.getOwnPropertyDescriptor(current, segment)?.value;
   }
   return cursor;
 }
@@ -298,16 +319,18 @@ export function setPath(record: JsonRecord, path: string, value: unknown): void 
   const segments = path.split(".");
   let cursor = record;
   for (const segment of segments.slice(0, -1)) {
-    const next = asRecord(cursor[segment]);
+    assertSafeObjectPathSegment(segment);
+    const next = asRecord(Object.getOwnPropertyDescriptor(cursor, segment)?.value);
     if (next === undefined) {
-      cursor[segment] = {};
-      cursor = cursor[segment] as JsonRecord;
+      Object.defineProperty(cursor, segment, { value: {}, enumerable: true, configurable: true, writable: true });
+      cursor = Object.getOwnPropertyDescriptor(cursor, segment)?.value as JsonRecord;
     } else {
       cursor = next;
     }
   }
   const last = segments.at(-1);
   if (last !== undefined) {
+    assertSafeObjectPathSegment(last);
     cursor[last] = value;
   }
 }
@@ -316,7 +339,10 @@ export function deletePath(record: JsonRecord, path: string): void {
   const segments = path.split(".");
   let cursor = record;
   for (const segment of segments.slice(0, -1)) {
-    const next = asRecord(cursor[segment]);
+    if (!isSafeObjectPathSegment(segment)) {
+      return;
+    }
+    const next = asRecord(Object.getOwnPropertyDescriptor(cursor, segment)?.value);
     if (next === undefined) {
       return;
     }
@@ -324,14 +350,19 @@ export function deletePath(record: JsonRecord, path: string): void {
   }
   const last = segments.at(-1);
   if (last !== undefined) {
+    if (!isSafeObjectPathSegment(last)) {
+      return;
+    }
     delete cursor[last];
   }
 }
 
-export function asRecord(value: unknown): JsonRecord | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as JsonRecord : undefined;
+function assertSafeObjectPathSegment(segment: string): void {
+  if (!isSafeObjectPathSegment(segment)) {
+    throw new Error(`Unsafe object path segment: ${segment}`);
+  }
 }
 
-export function cx(...classes: Array<string | false | undefined>): string {
-  return classes.filter((className): className is string => typeof className === "string" && className.length > 0).join(" ");
+function isSafeObjectPathSegment(segment: string): boolean {
+  return segment !== "__proto__" && segment !== "constructor" && segment !== "prototype";
 }

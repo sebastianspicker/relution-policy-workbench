@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Compare institution policy exports against generated baseline recommendations."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,11 +10,15 @@ import re
 from pathlib import Path
 from typing import Any
 
+from _build_relution_import_artifacts_modules.artifact_io import flatten_values
+
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_INSTITUTION_ROOT = REPO_ROOT / "example" / "sample-policy-docs"
 DEFAULT_OUTPUT_ROOT = REPO_ROOT / "example" / "institution-policy-comparison"
-BASELINE_TEMPLATE_INDEX_PATH = REPO_ROOT / "example" / "relution-baseline-templates" / "index.json"
+BASELINE_TEMPLATE_INDEX_PATH = (
+    REPO_ROOT / "example" / "relution-baseline-templates" / "index.json"
+)
 
 PLATFORMS = ("WINDOWS", "MACOS", "IOS", "ANDROID_ENTERPRISE")
 PLATFORM_SLUGS = {
@@ -28,40 +34,124 @@ INSTITUTION_POLICY_FILES = {
     "ANDROID_ENTERPRISE": "docs/managed-devices/05-policies-catalog/android-policies.md",
 }
 
-POLICY_ID_RE = re.compile(r"\b(?:WIN|MAC|IOS|AND)-[A-Z0-9]+(?:-[A-Z0-9]+)*-\d{3}\b")
-HEADING_RE = re.compile(r"^(#{2,4})\s+(.+)$", re.MULTILINE)
-CONTROL_RE = re.compile(r"\b(?:SYS(?:\.\d+)+\.A\d+|MDM(?:\.\d+){2,3})\b")
-POLICY_NAME_RE = re.compile(r"(?:Policy(?:-Name)?|Baseline|Overrides?|Policy)\s*:\s*`([^`]+)`", re.IGNORECASE)
-BACKTICK_POLICY_RE = re.compile(r"`((?:Institution|POL|Windows|MAC|IOS|AND)[^`]{2,120})`")
+POLICY_NAME_RE = re.compile(
+    r"(?:Policy(?:-Name)?|Baseline|Overrides?|Policy)\s*:\s*`([^`]+)`", re.IGNORECASE
+)
+BACKTICK_POLICY_RE = re.compile(
+    r"`((?:Institution|POL|Windows|MAC|IOS|AND)[^`]{2,120})`"
+)
 
 TARGET_KEYWORDS = {
-    "ANDROID_ENTERPRISE_ADVANCED_SECURITY_OVERRIDES": ("advanced security", "entwickler", "developer", "unknown sources", "integrität"),
-    "ANDROID_ENTERPRISE_DEVICE_PASSCODE": ("passcode", "passwort", "geräteentsperrung", "gerätesperre"),
+    "ANDROID_ENTERPRISE_ADVANCED_SECURITY_OVERRIDES": (
+        "advanced security",
+        "entwickler",
+        "developer",
+        "unknown sources",
+        "integrität",
+    ),
+    "ANDROID_ENTERPRISE_DEVICE_PASSCODE": (
+        "passcode",
+        "passwort",
+        "geräteentsperrung",
+        "gerätesperre",
+    ),
     "ANDROID_ENTERPRISE_DISPLAY": ("display", "lockscreen", "bildschirm"),
-    "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT": ("keyguard", "trust agents", "smart lock", "lockscreen"),
-    "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT": ("permissions", "berechtigung", "runtime permission"),
-    "ANDROID_ENTERPRISE_PLAY_STORE_MANAGEMENT": ("managed play", "play store", "app-management", "app auto update"),
-    "ANDROID_ENTERPRISE_RESTRICTION": ("restriction", "restriktion", "dlp", "schnittstellen", "kamera", "microphone", "mikrofon"),
+    "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT": (
+        "keyguard",
+        "trust agents",
+        "smart lock",
+        "lockscreen",
+    ),
+    "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT": (
+        "permissions",
+        "berechtigung",
+        "runtime permission",
+    ),
+    "ANDROID_ENTERPRISE_PLAY_STORE_MANAGEMENT": (
+        "managed play",
+        "play store",
+        "app-management",
+        "app auto update",
+    ),
+    "ANDROID_ENTERPRISE_RESTRICTION": (
+        "restriction",
+        "restriktion",
+        "dlp",
+        "schnittstellen",
+        "kamera",
+        "microphone",
+        "mikrofon",
+    ),
     "ANDROID_ENTERPRISE_SYSTEM_UPDATE": ("update", "patch", "freeze"),
     "ANDROID_ENTERPRISE_WORK_PROFILE_PASSCODE": ("work profile", "cope"),
     "IOS_PASSCODE": ("passcode", "geräteentsperrung", "password"),
-    "IOS_RESTRICTION": ("restriction", "restriktion", "icloud", "airdrop", "kamera", "siri", "managed"),
+    "IOS_RESTRICTION": (
+        "restriction",
+        "restriktion",
+        "icloud",
+        "airdrop",
+        "kamera",
+        "siri",
+        "managed",
+    ),
     "IOS_UPDATE": ("update", "patch", "software update"),
     "IOS_WIFI": ("wi-fi", "wifi", "wlan", "ssid"),
-    "APPLE_DEVICE_SETTINGS": ("activation lock", "branding", "lock screen", "lost mode"),
+    "APPLE_DEVICE_SETTINGS": (
+        "activation lock",
+        "branding",
+        "lock screen",
+        "lost mode",
+    ),
     "MACOS_FILE_VAULT": ("filevault", "encryption", "verschlüsselung"),
     "MACOS_FIREWALL": ("firewall",),
-    "MACOS_RESTRICTION": ("restriction", "restriktion", "icloud", "apple services", "siri"),
-    "MACOS_SYSTEM_POLICY_CONTROL": ("gatekeeper", "system policy", "security options", "extensions"),
+    "MACOS_RESTRICTION": (
+        "restriction",
+        "restriktion",
+        "icloud",
+        "apple services",
+        "siri",
+    ),
+    "MACOS_SYSTEM_POLICY_CONTROL": (
+        "gatekeeper",
+        "system policy",
+        "security options",
+        "extensions",
+    ),
     "APPLE_SOFTWARE_UPDATE_SETTINGS": ("update", "patch", "software update"),
-    "WINDOWS_ANTIVIRUS": ("defender", "antivirus", "malware", "asr", "network protection"),
+    "WINDOWS_ANTIVIRUS": (
+        "defender",
+        "antivirus",
+        "malware",
+        "asr",
+        "network protection",
+    ),
     "WINDOWS_BITLOCKER": ("bitlocker", "encryption", "verschlüsselung"),
-    "WINDOWS_CUSTOM_CSP": ("custom csp", "policy csp", "csp", "mdmwinsovergpo", "vbs", "credential guard", "lsa", "audit"),
+    "WINDOWS_CUSTOM_CSP": (
+        "custom csp",
+        "policy csp",
+        "csp",
+        "mdmwinsovergpo",
+        "vbs",
+        "credential guard",
+        "lsa",
+        "audit",
+    ),
     "WINDOWS_FIREWALL": ("firewall",),
     "WINDOWS_HELLO": ("hello", "biometric", "pin"),
-    "WINDOWS_LOCAL_DEVICE_SECURITY": ("local device security", "vbs", "secure boot", "dma"),
+    "WINDOWS_LOCAL_DEVICE_SECURITY": (
+        "local device security",
+        "vbs",
+        "secure boot",
+        "dma",
+    ),
     "WINDOWS_PASSCODE": ("passcode", "password", "kennwort"),
-    "WINDOWS_RESTRICTION": ("restriction", "restriktion", "smartscreen", "camera", "consumer features"),
+    "WINDOWS_RESTRICTION": (
+        "restriction",
+        "restriktion",
+        "smartscreen",
+        "camera",
+        "consumer features",
+    ),
     "WINDOWS_UPDATE": ("update", "wufb", "windows update", "patch"),
 }
 
@@ -101,8 +191,17 @@ CSP_GENERIC_TERMS = {
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Compare Institution managed-device policy docs with generated Relution baselines.")
-    parser.add_argument("--institution-root", type=Path, default=DEFAULT_INSTITUTION_ROOT)
+    """Run the policy-vs-baseline comparison CLI."""
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Compare Institution managed-device policy docs with generated Relution "
+            "baselines."
+        )
+    )
+    parser.add_argument(
+        "--institution-root", type=Path, default=DEFAULT_INSTITUTION_ROOT
+    )
     parser.add_argument("--output-root", type=Path, default=DEFAULT_OUTPUT_ROOT)
     args = parser.parse_args()
 
@@ -113,6 +212,8 @@ def main() -> None:
 
 
 def harvest_institution_policy_index(institution_root: Path) -> dict[str, Any]:
+    """Build a normalized index from institution managed-device policy docs."""
+
     policies = []
     for platform, relative_path in INSTITUTION_POLICY_FILES.items():
         path = institution_root / relative_path
@@ -126,47 +227,54 @@ def harvest_institution_policy_index(institution_root: Path) -> dict[str, Any]:
     }
 
 
-def harvest_policy_file(platform: str, path: Path, institution_root: Path) -> list[dict[str, Any]]:
+def harvest_policy_file(
+    platform: str, path: Path, institution_root: Path
+) -> list[dict[str, Any]]:
+    """Extract policy records from one platform Markdown catalog."""
+
     text = path.read_text(encoding="utf8")
     line_starts = line_start_offsets(text)
-    headings = [
-        {"level": len(match.group(1)), "title": match.group(2).strip(), "start": match.start(), "line": offset_to_line(line_starts, match.start())}
-        for match in HEADING_RE.finditer(text)
-    ]
+    headings = markdown_headings(text, line_starts)
     policies = []
     for index, heading in enumerate(headings):
-        policy_id_match = POLICY_ID_RE.search(heading["title"])
-        if policy_id_match is None:
+        policy_id = find_policy_id(heading["title"])
+        if policy_id is None:
             continue
         end = len(text)
-        for next_heading in headings[index + 1:]:
+        for next_heading in headings[index + 1 :]:
             if next_heading["level"] <= heading["level"]:
                 end = next_heading["start"]
                 break
-        block = text[heading["start"]:end]
+        block = text[heading["start"] : end]
         signal_text = extract_signal_text(block)
         policies.append(
             {
-                "id": policy_id_match.group(0),
+                "id": policy_id,
                 "platform": platform,
                 "title": heading["title"],
                 "sourcePath": path.relative_to(institution_root).as_posix(),
                 "lineStart": heading["line"],
                 "lineEnd": offset_to_line(line_starts, end),
                 "policyNames": extract_policy_names(block),
-                "controls": sorted(set(CONTROL_RE.findall(block))),
+                "controls": sorted(set(find_control_ids(block))),
                 "relutionTargets": infer_targets(platform, signal_text),
                 "matchText": normalize_text(signal_text),
                 "matchTerms": sorted(set(identifier_tokens(signal_text))),
                 "settings": infer_setting_values(signal_text),
-                "status": "planned" if "PLANNED/Target" in block or "planned" in block.lower() else "unknown",
-                "excerpt": one_line(block.splitlines()[0] if block.splitlines() else heading["title"]),
+                "status": "planned"
+                if "PLANNED/Target" in block or "planned" in block.lower()
+                else "unknown",
+                "excerpt": one_line(
+                    block.splitlines()[0] if block.splitlines() else heading["title"]
+                ),
             }
         )
     return policies
 
 
 def harvest_relution_baseline_index(index_path: Path) -> dict[str, Any]:
+    """Build a normalized index of actionable generated baseline targets."""
+
     template_index = read_json(index_path)
     actionable_targets = []
     suppressed_conflicts = []
@@ -176,7 +284,9 @@ def harvest_relution_baseline_index(index_path: Path) -> dict[str, Any]:
         for policy in ruleset.get("policies", []):
             for rule in policy.get("rules", []):
                 if rule.get("conflict") is not None:
-                    suppressed_conflicts.append({"platform": platform, **rule["conflict"]})
+                    suppressed_conflicts.append(
+                        {"platform": platform, **rule["conflict"]}
+                    )
                 if not is_actionable(rule):
                     continue
                 for mapping in rule.get("mappings", []):
@@ -190,10 +300,21 @@ def harvest_relution_baseline_index(index_path: Path) -> dict[str, Any]:
                             "title": rule["title"],
                             "kind": mapping.get("kind"),
                             "target": target,
-                            "targetName": mapping.get("values", {}).get("name") if isinstance(mapping.get("values"), dict) else None,
-                            "fieldPaths": sorted(path_to_string(path) for path in flatten_values(mapping.get("values", {}))),
+                            "targetName": mapping.get("values", {}).get("name")
+                            if isinstance(mapping.get("values"), dict)
+                            else None,
+                            "fieldPaths": sorted(
+                                path_to_string(path)
+                                for path in flatten_values(mapping.get("values", {}))
+                            ),
                             "values": mapping.get("values", {}),
-                            "sources": sorted({source_rule.get("source") for source_rule in rule.get("sourceRules", []) if source_rule.get("source")}),
+                            "sources": sorted(
+                                {
+                                    source_rule.get("source")
+                                    for source_rule in rule.get("sourceRules", [])
+                                    if source_rule.get("source")
+                                }
+                            ),
                             "sourceRules": rule.get("sourceRules", []),
                         }
                     )
@@ -208,7 +329,11 @@ def harvest_relution_baseline_index(index_path: Path) -> dict[str, Any]:
     }
 
 
-def compare_indexes(institution_index: dict[str, Any], baseline_index: dict[str, Any]) -> dict[str, Any]:
+def compare_indexes(
+    institution_index: dict[str, Any], baseline_index: dict[str, Any]
+) -> dict[str, Any]:
+    """Compare institution policy records with generated baseline targets."""
+
     results = []
     matched_baseline_ids = set()
     targets_by_platform = defaultdict(list)
@@ -217,7 +342,11 @@ def compare_indexes(institution_index: dict[str, Any], baseline_index: dict[str,
 
     for policy in institution_index["policies"]:
         candidates = targets_by_platform[policy["platform"]]
-        target_matches = [target for target in candidates if baseline_target_matches_policy(policy, target)]
+        target_matches = [
+            target
+            for target in candidates
+            if baseline_target_matches_policy(policy, target)
+        ]
         conflicts = [conflict_for(policy, target) for target in target_matches]
         conflicts = [conflict for conflict in conflicts if conflict is not None]
         for target in target_matches:
@@ -249,11 +378,24 @@ def compare_indexes(institution_index: dict[str, Any], baseline_index: dict[str,
         "name": "Institution Policy Catalog vs Generated Relution Baseline",
         "generatedAt": baseline_index.get("generatedAt"),
         "inputs": {
-            "institutionPolicyIndexPath": "example/institution-policy-comparison/institution-policy-index.json",
-            "relutionBaselineIndexPath": "example/institution-policy-comparison/relution-baseline-index.json",
+            "institutionPolicyIndexPath": (
+                "example/institution-policy-comparison/institution-policy-index.json"
+            ),
+            "relutionBaselineIndexPath": (
+                "example/institution-policy-comparison/relution-baseline-index.json"
+            ),
         },
-        "policyResults": sorted(results, key=lambda row: (platform_rank(row["platform"]), row["policyId"])),
-        "baselineMissingInInstitution": sorted(missing, key=lambda row: (platform_rank(row["platform"]), row["target"], row["ruleId"])),
+        "policyResults": sorted(
+            results, key=lambda row: (platform_rank(row["platform"]), row["policyId"])
+        ),
+        "baselineMissingInInstitution": sorted(
+            missing,
+            key=lambda row: (
+                platform_rank(row["platform"]),
+                row["target"],
+                row["ruleId"],
+            ),
+        ),
         "suppressedBaselineConflicts": baseline_index["suppressedConflicts"],
         "summary": {
             "institutionPolicies": len(results),
@@ -265,7 +407,13 @@ def compare_indexes(institution_index: dict[str, Any], baseline_index: dict[str,
     }
 
 
-def comparison_status(policy: dict[str, Any], matches: list[dict[str, Any]], conflicts: list[dict[str, Any]]) -> str:
+def comparison_status(
+    policy: dict[str, Any],
+    matches: list[dict[str, Any]],
+    conflicts: list[dict[str, Any]],
+) -> str:
+    """Classify one institution policy comparison result."""
+
     if conflicts:
         return "conflict"
     if matches:
@@ -275,7 +423,11 @@ def comparison_status(policy: dict[str, Any], matches: list[dict[str, Any]], con
     return "institution-only"
 
 
-def conflict_for(policy: dict[str, Any], target: dict[str, Any]) -> dict[str, Any] | None:
+def conflict_for(
+    policy: dict[str, Any], target: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Return value-level differences when an institution policy conflicts."""
+
     policy_values = policy["settings"].get(target["target"], {})
     if not isinstance(policy_values, dict) or not policy_values:
         return None
@@ -287,13 +439,23 @@ def conflict_for(policy: dict[str, Any], target: dict[str, Any]) -> dict[str, An
             continue
         observed = baseline_values[path_tuple]
         if stable_json(observed) != stable_json(expected):
-            conflicts.append({"path": path, "institutionValue": expected, "baselineValue": observed})
+            conflicts.append(
+                {"path": path, "institutionValue": expected, "baselineValue": observed}
+            )
     if not conflicts:
         return None
-    return {"target": target["target"], "ruleId": target["ruleId"], "differences": conflicts}
+    return {
+        "target": target["target"],
+        "ruleId": target["ruleId"],
+        "differences": conflicts,
+    }
 
 
-def baseline_target_matches_policy(policy: dict[str, Any], target: dict[str, Any]) -> bool:
+def baseline_target_matches_policy(
+    policy: dict[str, Any], target: dict[str, Any]
+) -> bool:
+    """Check whether a baseline target is represented by an institution policy."""
+
     if target["target"] not in policy["relutionTargets"]:
         return False
     if target["target"] != "WINDOWS_CUSTOM_CSP":
@@ -312,6 +474,8 @@ def baseline_target_matches_policy(policy: dict[str, Any], target: dict[str, Any
 
 
 def infer_targets(platform: str, block: str) -> list[str]:
+    """Infer likely Relution targets from policy text and platform keywords."""
+
     haystack = normalize_text(block)
     targets = []
     for target, keywords in TARGET_KEYWORDS.items():
@@ -323,23 +487,130 @@ def infer_targets(platform: str, block: str) -> list[str]:
 
 
 def extract_signal_text(block: str) -> str:
+    """Keep the policy section text that is useful for target matching."""
+
     lines = []
     for line in block.splitlines():
-        if re.match(r"^#{3,4}\s+(?:Nebenwirkungen|Voraussetzungen|Verifikation|Rollback|Quellen|Controls-Mapping)", line):
+        if re.match(
+            (
+                "^#{3,4}\\s+(?:Nebenwirkungen|Voraussetzungen|Verifikation|Rollback|Quellen|Cont"
+                "rols-Mapping)"
+            ),
+            line,
+        ):
             break
         lines.append(line)
     return "\n".join(lines)
 
 
+def markdown_headings(text: str, line_starts: list[int]) -> list[dict[str, Any]]:
+    """Extract level 2-4 Markdown headings with byte offsets and line numbers."""
+
+    headings = []
+    offset = 0
+    for line in text.splitlines(keepends=True):
+        stripped = line.rstrip("\r\n")
+        marker_length = len(stripped) - len(stripped.lstrip("#"))
+        if (
+            2 <= marker_length <= 4
+            and stripped[marker_length : marker_length + 1].isspace()
+        ):
+            headings.append(
+                {
+                    "level": marker_length,
+                    "title": stripped[marker_length:].strip(),
+                    "start": offset,
+                    "line": offset_to_line(line_starts, offset),
+                }
+            )
+        offset += len(line)
+    return headings
+
+
+def find_policy_id(text: str) -> str | None:
+    """Return the first institution policy id embedded in heading text."""
+
+    for token in identifier_like_tokens(text):
+        if is_policy_id(token):
+            return token
+    return None
+
+
+def find_control_ids(text: str) -> list[str]:
+    """Return BSI/MDM control ids mentioned in text."""
+
+    return [token for token in identifier_like_tokens(text) if is_control_id(token)]
+
+
+def identifier_like_tokens(text: str) -> list[str]:
+    """Extract alphanumeric identifier-like tokens while keeping dots and dashes."""
+
+    tokens: list[str] = []
+    current: list[str] = []
+    allowed_extra = {".", "-"}
+    for char in text:
+        if char.isalnum() or char in allowed_extra:
+            current.append(char)
+            continue
+        if current:
+            tokens.append("".join(current))
+            current = []
+    if current:
+        tokens.append("".join(current))
+    return tokens
+
+
+def is_policy_id(value: str) -> bool:
+    """Check the institution policy id format."""
+
+    parts = value.split("-")
+    if (
+        len(parts) < 3
+        or parts[0] not in {"WIN", "MAC", "IOS", "AND"}
+        or len(parts[-1]) != 3
+        or not parts[-1].isdigit()
+    ):
+        return False
+    return all(part.isalnum() and part.upper() == part for part in parts[1:-1])
+
+
+def is_control_id(value: str) -> bool:
+    """Check supported BSI SYS and MDM control id formats."""
+
+    if value.startswith("SYS."):
+        prefix, separator, requirement = value.rpartition(".A")
+        return (
+            separator != ""
+            and requirement.isdigit()
+            and all(part.isdigit() for part in prefix.removeprefix("SYS.").split("."))
+        )
+    if value.startswith("MDM."):
+        parts = value.removeprefix("MDM.").split(".")
+        return 2 <= len(parts) <= 3 and all(part.isdigit() for part in parts)
+    return False
+
+
 def infer_setting_values(block: str) -> dict[str, dict[str, Any]]:
+    """Infer simple setting values that can be compared against baselines."""
+
     values: dict[str, dict[str, Any]] = {}
-    min_length = first_int(block, r"Minimum (?:passcode|password) length\s*\|\s*(?:\*\*)?(\d+)")
+    min_length = first_int(
+        block, r"Minimum (?:passcode|password) length\s*\|\s*(?:\*\*)?(\d+)"
+    )
     if min_length is not None:
-        for target in ("IOS_PASSCODE", "WINDOWS_PASSCODE", "ANDROID_ENTERPRISE_DEVICE_PASSCODE"):
+        for target in (
+            "IOS_PASSCODE",
+            "WINDOWS_PASSCODE",
+            "ANDROID_ENTERPRISE_DEVICE_PASSCODE",
+        ):
             values.setdefault(target, {})["minLength"] = min_length
     history = first_int(block, r"Passcode history\s*\|\s*(?:\*\*)?(\d+)")
     if history is not None:
-        for target in ("IOS_PASSCODE", "WINDOWS_PASSCODE", "ANDROID_ENTERPRISE_DEVICE_PASSCODE"):
+        for target in (
+            "IOS_PASSCODE",
+            "WINDOWS_PASSCODE",
+            "ANDROID_ENTERPRISE_DEVICE_PASSCODE",
+        ):
             values.setdefault(target, {})["history"] = history
     if "FileVault" in block:
         values.setdefault("MACOS_FILE_VAULT", {})["enabled"] = True
@@ -348,15 +619,26 @@ def infer_setting_values(block: str) -> dict[str, dict[str, Any]]:
     return values
 
 
-def write_outputs(output_root: Path, institution_index: dict[str, Any], baseline_index: dict[str, Any], comparison: dict[str, Any]) -> None:
+def write_outputs(
+    output_root: Path,
+    institution_index: dict[str, Any],
+    baseline_index: dict[str, Any],
+    comparison: dict[str, Any],
+) -> None:
+    """Write comparison JSON artifacts and Markdown summary."""
+
     output_root.mkdir(parents=True, exist_ok=True)
     write_json(output_root / "institution-policy-index.json", institution_index)
     write_json(output_root / "relution-baseline-index.json", baseline_index)
     write_json(output_root / "institution-vs-relution-baseline.json", comparison)
-    (output_root / "institution-vs-relution-baseline.md").write_text(render_markdown(comparison), encoding="utf8")
+    (output_root / "institution-vs-relution-baseline.md").write_text(
+        render_markdown(comparison), encoding="utf8"
+    )
 
 
 def render_markdown(comparison: dict[str, Any]) -> str:
+    """Render a compact human-readable comparison summary."""
+
     lines = [
         "# Institution Policy Catalog vs Generated Relution Baseline",
         "",
@@ -365,49 +647,79 @@ def render_markdown(comparison: dict[str, Any]) -> str:
         "## Summary",
         "",
         f"- Institution policies indexed: `{comparison['summary']['institutionPolicies']}`",
-        f"- Generated actionable baseline targets: `{comparison['summary']['baselineActionableTargets']}`",
-        f"- Baseline targets missing in institution catalog: `{comparison['summary']['baselineMissingInInstitution']}`",
+        "- Generated actionable baseline targets: "
+        f"`{comparison['summary']['baselineActionableTargets']}`",
+        "- Baseline targets missing in institution catalog: "
+        f"`{comparison['summary']['baselineMissingInInstitution']}`",
         f"- Policy status counts: `{stable_json(comparison['summary']['statusCounts'])}`",
         "",
         "## Platform Results",
         "",
     ]
     for platform in PLATFORMS:
-        platform_results = [row for row in comparison["policyResults"] if row["platform"] == platform]
-        missing = [row for row in comparison["baselineMissingInInstitution"] if row["platform"] == platform]
+        platform_results = [
+            row for row in comparison["policyResults"] if row["platform"] == platform
+        ]
+        missing = [
+            row
+            for row in comparison["baselineMissingInInstitution"]
+            if row["platform"] == platform
+        ]
         lines.append(f"### {platform}")
         lines.append("")
         lines.append(f"- Institution policies: `{len(platform_results)}`")
         lines.append(f"- Missing generated actionable targets: `{len(missing)}`")
         for result in platform_results[:25]:
+            matched_target_summary = (
+                ", ".join(target["target"] for target in result["matchedTargets"][:4])
+                or "no actionable target match"
+            )
             lines.append(
                 f"- `{result['status']}` `{result['policyId']}`: "
-                f"{', '.join(target['target'] for target in result['matchedTargets'][:4]) or 'no actionable target match'}"
+                f"{matched_target_summary}"
             )
         if len(platform_results) > 25:
-            lines.append(f"- ... `{len(platform_results) - 25}` more Institution policies in JSON report.")
+            lines.append(
+                f"- ... `{len(platform_results) - 25}` more Institution policies in JSON report."
+            )
         if missing:
             lines.append("")
             lines.append("Missing generated actionable targets:")
             for target in missing[:20]:
                 lines.append(f"- `{target['target']}` via `{target['ruleId']}`")
             if len(missing) > 20:
-                lines.append(f"- ... `{len(missing) - 20}` more missing targets in JSON report.")
+                lines.append(
+                    f"- ... `{len(missing) - 20}` more missing targets in JSON report."
+                )
         lines.append("")
     return "\n".join(lines)
 
 
 def extract_policy_names(block: str) -> list[str]:
+    """Extract referenced policy names from a policy block."""
+
     names = [match.strip() for match in POLICY_NAME_RE.findall(block)]
-    names.extend(match.strip() for match in BACKTICK_POLICY_RE.findall(block) if " " not in match[:12])
+    names.extend(
+        match.strip()
+        for match in BACKTICK_POLICY_RE.findall(block)
+        if " " not in match[:12]
+    )
     return sorted(set(names))
 
 
 def is_actionable(rule: dict[str, Any]) -> bool:
-    return rule.get("informational") is not True and isinstance(rule.get("mappings"), list) and len(rule["mappings"]) > 0
+    """Return true for baseline rules that carry concrete mappings."""
+
+    return (
+        rule.get("informational") is not True
+        and isinstance(rule.get("mappings"), list)
+        and len(rule["mappings"]) > 0
+    )
 
 
 def mapping_target(mapping: dict[str, Any]) -> str | None:
+    """Return the target identifier from any supported mapping shape."""
+
     for key in ("type", "payloadType", "schemaId"):
         if isinstance(mapping.get(key), str):
             return mapping[key]
@@ -415,6 +727,8 @@ def mapping_target(mapping: dict[str, Any]) -> str | None:
 
 
 def target_platform(target: str) -> str:
+    """Infer the logical platform represented by a mapping target id."""
+
     if target.startswith("WINDOWS_"):
         return "WINDOWS"
     if target.startswith("MACOS_") or target in {"APPLE_SOFTWARE_UPDATE_SETTINGS"}:
@@ -426,60 +740,70 @@ def target_platform(target: str) -> str:
     return ""
 
 
-def flatten_values(value: Any, prefix: tuple[str, ...] = ()) -> dict[tuple[str, ...], Any]:
-    if not isinstance(value, dict):
-        return {prefix: value}
-    flattened = {}
-    for key in sorted(value):
-        child = value[key]
-        child_prefix = prefix + (str(key),)
-        if isinstance(child, dict):
-            flattened.update(flatten_values(child, child_prefix))
-        else:
-            flattened[child_prefix] = child
-    return flattened
-
-
 def summarize_by_platform(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    """Count records overall and by platform."""
+
     by_platform = Counter(row["platform"] for row in rows)
     return {"total": len(rows), "byPlatform": dict(sorted(by_platform.items()))}
 
 
-def comparison_summary_by_platform(results: list[dict[str, Any]], missing: list[dict[str, Any]]) -> dict[str, Any]:
+def comparison_summary_by_platform(
+    results: list[dict[str, Any]], missing: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Summarize comparison statuses and missing targets per platform."""
+
     summary = {}
     for platform in PLATFORMS:
         platform_results = [row for row in results if row["platform"] == platform]
         summary[platform] = {
             "institutionPolicies": len(platform_results),
-            "statusCounts": dict(sorted(Counter(row["status"] for row in platform_results).items())),
-            "baselineMissingInInstitution": len([row for row in missing if row["platform"] == platform]),
+            "statusCounts": dict(
+                sorted(Counter(row["status"] for row in platform_results).items())
+            ),
+            "baselineMissingInInstitution": len(
+                [row for row in missing if row["platform"] == platform]
+            ),
         }
     return summary
 
 
 def first_int(text: str, pattern: str) -> int | None:
+    """Return the first captured integer for a regex pattern."""
+
     match = re.search(pattern, text, re.IGNORECASE)
     return int(match.group(1)) if match else None
 
 
 def normalize_text(value: str) -> str:
+    """Normalize text just enough for keyword containment matching."""
+
     return value.lower().replace("‑", "-").replace("–", "-")
 
 
 def identifier_tokens(value: str) -> list[str]:
+    """Split identifier-like text into lowercase tokens for matching."""
+
     spaced = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", value)
-    return [token.lower() for token in re.split(r"[^A-Za-z0-9]+", spaced) if len(token) >= 3]
+    return [
+        token.lower() for token in re.split(r"[^A-Za-z0-9]+", spaced) if len(token) >= 3
+    ]
 
 
 def one_line(value: str) -> str:
+    """Collapse whitespace for short report excerpts."""
+
     return re.sub(r"\s+", " ", value).strip()
 
 
 def path_to_string(path: tuple[str, ...]) -> str:
+    """Render a flattened value path as dotted text."""
+
     return ".".join(path)
 
 
 def line_start_offsets(text: str) -> list[int]:
+    """Return offsets for the start of each line."""
+
     offsets = [0]
     for match in re.finditer(r"\n", text):
         offsets.append(match.end())
@@ -487,6 +811,8 @@ def line_start_offsets(text: str) -> list[int]:
 
 
 def offset_to_line(offsets: list[int], offset: int) -> int:
+    """Map a text offset to a one-based line number."""
+
     line = 1
     for index, start in enumerate(offsets, start=1):
         if start > offset:
@@ -496,19 +822,29 @@ def offset_to_line(offsets: list[int], offset: int) -> int:
 
 
 def platform_rank(platform: str) -> int:
+    """Return stable sort order for known platforms."""
+
     return PLATFORMS.index(platform) if platform in PLATFORMS else 99
 
 
 def stable_json(value: Any) -> str:
+    """Serialize values deterministically for conflict comparison."""
+
     return json.dumps(value, ensure_ascii=False, sort_keys=True)
 
 
 def read_json(path: Path) -> Any:
+    """Read a UTF-8 JSON artifact from disk."""
+
     return json.loads(path.read_text(encoding="utf8"))
 
 
 def write_json(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
+    """Write a deterministic UTF-8 JSON artifact."""
+
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf8"
+    )
 
 
 if __name__ == "__main__":

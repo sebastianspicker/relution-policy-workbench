@@ -11,7 +11,7 @@ import {
   validateWorkspace,
   type WorkspaceValidationError,
 } from "./workspace.js";
-import { asOptionalRecord } from "./utils/json-guards.js";
+import { asRecord } from "./utils/json-guards.js";
 
 export interface AuditOptions {
   bundle: RelutionTemplateBundle;
@@ -29,7 +29,7 @@ export interface RelutionAuditReport {
   server: {
     version: string;
     sourceImage: string;
-    sourceImageDigest: string;
+    sourceImageDigest?: string;
     bundleGeneratedAt: string;
   };
   summary: {
@@ -137,7 +137,7 @@ export function createRelutionAuditReport(options: AuditOptions): RelutionAuditR
     server: {
       version: options.bundle.serverVersion,
       sourceImage: options.bundle.sourceImage,
-      sourceImageDigest: options.bundle.sourceImageDigest,
+      ...(options.bundle.sourceImageDigest === undefined ? {} : { sourceImageDigest: options.bundle.sourceImageDigest }),
       bundleGeneratedAt: options.bundle.generatedAt,
     },
     summary: {
@@ -327,8 +327,16 @@ function parseAuditJsonFile(path: string): unknown {
 }
 
 function auditSampleExport(bundle: RelutionTemplateBundle, sampleRexp: string, key: string): SampleExportAudit {
-  const root = mkdtempSync(join(tmpdir(), "relution-sample-audit-"));
   const verifyOk = verifyRexp(sampleRexp, key).ok;
+  if (!verifyOk) {
+    return {
+      path: sampleRexp,
+      verifyOk,
+      validationOk: false,
+      validationErrors: [],
+    };
+  }
+  const root = mkdtempSync(join(tmpdir(), "relution-sample-audit-"));
   extractRexp(sampleRexp, root, key, { force: true, pretty: true });
   const validation = validateWorkspace(loadWorkspace(root), bundle);
   return {
@@ -352,13 +360,13 @@ function requiredPolicyPath(workspace: { policies: Array<{ path: string }> }): s
 }
 
 function extractedDetailsType(value: unknown): string | undefined {
-  const record = asOptionalRecord(value);
+  const record = asRecord(value);
   if (record === undefined) return undefined;
   const versions = Array.isArray(record.versions) ? record.versions : [];
-  const firstVersion = asOptionalRecord(versions[0]);
+  const firstVersion = asRecord(versions[0]);
   const configurations = Array.isArray(firstVersion?.configurations) ? firstVersion.configurations : [];
-  const firstConfiguration = asOptionalRecord(configurations[0]);
-  const details = asOptionalRecord(firstConfiguration?.details);
+  const firstConfiguration = asRecord(configurations[0]);
+  const details = asRecord(firstConfiguration?.details);
   const type = details?.type;
   return typeof type === "string" ? type : undefined;
 }

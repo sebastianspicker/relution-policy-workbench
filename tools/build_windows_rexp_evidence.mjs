@@ -1,11 +1,21 @@
 #!/usr/bin/env node
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants as fsConstants,
+  fstatSync,
+  mkdtempSync,
+  opendirSync,
+  openSync,
+  readSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { extractRexp } from "../dist/src/rexp.js";
 
 const PASSWORD = process.env.RELUTION_REXP_KEY ?? "Relution";
 const OUTPUT_PATH = "example/vendor-references/downloads/derived/windows-relution-csp-evidence.json";
+const MAX_POLICY_JSON_BYTES = 10 * 1024 * 1024;
 const INPUTS = [
   "example/Windows Group Policy Definitions.rexp",
   "example/Windows Policies Win11 24H2.rexp",
@@ -20,8 +30,8 @@ for (const sourceFile of INPUTS) {
   const extractDir = mkdtempSync(join(tmpdir(), "relution-windows-rexp-"));
   extractRexp(resolve(sourceFile), extractDir, PASSWORD, { force: true, pretty: true });
   const policyDir = join(extractDir, "policies");
-  for (const policyFile of readdirSync(policyDir).filter((entry) => entry.endsWith(".json")).sort()) {
-    const policy = JSON.parse(readFileSync(join(policyDir, policyFile), "utf8"));
+  for (const policyFile of listDirectoryNames(policyDir).filter((entry) => entry.endsWith(".json")).sort()) {
+    const policy = JSON.parse(readUtf8File(join(policyDir, policyFile)));
     const configurations = policy.versions?.flatMap((version) => version.configurations ?? []) ?? [];
     sourceFiles.push({
       path: sourceFile,
@@ -77,12 +87,85 @@ function parseSyncMl(syncMl) {
   return {
     locUri,
     data,
-    state: data.includes("<enabled/>") ? "enabled" : data.includes("<disabled/>") ? "disabled" : "unknown",
+    state: syncMlState(data),
     dataValues: [...data.matchAll(/<data\s+id="([^"]+)"\s+value="([^"]*)"\s*\/>/gsu)].map((match) => ({
       id: decodeXmlEntities(match[1] ?? ""),
       value: decodeXmlEntities(match[2] ?? ""),
     })),
   };
+}
+
+function syncMlState(data) {
+  if (hasXmlEmptyTag(data, "enabled")) {
+    return "enabled";
+  }
+  if (hasXmlEmptyTag(data, "disabled")) {
+    return "disabled";
+  }
+  return "unknown";
+}
+
+function hasXmlEmptyTag(value, tagName) {
+  let cursor = 0;
+  while (cursor < value.length) {
+    const start = value.indexOf("<", cursor);
+    if (start === -1) {
+      return false;
+    }
+    const end = value.indexOf(">", start + 1);
+    if (end === -1) {
+      return false;
+    }
+    const tag = value.slice(start + 1, end).trim();
+    if (tag === `${tagName}/` || tag === `${tagName} /`) {
+      return true;
+    }
+    cursor = end + 1;
+  }
+  return false;
+}
+
+function readUtf8File(path) {
+  const fd = openSync(resolve(path), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`Not a regular file: ${path}`);
+    }
+    if (stat.size > MAX_POLICY_JSON_BYTES) {
+      throw new Error(`Policy JSON is too large: ${path}`);
+    }
+    const data = Buffer.alloc(stat.size);
+    let offset = 0;
+    while (offset < data.length) {
+      const bytesRead = readSync(fd, data, offset, data.length - offset, offset);
+      if (bytesRead === 0) {
+        break;
+      }
+      offset += bytesRead;
+    }
+    if (offset !== data.length) {
+      throw new Error(`Policy JSON changed while reading: ${path}`);
+    }
+    return data.toString("utf8");
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function listDirectoryNames(path) {
+  const dir = opendirSync(resolve(path));
+  const names = [];
+  try {
+    let entry = dir.readSync();
+    while (entry !== null) {
+      names.push(entry.name);
+      entry = dir.readSync();
+    }
+  } finally {
+    dir.closeSync();
+  }
+  return names;
 }
 
 function firstMatch(value, pattern) {

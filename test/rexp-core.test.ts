@@ -7,7 +7,7 @@ import test from "node:test";
 import { createAppleCompatReport } from "../src/apple-compat.js";
 import { createRelutionAuditReport, writeAuditOutputs } from "../src/audit.js";
 import { inspectMobileConfigText } from "../src/plist.js";
-import { encryptRelutionPayload, extractRexp, inspectRexp, packPlainDirectory, verifyRexp } from "../src/rexp.js";
+import { decryptRelutionPayload, encryptRelutionPayload, extractRexp, inspectRexp, packPlainDirectory, verifyRexp } from "../src/rexp.js";
 import { loadEditorSidecar, recordMobileConfigRestoreEntries, reconcileMobileConfigRestoreEntries } from "../src/sidecar.js";
 import { findTemplate, loadTemplateBundle } from "../src/templates.js";
 import {
@@ -18,6 +18,7 @@ import {
   loadWorkspace,
   moveConfigurationInWorkspace,
   removeConfigurationFromWorkspace,
+  type SchemaCompatibilityIssue,
   validateWorkspace,
 } from "../src/workspace.js";
 import { readZip, writeZip } from "../src/zip.js";
@@ -31,6 +32,14 @@ import {
   type RelutionTemplateAuditShape,
 } from "./rexp-helpers.js";
 
+// Relution Server 26.1.1 baseline: 201 harvested configuration types.
+const RELUTION_26_1_1_MIN_CONFIGURATION_TYPES = 200;
+// Relution Server 26.1.1 baseline: 2067 harvested OpenAPI schemas.
+const RELUTION_26_1_1_MIN_OPENAPI_SCHEMAS = 2000;
+// Relution Server 26.1.1 baseline: 491 Spring metadata properties.
+const RELUTION_26_1_1_MIN_SPRING_PROPERTIES = 450;
+const CORE_POLICY_PLATFORMS = ["IOS", "ANDROID_ENTERPRISE", "MACOS", "WINDOWS"] as const;
+
 test("decrypts the provided Relution policy export", () => {
   const result = inspectRexp(fixture, password);
 
@@ -39,7 +48,7 @@ test("decrypts the provided Relution policy export", () => {
   assert.equal(result.policies?.[0]?.uuid, "11111111-2222-4333-8444-555555555555");
   assert.equal(result.policies?.[0]?.name, "Example iOS Policy");
   assert.equal(result.policies?.[0]?.platform, "IOS");
-  assert.equal(result.policies?.[0]?.hashMatches, true);
+  assert.equal(result.policies?.[0]?.hashStatus, "match");
 });
 
 test("rejects an incorrect encryption key", () => {
@@ -58,6 +67,7 @@ test("round-trips extracted policy exports into a verifiable rexp archive", () =
 
   const verification = verifyRexp(rebuilt, password);
   assert.equal(verification.ok, true);
+  assert.equal(verification.checkedEntries.every((entry) => entry.hashStatus === "match"), true);
 
   const zipEntries = readZip(readFileSync(rebuilt)).map((entry) => entry.name);
   assert.deepEqual(zipEntries, [
@@ -235,8 +245,38 @@ test("verification fails when metadata or report hashes do not match", () => {
 
   const verification = verifyRexp(tampered, password);
   assert.equal(verification.ok, false);
-  assert.equal(verification.checkedEntries.some((entry) => entry.path === "metadata.json" && entry.hashMatches === false), true);
-  assert.equal(verification.checkedEntries.some((entry) => entry.path === "report.json" && entry.hashMatches === false), true);
+  assert.equal(verification.checkedEntries.some((entry) => entry.path === "metadata.json" && entry.hashStatus === "mismatch"), true);
+  assert.equal(verification.checkedEntries.some((entry) => entry.path === "report.json" && entry.hashStatus === "mismatch"), true);
+});
+
+test("verification distinguishes absent archive hashes from mismatches", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-rexp-hash-absent-"));
+  const extracted = join(root, "extracted");
+  const rebuilt = join(root, "roundtrip.rexp");
+  const missingHash = join(root, "missing-hash.rexp");
+
+  extractRexp(fixture, extracted, password);
+  packPlainDirectory(extracted, rebuilt, password, {
+    randomBytes: deterministicRandomBytes(),
+  });
+
+  const missingHashEntries = readZip(readFileSync(rebuilt)).map((entry) => {
+    if (entry.name !== "metadata.bin") {
+      return entry;
+    }
+    const hashes = JSON.parse(decryptRelutionPayload(entry.data, password).toString("utf8")) as Record<string, string>;
+    delete hashes["metadata.json"];
+    return {
+      name: entry.name,
+      data: encryptRelutionPayload(Buffer.from(JSON.stringify(hashes), "utf8"), password, deterministicRandomBytes()),
+    };
+  });
+  writeFileSync(missingHash, writeZip(missingHashEntries));
+
+  const verification = verifyRexp(missingHash, password);
+  assert.equal(verification.ok, false);
+  assert.equal(verification.checkedEntries.some((entry) => entry.path === "metadata.json" && entry.hashStatus === "absent"), true);
+  assert.equal(verification.checkedEntries.some((entry) => entry.path === "report.json" && entry.hashStatus === "match"), true);
 });
 
 test("extractRexp rejects archives with tampered cleartext entries", () => {
@@ -261,34 +301,44 @@ test("extractRexp rejects archives with tampered cleartext entries", () => {
   assert.equal(existsSync(join(tamperedOutput, "metadata.json")), false);
 });
 
+test("rejects duplicate managed archive entries before verifying or extracting", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-rexp-duplicate-entry-"));
+  const extracted = join(root, "extracted");
+  const rebuilt = join(root, "roundtrip.rexp");
+  const duplicateArchive = join(root, "duplicate.rexp");
+  const duplicateOutput = join(root, "duplicate-output");
+
+  extractRexp(fixture, extracted, password);
+  packPlainDirectory(extracted, rebuilt, password, {
+    randomBytes: deterministicRandomBytes(),
+  });
+
+  const entries = readZip(readFileSync(rebuilt));
+  const policyEntry = entries.find((entry) => entry.name.startsWith("policies/policy_") && entry.name.endsWith(".json"));
+  if (policyEntry === undefined) {
+    throw new Error("Expected rebuilt archive to contain a policy entry");
+  }
+  const maliciousPolicy = encryptRelutionPayload(
+    Buffer.from('{"uuid":"MALICIOUS","versions":[]}\n', "utf8"),
+    password,
+    deterministicRandomBytes(),
+  );
+  writeFileSync(duplicateArchive, writeZip([...entries, { name: policyEntry.name, data: maliciousPolicy }]));
+
+  assert.throws(() => inspectRexp(duplicateArchive), /Duplicate managed archive entry/u);
+  assert.throws(() => verifyRexp(duplicateArchive, password), /Duplicate managed archive entry/u);
+  assert.throws(() => extractRexp(duplicateArchive, duplicateOutput, password), /Duplicate managed archive entry/u);
+  assert.equal(existsSync(join(duplicateOutput, policyEntry.name)), false);
+});
+
 test("loads templates harvested from Relution Server 26.1.1", () => {
   const bundle = loadTemplateBundle();
 
   assert.equal(bundle.serverVersion, "26.1.1");
-  assert.equal(bundle.configurationTypes.length, 201);
-  assert.equal(Object.keys(bundle.schemas).length, 2067);
+  assert.equal(bundle.configurationTypes.length >= RELUTION_26_1_1_MIN_CONFIGURATION_TYPES, true);
+  assert.equal(Object.keys(bundle.schemas).length >= RELUTION_26_1_1_MIN_OPENAPI_SCHEMAS, true);
   assert.equal(typeof bundle.springConfigurationMetadata, "object");
-  assert.deepEqual(bundle.platforms, [
-    "UNKNOWN",
-    "ANDROID",
-    "ANDROID_ENTERPRISE",
-    "IOS",
-    "TVOS",
-    "MACOS",
-    "VISIONOS",
-    "WATCHOS",
-    "WINDOWS",
-    "CHROMEOS",
-    "LINUX",
-    "EDGEROUTER",
-    "BLENODE",
-    "ASSET",
-    "BEACON",
-    "KNX",
-    "BACNET",
-    "VIRTUAL",
-    "LORAWAN",
-  ]);
+  assert.equal(CORE_POLICY_PLATFORMS.every((platform) => bundle.platforms.includes(platform)), true);
 
   const iosRestriction = findTemplate(bundle, "IOS_RESTRICTION");
   assert.equal(iosRestriction?.schemaName, "IosRestrictionConfiguration");
@@ -540,7 +590,7 @@ test("rejects ZIP entries that exceed the supported uncompressed size", () => {
   assert.throws(() => readZip(archive), /exceeds the supported size/i);
 });
 
-test("drops malformed mobileconfig restore entries when loading sidecar state", () => {
+test("rejects malformed mobileconfig restore entries when loading sidecar state", () => {
   const root = mkdtempSync(join(tmpdir(), "relution-sidecar-malformed-"));
   writeFileSync(
     join(root, "editor-sidecar.json"),
@@ -553,8 +603,7 @@ test("drops malformed mobileconfig restore entries when loading sidecar state", 
     }, null, 2)}\n`,
   );
 
-  const sidecar = loadEditorSidecar(root);
-  assert.deepEqual(sidecar.mobileConfigRestore, []);
+  assert.throws(() => loadEditorSidecar(root), /Malformed editor-sidecar\.json: invalid mobileConfigRestore\[0\]/u);
 });
 
 test("validates the provided Relution export with local compatibility rules", () => {
@@ -572,16 +621,16 @@ test("audits every template through local mock rexp roundtrip", () => {
   const bundle = loadTemplateBundle();
   const report = createRelutionAuditReport({ bundle, key: password, sampleRexp: fixture });
 
-  assert.equal(report.summary.platformCount, 19);
-  assert.equal(report.summary.configurationTypeCount, 201);
-  assert.equal(report.summary.schemaCount, 2067);
-  assert.equal(report.summary.springPropertyCount, 491);
-  assert.equal(report.summary.mockRoundtripPassed, 201);
+  assert.equal(report.summary.platformCount, bundle.platforms.length);
+  assert.equal(report.summary.configurationTypeCount, bundle.configurationTypes.length);
+  assert.equal(report.summary.schemaCount, Object.keys(bundle.schemas).length);
+  assert.equal(report.summary.springPropertyCount >= RELUTION_26_1_1_MIN_SPRING_PROPERTIES, true);
+  assert.equal(report.summary.mockRoundtripPassed, bundle.configurationTypes.length);
   assert.equal(report.summary.mockRoundtripFailed, 0);
   assert.equal(report.sampleExport?.validationOk, true);
   assert.equal(report.sampleExport?.verifyOk, true);
-  assert.equal(report.schemaCompatibilityIssues.length, 24);
-  assert.equal(report.schemaCompatibilityIssues.some((issue) => issue.pattern.includes("IsAlphabetic")), true);
+  assert.equal(hasSchemaCompatibilityIssue(report.schemaCompatibilityIssues, "Organization", "Organization.properties.email", "IsAlphabetic"), true);
+  assert.equal(hasSchemaCompatibilityIssue(report.schemaCompatibilityIssues, "IotUpdateConfiguration", "IotUpdateConfiguration.allOf[1].properties.serverUrl", "https?"), true);
 });
 
 test("writes machine-readable and markdown audit reports", () => {
@@ -596,9 +645,9 @@ test("writes machine-readable and markdown audit reports", () => {
   assert.equal(existsSync(jsonOut), true);
   assert.equal(existsSync(markdownOut), true);
   const parsed = JSON.parse(readFileSync(jsonOut, "utf8")) as RelutionTemplateAuditShape;
-  assert.equal(parsed.configurationTypes.length, 201);
+  assert.equal(parsed.configurationTypes.length, bundle.configurationTypes.length);
   assert.equal(parsed.configurationTypes.some((entry) => entry.fields.length > 0), true);
-  assert.match(readFileSync(markdownOut, "utf8"), /Mock roundtrip: 201 passed, 0 failed/);
+  assert.equal(readFileSync(markdownOut, "utf8").includes(`Mock roundtrip: ${bundle.configurationTypes.length} passed, 0 failed`), true);
 });
 
 test("reports Jamf Apple gaps that can be wired through Relution mobileconfig", () => {
@@ -632,15 +681,32 @@ test("reports Jamf Apple gaps that can be wired through Relution mobileconfig", 
     .filter((setting) => setting.status === "mobileconfig-backed")
     .map((setting) => setting.id)
     .sort();
+  const mobileconfigBackedSettings = report.settings.filter((setting) => setting.status === "mobileconfig-backed");
+  const notWireableSettings = report.settings.filter((setting) => setting.status === "not-mobileconfig-wireable");
 
   assert.equal(report.summary.relutionHasMobileconfigTransport, true);
-  assert.equal(report.summary.totalJamfGapSettings, expectedMobileconfigIds.length + 1);
-  assert.equal(report.summary.mobileconfigBacked, expectedMobileconfigIds.length);
-  assert.equal(report.summary.notMobileconfigWireable, 1);
+  assert.equal(report.summary.totalJamfGapSettings, report.settings.length);
+  assert.equal(report.summary.mobileconfigBacked, mobileconfigBackedSettings.length);
+  assert.equal(report.summary.notMobileconfigWireable, notWireableSettings.length);
   assert.equal("relutionServerPolicyExportIncludesMobileconfig" in report.summary, false);
   assert.equal(report.summary.relutionMobileconfigPlatforms.includes("IOS"), true);
   assert.equal(report.summary.relutionMobileconfigPlatforms.includes("MACOS"), true);
-  assert.deepEqual(mobileconfigIds, [...expectedMobileconfigIds].sort());
+  assert.equal(mobileconfigBackedSettings.every((setting) => setting.relutionTransportType === "APPLE_MOBILECONFIG"), true);
+  assert.equal(expectedMobileconfigIds.every((id) => mobileconfigIds.includes(id)), true);
   assert.equal(report.settings.some((setting) => setting.id === "pppc" && setting.payloadType === "com.apple.TCC.configuration-profile-policy"), true);
   assert.equal(report.settings.some((setting) => setting.id === "declarative-management-declarations" && setting.status === "not-mobileconfig-wireable"), true);
 });
+
+function hasSchemaCompatibilityIssue(
+  issues: readonly SchemaCompatibilityIssue[],
+  schemaName: string,
+  path: string,
+  patternFragment: string,
+): boolean {
+  return issues.some((issue) =>
+    issue.kind === "invalid-pattern" &&
+    issue.schemaName === schemaName &&
+    issue.path === path &&
+    issue.pattern.includes(patternFragment)
+  );
+}

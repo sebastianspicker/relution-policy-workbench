@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeZammadConnection, publicZammadSession, createZammadTicket } from "../src/zammad-api.js";
+import { normalizeZammadConnection, publicZammadSession, createZammadTicket, testZammadConnection } from "../src/zammad-api.js";
 import { handleZammadApiRequest } from "../src/zammad-editor-routes.js";
 import { buildZammadTicketDraft } from "../src/zammad-ticket-drafts.js";
 
@@ -20,6 +20,36 @@ test("normalizes Zammad connection settings without exposing the token publicly"
     group: "IT",
     customer: "it@example.test",
   });
+});
+
+test("builds non-compliant-device ticket drafts through the dispatcher", () => {
+  const draft = buildZammadTicketDraft(
+    {
+      status: "issue",
+      device: {
+        uuid: "DEVICE-1",
+        name: "Campus iPad",
+        platform: "IOS",
+        status: "COMPLIANT",
+        policyStatus: "MISSING",
+        assignedPolicies: ["Required baseline"],
+        raw: {},
+      },
+      issues: [],
+    },
+    {
+      id: "missing-policy",
+      severity: "problem",
+      message: "Required policy is missing.",
+      evidence: { expectedPolicy: "Required baseline" },
+    },
+  );
+
+  assert.equal(draft.kind, "non-compliant-device");
+  assert.equal(draft.deviceUuid, "DEVICE-1");
+  assert.equal(draft.issueId, "missing-policy");
+  assert.match(draft.title, /Campus iPad/u);
+  assert.match(draft.body, /Re-push the policy/u);
 });
 
 test("builds inactive-device ticket drafts with age-specific remediation", () => {
@@ -48,6 +78,52 @@ test("builds inactive-device ticket drafts with age-specific remediation", () =>
   assert.equal(draft.kind, "inactive-device");
   assert.match(draft.title, /95d/u);
   assert.match(draft.body, /stale asset candidate/u);
+});
+
+test("Zammad connection test validates the current-user response body", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), "https://zammad.example.test/api/v1/users/me");
+    assert.equal((init?.headers as Record<string, string>)["Authorization"], "Token token=secret-token");
+    return new Response(JSON.stringify({ id: 7, login: "agent@example.test" }));
+  };
+  try {
+    const result = await testZammadConnection(
+      normalizeZammadConnection({
+        host: "zammad.example.test",
+        apiToken: "secret-token",
+        group: "IT",
+        customer: "it@example.test",
+      }),
+    );
+
+    assert.deepEqual(result, { ok: true, baseUrl: "https://zammad.example.test" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Zammad connection test returns a failure signal for malformed 200 responses", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: "unauthorized" }));
+  try {
+    const result = await testZammadConnection(
+      normalizeZammadConnection({
+        host: "zammad.example.test",
+        apiToken: "secret-token",
+        group: "IT",
+        customer: "it@example.test",
+      }),
+    );
+
+    assert.deepEqual(result, {
+      ok: false,
+      baseUrl: "https://zammad.example.test",
+      reason: "Zammad connection test returned an unexpected current-user response.",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("creates Zammad tickets with token auth and internal note article", async () => {
@@ -79,6 +155,112 @@ test("creates Zammad tickets with token auth and internal note article", async (
     assert.equal(ticket.id, 42);
     assert.equal(ticket.number, "240042");
     assert.equal(ticket.url, "https://zammad.example.test/#ticket/zoom/42");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("accepts Zammad ticket creation when the response has an id but no number", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ id: 43, title: "ID-only ticket" }), { status: 201 });
+  try {
+    const ticket = await createZammadTicket(
+      normalizeZammadConnection({
+        host: "zammad.example.test",
+        apiToken: "secret-token",
+        group: "IT",
+        customer: "it@example.test",
+      }),
+      {
+        kind: "non-compliant-device",
+        title: "ID-only ticket",
+        body: "Finding body",
+        issueId: "missing-policy",
+      },
+    );
+
+    assert.equal(ticket.id, 43);
+    assert.equal(ticket.number, undefined);
+    assert.equal(ticket.url, "https://zammad.example.test/#ticket/zoom/43");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("accepts Zammad ticket creation when the response has a number but no id", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ number: "240043", title: "Number-only ticket" }), { status: 201 });
+  try {
+    const ticket = await createZammadTicket(
+      normalizeZammadConnection({
+        host: "zammad.example.test",
+        apiToken: "secret-token",
+        group: "IT",
+        customer: "it@example.test",
+      }),
+      {
+        kind: "non-compliant-device",
+        title: "Number-only ticket",
+        body: "Finding body",
+        issueId: "missing-policy",
+      },
+    );
+
+    assert.equal(ticket.id, undefined);
+    assert.equal(ticket.number, "240043");
+    assert.equal(ticket.url, undefined);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects Zammad ticket creation responses without an addressable identifier", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({}), { status: 201 });
+  try {
+    await assert.rejects(
+      createZammadTicket(
+        normalizeZammadConnection({
+          host: "zammad.example.test",
+          apiToken: "secret-token",
+          group: "IT",
+          customer: "it@example.test",
+        }),
+        {
+          kind: "non-compliant-device",
+          title: "MDM non-compliance: Campus iPad",
+          body: "Finding body",
+          issueId: "missing-policy",
+        },
+      ),
+      /no ticket id or number/u,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects empty Zammad ticket creation responses without claiming success", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response("", { status: 201 });
+  try {
+    await assert.rejects(
+      createZammadTicket(
+        normalizeZammadConnection({
+          host: "zammad.example.test",
+          apiToken: "secret-token",
+          group: "IT",
+          customer: "it@example.test",
+        }),
+        {
+          kind: "non-compliant-device",
+          title: "MDM non-compliance: Campus iPad",
+          body: "Finding body",
+          issueId: "missing-policy",
+        },
+      ),
+      /invalid JSON/u,
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

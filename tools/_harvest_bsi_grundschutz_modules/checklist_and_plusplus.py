@@ -1,6 +1,52 @@
+"""Parse BSI checklist workbooks and Grundschutz++ source artifacts."""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+import zipfile
+from pathlib import Path
+from typing import Any
+
+from recommendation_mapping import (
+    semantic_candidates_for,
+    semantic_concepts_for,
+    semantic_metadata_for,
+)
+
+from .recommendation_rulesets import mapping_for
+from .source_parsers import (
+    CELL_REF_RE,
+    ET,
+    GS_PLUSPLUS_METHOD_CONTEXT,
+    GS_PLUSPLUS_RELATED_CONTROL_RULES,
+    INDIVIDUAL_CHECKLISTS_DIR,
+    PACKAGE_RELATIONSHIP_NS,
+    PLATFORM_GS_PLUSPLUS_TARGET_CATEGORIES,
+    PLATFORM_TARGETS,
+    RELATIONSHIP_NS,
+    SHEET_NS,
+    XLSX_PATH,
+    count_values,
+    first_part,
+    natural_control_sort_key,
+    normalize_for_match,
+    normalize_space,
+    prop_remark,
+    prop_value,
+    prop_values,
+    relative_repo_path,
+    shorten,
+    slugify,
+    split_values,
+    token_set,
+    unique_preserving_order,
+)
 
 
 def parse_individual_checklist_workbooks(directory: Path) -> dict[str, dict[str, Any]]:
+    """Parse BSI per-module checklist workbooks into requirement records by module."""
     checklists: dict[str, dict[str, Any]] = {}
     for path in sorted(directory.glob("Checkliste_*.xlsx")):
         rows_by_sheet = read_xlsx_rows(path)
@@ -24,7 +70,7 @@ def parse_individual_checklist_workbooks(directory: Path) -> dict[str, dict[str,
                     break
             requirements: dict[str, dict[str, str]] = {}
             if header_index >= 0:
-                for row in rows[header_index + 1:]:
+                for row in rows[header_index + 1 :]:
                     requirement_id = normalize_space(str(row.get(2, "")))
                     if not requirement_id.startswith(f"{module_id}.A"):
                         continue
@@ -45,8 +91,13 @@ def parse_individual_checklist_workbooks(directory: Path) -> dict[str, dict[str,
     return checklists
 
 
-def build_checklist_comparison(module_catalog: dict[str, dict[str, Any]], checklists: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    platform_module_ids = {module.module_id for platform in PLATFORM_TARGETS for module in platform.modules}
+def build_checklist_comparison(
+    module_catalog: dict[str, dict[str, Any]], checklists: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Compare parsed checklist workbooks against the DocBook module catalog."""
+    platform_module_ids = {
+        module.module_id for platform in PLATFORM_TARGETS for module in platform.modules
+    }
     workbook_rows: list[dict[str, Any]] = []
     compared_modules: list[dict[str, Any]] = []
     for module_id, checklist in sorted(checklists.items()):
@@ -61,34 +112,10 @@ def build_checklist_comparison(module_catalog: dict[str, dict[str, Any]], checkl
         )
         if module_id not in module_catalog:
             continue
-        docbook_requirements = module_catalog[module_id]["requirements"]
-        missing_in_checklist = sorted(set(docbook_requirements) - set(requirements))
-        missing_in_docbook = sorted(set(requirements) - set(docbook_requirements))
-        text_differences = []
-        for requirement_id in sorted(set(docbook_requirements) & set(requirements)):
-            docbook = normalize_space(str(docbook_requirements[requirement_id].get("requirementText", "")))
-            checklist_text = normalize_space(str(requirements[requirement_id].get("text", "")))
-            if docbook != checklist_text:
-                text_differences.append(
-                    {
-                        "requirementId": requirement_id,
-                        "docbookText": shorten(docbook, 220),
-                        "checklistText": shorten(checklist_text, 220),
-                    }
-                )
         compared_modules.append(
-            {
-                "moduleId": module_id,
-                "moduleTitle": checklist["moduleTitle"],
-                "sourcePath": checklist["sourcePath"],
-                "docbookRequirementCount": len(docbook_requirements),
-                "checklistRequirementCount": len(requirements),
-                "missingInChecklist": missing_in_checklist,
-                "missingInDocbook": missing_in_docbook,
-                "textDifferenceCount": len(text_differences),
-                "sampleTextDifferences": text_differences[:5],
-                "usedForPlatformPolicies": module_id in platform_module_ids,
-            }
+            checklist_comparison_entry(
+                module_id, checklist, module_catalog[module_id], platform_module_ids
+            )
         )
     policy_relevant = build_policy_relevant_checklist_items(checklists)
     return {
@@ -97,7 +124,9 @@ def build_checklist_comparison(module_catalog: dict[str, dict[str, Any]], checkl
         "sourceDirectory": relative_repo_path(INDIVIDUAL_CHECKLISTS_DIR),
         "consolidatedThreatWorkbookPath": relative_repo_path(XLSX_PATH),
         "individualWorkbookCount": len(checklists),
-        "individualRequirementCount": sum(len(entry["requirements"]) for entry in checklists.values()),
+        "individualRequirementCount": sum(
+            len(entry["requirements"]) for entry in checklists.values()
+        ),
         "workbooks": workbook_rows,
         "comparedPlatformModules": compared_modules,
         "policyRelevantRequirementCount": len(policy_relevant),
@@ -105,13 +134,68 @@ def build_checklist_comparison(module_catalog: dict[str, dict[str, Any]], checkl
     }
 
 
-def build_policy_relevant_checklist_items(checklists: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def checklist_comparison_entry(
+    module_id: str,
+    checklist: dict[str, Any],
+    module_data: dict[str, Any],
+    platform_module_ids: set[str],
+) -> dict[str, Any]:
+    """Summarize one module's checklist coverage and text drift from DocBook."""
+    requirements = checklist["requirements"]
+    docbook_requirements = module_data["requirements"]
+    missing_in_checklist = sorted(set(docbook_requirements) - set(requirements))
+    missing_in_docbook = sorted(set(requirements) - set(docbook_requirements))
+    text_differences = checklist_text_differences(docbook_requirements, requirements)
+    return {
+        "moduleId": module_id,
+        "moduleTitle": checklist["moduleTitle"],
+        "sourcePath": checklist["sourcePath"],
+        "docbookRequirementCount": len(docbook_requirements),
+        "checklistRequirementCount": len(requirements),
+        "missingInChecklist": missing_in_checklist,
+        "missingInDocbook": missing_in_docbook,
+        "textDifferenceCount": len(text_differences),
+        "sampleTextDifferences": text_differences[:5],
+        "usedForPlatformPolicies": module_id in platform_module_ids,
+    }
+
+
+def checklist_text_differences(
+    docbook_requirements: dict[str, dict[str, Any]],
+    checklist_requirements: dict[str, dict[str, Any]],
+) -> list[dict[str, str]]:
+    """Return shortened DocBook/checklist text mismatches for shared requirements."""
+    differences = []
+    for requirement_id in sorted(
+        set(docbook_requirements) & set(checklist_requirements)
+    ):
+        docbook = normalize_space(
+            str(docbook_requirements[requirement_id].get("requirementText", ""))
+        )
+        checklist_text = normalize_space(
+            str(checklist_requirements[requirement_id].get("text", ""))
+        )
+        if docbook != checklist_text:
+            differences.append(
+                {
+                    "requirementId": requirement_id,
+                    "docbookText": shorten(docbook, 220),
+                    "checklistText": shorten(checklist_text, 220),
+                }
+            )
+    return differences
+
+
+def build_policy_relevant_checklist_items(
+    checklists: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Select checklist requirements that lexically map to GS++ policy controls."""
     items: list[dict[str, Any]] = []
     for module_id, checklist in sorted(checklists.items()):
         if not module_id.startswith(("APP.", "OPS.", "SYS.")):
             continue
         for requirement_id, requirement in sorted(checklist["requirements"].items()):
-            text = f'{requirement.get("title", "")} {requirement.get("text", "")}'
+            text = f"{requirement.get('title', '')} {requirement.get('text', '')}"
             matches = matching_plusplus_rules(text)
             if not matches:
                 continue
@@ -124,9 +208,13 @@ def build_policy_relevant_checklist_items(checklists: dict[str, dict[str, Any]])
                     "text": requirement["text"],
                     "type": requirement["type"],
                     "sourcePath": checklist["sourcePath"],
-                    "matchedReasons": unique_preserving_order([match["reason"] for match in matches]),
+                    "matchedReasons": unique_preserving_order(
+                        [match["reason"] for match in matches]
+                    ),
                     "relatedGrundschutzPlusPlusControlIds": unique_preserving_order(
-                        control_id for match in matches for control_id in match["controlIds"]
+                        control_id
+                        for match in matches
+                        for control_id in match["controlIds"]
                     ),
                 }
             )
@@ -134,13 +222,16 @@ def build_policy_relevant_checklist_items(checklists: dict[str, dict[str, Any]])
 
 
 def read_xlsx_rows(path: Path) -> dict[str, list[dict[int, str]]]:
+    """Read workbook sheets as sparse 1-based column-indexed row dictionaries."""
     with zipfile.ZipFile(path) as archive:
         shared_strings = parse_shared_strings(archive)
         workbook = ET.fromstring(archive.read("xl/workbook.xml"))
         relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
         relationship_targets = {
             relation.attrib["Id"]: relation.attrib["Target"]
-            for relation in relationships.findall(f"{{{PACKAGE_RELATIONSHIP_NS}}}Relationship")
+            for relation in relationships.findall(
+                f"{{{PACKAGE_RELATIONSHIP_NS}}}Relationship"
+            )
         }
         rows_by_sheet: dict[str, list[dict[int, str]]] = {}
         for sheet in workbook.findall("x:sheets/x:sheet", SHEET_NS):
@@ -154,14 +245,28 @@ def read_xlsx_rows(path: Path) -> dict[str, list[dict[int, str]]]:
 
 
 def parse_shared_strings(archive: zipfile.ZipFile) -> list[str]:
+    """Decode an XLSX shared-string table, returning blanks when it is absent."""
     try:
         shared_root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
     except KeyError:
+        print(
+            (
+                "WARNING: sharedStrings.xml not found in workbook; shared-string cells will "
+                "decode as blank"
+            ),
+            file=sys.stderr,
+        )
         return []
-    return [normalize_space("".join(string.itertext())) for string in shared_root.findall("x:si", SHEET_NS)]
+    return [
+        normalize_space("".join(string.itertext()))
+        for string in shared_root.findall("x:si", SHEET_NS)
+    ]
 
 
-def parse_sheet_rows(archive: zipfile.ZipFile, sheet_path: str, shared_strings: list[str]) -> list[dict[int, str]]:
+def parse_sheet_rows(
+    archive: zipfile.ZipFile, sheet_path: str, shared_strings: list[str]
+) -> list[dict[int, str]]:
+    """Decode one XLSX worksheet into normalized sparse row values."""
     sheet_root = ET.fromstring(archive.read(sheet_path))
     rows: list[dict[int, str]] = []
     for row in sheet_root.findall(".//x:sheetData/x:row", SHEET_NS):
@@ -178,6 +283,7 @@ def parse_sheet_rows(archive: zipfile.ZipFile, sheet_path: str, shared_strings: 
 
 
 def read_cell_value(cell: ET.Element, shared_strings: list[str]) -> str:
+    """Normalize shared, inline, and raw XLSX cell values to plain text."""
     cell_type = cell.attrib.get("t")
     if cell_type == "s":
         value_text = cell.findtext("x:v", default="", namespaces=SHEET_NS)
@@ -191,13 +297,17 @@ def read_cell_value(cell: ET.Element, shared_strings: list[str]) -> str:
 
 
 def excel_column_to_index(column: str) -> int:
+    """Convert an Excel column label to the 1-based column index used by rows."""
     index = 0
     for character in column:
         index = index * 26 + (ord(character) - 64)
     return index
 
 
-def build_errata_map(errata_text: str, requirement_ids: set[str]) -> dict[str, list[dict[str, str]]]:
+def build_errata_map(
+    errata_text: str, requirement_ids: set[str]
+) -> dict[str, list[dict[str, str]]]:
+    """Collect errata excerpts keyed by referenced BSI requirement ID."""
     normalized = normalize_space(errata_text)
     errata: dict[str, list[dict[str, str]]] = {}
     for requirement_id in sorted(requirement_ids):
@@ -213,17 +323,22 @@ def build_errata_map(errata_text: str, requirement_ids: set[str]) -> dict[str, l
             if excerpt in seen:
                 continue
             seen.add(excerpt)
-            excerpts.append({"sourceId": "it-grundschutz-errata-2023", "excerpt": excerpt})
+            excerpts.append(
+                {"sourceId": "it-grundschutz-errata-2023", "excerpt": excerpt}
+            )
         errata[requirement_id] = excerpts
     return errata
 
 
 def parse_grundschutz_plusplus_catalog(path: Path) -> dict[str, Any]:
+    """Parse the GS++ OSCAL catalog into systematics and control lookup records."""
     raw = json.loads(path.read_text(encoding="utf8"))
     catalog = raw["catalog"]
     controls = parse_plusplus_controls(catalog)
     controls_by_id = {control["id"]: control for control in controls}
-    practice_groups = parse_plusplus_practice_groups(catalog.get("groups", []), controls)
+    practice_groups = parse_plusplus_practice_groups(
+        catalog.get("groups", []), controls
+    )
     systematics = {
         "version": 1,
         "name": "BSI Grundschutz++ Systematics",
@@ -239,22 +354,34 @@ def parse_grundschutz_plusplus_catalog(path: Path) -> dict[str, Any]:
         "counts": {
             "controls": len(controls),
             "practiceGroups": len(practice_groups),
-            "bySecurityLevel": count_values(control.get("securityLevel") for control in controls),
-            "byModalVerb": count_values(control.get("modalVerb") for control in controls),
-            "byEffortLevel": count_values(control.get("effortLevel") for control in controls),
+            "bySecurityLevel": count_values(
+                control.get("securityLevel") for control in controls
+            ),
+            "byModalVerb": count_values(
+                control.get("modalVerb") for control in controls
+            ),
+            "byEffortLevel": count_values(
+                control.get("effortLevel") for control in controls
+            ),
         },
         "practiceGroups": practice_groups,
-        "policyRelevantControlIds": sorted(policy_relevant_plusplus_control_ids(controls_by_id)),
+        "policyRelevantControlIds": sorted(
+            policy_relevant_plusplus_control_ids(controls_by_id)
+        ),
         "controls": controls,
     }
     return {"systematics": systematics, "controlsById": controls_by_id}
 
 
 def parse_plusplus_controls(catalog: dict[str, Any]) -> list[dict[str, Any]]:
+    """Flatten GS++ nested control groups while preserving practice context."""
     controls: list[dict[str, Any]] = []
 
     def walk_group(group: dict[str, Any], path: tuple[dict[str, str], ...]) -> None:
-        group_entry = {"id": str(group.get("id", "")), "title": str(group.get("title", ""))}
+        group_entry = {
+            "id": str(group.get("id", "")),
+            "title": str(group.get("title", "")),
+        }
         next_path = (*path, group_entry)
         for control in group.get("controls", []):
             if not isinstance(control, dict):
@@ -271,14 +398,19 @@ def parse_plusplus_controls(catalog: dict[str, Any]) -> list[dict[str, Any]]:
     return controls
 
 
-def parse_plusplus_control(control: dict[str, Any], group_path: tuple[dict[str, str], ...]) -> dict[str, Any]:
+def parse_plusplus_control(
+    control: dict[str, Any], group_path: tuple[dict[str, str], ...]
+) -> dict[str, Any]:
+    """Extract policy-relevant GS++ control fields from one OSCAL control node."""
     statement = first_part(control, "statement")
     guidance = first_part(control, "guidance")
     statement_props = statement.get("props", []) if isinstance(statement, dict) else []
     control_props = control.get("props", [])
     top_group = group_path[0] if group_path else {"id": "", "title": ""}
     leaf_group = group_path[-1] if group_path else {"id": "", "title": ""}
-    target_categories = split_values(prop_values(statement_props, "target_object_categories"))
+    target_categories = split_values(
+        prop_values(statement_props, "target_object_categories")
+    )
     return {
         "id": str(control.get("id", "")),
         "title": str(control.get("title", "")),
@@ -300,17 +432,28 @@ def parse_plusplus_control(control: dict[str, Any], group_path: tuple[dict[str, 
             {
                 "id": str(parameter.get("id", "")),
                 "label": str(parameter.get("label", "")),
-                "values": [str(value) for value in parameter.get("values", []) if isinstance(value, str)],
+                "values": [
+                    str(value)
+                    for value in parameter.get("values", [])
+                    if isinstance(value, str)
+                ],
             }
             for parameter in control.get("params", [])
             if isinstance(parameter, dict)
         ],
-        "statement": normalize_space(str(statement.get("prose", ""))) if isinstance(statement, dict) else "",
-        "guidance": normalize_space(str(guidance.get("prose", ""))) if isinstance(guidance, dict) else "",
+        "statement": normalize_space(str(statement.get("prose", "")))
+        if isinstance(statement, dict)
+        else "",
+        "guidance": normalize_space(str(guidance.get("prose", "")))
+        if isinstance(guidance, dict)
+        else "",
     }
 
 
-def parse_plusplus_practice_groups(groups: list[Any], controls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def parse_plusplus_practice_groups(
+    groups: list[Any], controls: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Summarize GS++ top-level practices and their child control groups."""
     controls_by_practice: dict[str, list[dict[str, Any]]] = {}
     for control in controls:
         controls_by_practice.setdefault(str(control["practiceId"]), []).append(control)
@@ -328,7 +471,11 @@ def parse_plusplus_practice_groups(groups: list[Any], controls: list[dict[str, A
                 {
                     "id": child_id,
                     "title": str(child.get("title", "")),
-                    "controlCount": sum(1 for control in controls_by_practice.get(practice_id, []) if control.get("controlGroupId") == child_id),
+                    "controlCount": sum(
+                        1
+                        for control in controls_by_practice.get(practice_id, [])
+                        if control.get("controlGroupId") == child_id
+                    ),
                 }
             )
         parsed.append(
@@ -343,8 +490,15 @@ def parse_plusplus_practice_groups(groups: list[Any], controls: list[dict[str, A
     return parsed
 
 
-def policy_relevant_plusplus_control_ids(controls_by_id: dict[str, dict[str, Any]]) -> set[str]:
-    control_ids = {control_id for rule in GS_PLUSPLUS_RELATED_CONTROL_RULES for control_id in rule["controlIds"]}
+def policy_relevant_plusplus_control_ids(
+    controls_by_id: dict[str, dict[str, Any]],
+) -> set[str]:
+    """Return curated GS++ controls that exist in the parsed catalog."""
+    control_ids = {
+        control_id
+        for rule in GS_PLUSPLUS_RELATED_CONTROL_RULES
+        for control_id in rule["controlIds"]
+    }
     return {control_id for control_id in control_ids if control_id in controls_by_id}
 
 
@@ -353,8 +507,15 @@ def plusplus_context_for(
     requirement: dict[str, Any],
     plusplus: dict[str, Any],
 ) -> dict[str, Any]:
+    """Build GS++ realization-monitoring context for a BSI requirement."""
     controls_by_id = plusplus["controlsById"]
-    text = f'{requirement.get("title", "")} {requirement.get("category", "")} {requirement.get("requirementText", "")}'
+    text = " ".join(
+        (
+            str(requirement.get("title", "")),
+            str(requirement.get("category", "")),
+            str(requirement.get("requirementText", "")),
+        )
+    )
     matched_rules = matching_plusplus_rules(text)
     related_controls = []
     for rule in matched_rules:
@@ -374,11 +535,19 @@ def plusplus_context_for(
             {"step": 3, "name": "Realisierung", "pdcaPhase": "Do"},
             {"step": 4, "name": "Überwachung", "pdcaPhase": "Check"},
         ],
-        "platformTargetObjectCategories": list(PLATFORM_GS_PLUSPLUS_TARGET_CATEGORIES.get(platform, ())),
+        "platformTargetObjectCategories": list(
+            PLATFORM_GS_PLUSPLUS_TARGET_CATEGORIES.get(platform, ())
+        ),
         "relatedControls": merge_plusplus_controls(related_controls)[:5],
         "notes": [
-            "GS++ controls enrich policy context and comparison only; they do not create exact Relution mappings without concrete setting evidence.",
-            "Local asset scope, target-object-category selection, parameter values, ownership, and risk exceptions remain institution decisions.",
+            (
+                "GS++ controls enrich policy context and comparison only; they do not create "
+                "exact Relution mappings without concrete setting evidence."
+            ),
+            (
+                "Local asset scope, target-object-category selection, parameter values, "
+                "ownership, and risk exceptions remain institution decisions."
+            ),
         ],
     }
 
@@ -390,12 +559,21 @@ def checklist_context_for(
     individual_checklists: dict[str, dict[str, Any]],
     policy_relevant_requirements: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    """Attach individual-checklist text and related checklist items to a rule."""
     checklist = individual_checklists.get(module_id)
-    checklist_requirement = checklist.get("requirements", {}).get(requirement_id) if checklist else None
-    related_items = related_checklist_items_for(requirement, policy_relevant_requirements)
+    checklist_requirement = (
+        checklist.get("requirements", {}).get(requirement_id) if checklist else None
+    )
+    related_items = related_checklist_items_for(
+        requirement, policy_relevant_requirements
+    )
     context: dict[str, Any] = {
-        "individualChecklistSourcePath": checklist.get("sourcePath") if checklist else None,
-        "individualChecklistRequirementType": checklist_requirement.get("type") if checklist_requirement else None,
+        "individualChecklistSourcePath": checklist.get("sourcePath")
+        if checklist
+        else None,
+        "individualChecklistRequirementType": checklist_requirement.get("type")
+        if checklist_requirement
+        else None,
         "individualChecklistMatchesDocBook": None,
         "differences": [],
         "relatedChecklistItems": related_items,
@@ -404,7 +582,9 @@ def checklist_context_for(
         docbook_text = normalize_space(str(requirement.get("requirementText", "")))
         checklist_text = normalize_space(str(checklist_requirement.get("text", "")))
         differences = []
-        if normalize_space(str(requirement.get("title", ""))) != normalize_space(str(checklist_requirement.get("title", ""))):
+        if normalize_space(str(requirement.get("title", ""))) != normalize_space(
+            str(checklist_requirement.get("title", ""))
+        ):
             differences.append("title")
         if docbook_text != checklist_text:
             differences.append("text")
@@ -420,6 +600,7 @@ def semantic_evidence_sources_for(
     checklist_context: dict[str, Any],
     plusplus_context: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    """Compose weighted text sources for downstream semantic mapping inference."""
     sources: list[dict[str, Any]] = [
         {
             "source": "bsi-title",
@@ -457,7 +638,7 @@ def semantic_evidence_sources_for(
             {
                 "source": "related-kompendium-checklist",
                 "sourceId": str(item.get("requirementId", "")),
-                "text": f'{item.get("title", "")} {item.get("text", "")}',
+                "text": f"{item.get('title', '')} {item.get('text', '')}",
                 "confidence": 0.62,
             }
         )
@@ -477,7 +658,11 @@ def semantic_evidence_sources_for(
                         control.get("title", ""),
                         control.get("statement", ""),
                         control.get("matchReason", ""),
-                        " ".join(str(tag) for tag in control.get("tags", []) if isinstance(tag, str)),
+                        " ".join(
+                            str(tag)
+                            for tag in control.get("tags", [])
+                            if isinstance(tag, str)
+                        ),
                     )
                     if part
                 ),
@@ -487,8 +672,17 @@ def semantic_evidence_sources_for(
     return sources
 
 
-def related_checklist_items_for(requirement: dict[str, Any], policy_relevant_requirements: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    text = f'{requirement.get("title", "")} {requirement.get("category", "")} {requirement.get("requirementText", "")}'
+def related_checklist_items_for(
+    requirement: dict[str, Any], policy_relevant_requirements: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Find nearby checklist requirements that share GS++ match reasons."""
+    text = " ".join(
+        (
+            str(requirement.get("title", "")),
+            str(requirement.get("category", "")),
+            str(requirement.get("requirementText", "")),
+        )
+    )
     matched_reasons = {match["reason"] for match in matching_plusplus_rules(text)}
     if not matched_reasons:
         return []
@@ -508,7 +702,9 @@ def related_checklist_items_for(requirement: dict[str, Any], policy_relevant_req
                 "type": item["type"],
                 "sourcePath": item["sourcePath"],
                 "matchedReasons": item["matchedReasons"],
-                "relatedGrundschutzPlusPlusControlIds": item["relatedGrundschutzPlusPlusControlIds"],
+                "relatedGrundschutzPlusPlusControlIds": item[
+                    "relatedGrundschutzPlusPlusControlIds"
+                ],
                 "text": shorten(item["text"], 500),
             }
         )
@@ -517,6 +713,7 @@ def related_checklist_items_for(requirement: dict[str, Any], policy_relevant_req
 
 
 def matching_plusplus_rules(text: str) -> list[dict[str, Any]]:
+    """Return curated GS++ relation rules whose terms appear in normalized text."""
     normalized = normalize_for_match(text)
     matches = []
     for rule in GS_PLUSPLUS_RELATED_CONTROL_RULES:
@@ -525,24 +722,43 @@ def matching_plusplus_rules(text: str) -> list[dict[str, Any]]:
     return matches
 
 
-def lexical_plusplus_controls(text: str, controls_by_id: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def lexical_plusplus_controls(
+    text: str, controls_by_id: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Fallback-match GS++ controls by token overlap within policy practices."""
     tokens = token_set(text)
     if not tokens:
         return []
     scored = []
     for control in controls_by_id.values():
-        if control.get("practiceId") not in {"ASST", "ARCH", "BER", "DET", "KONF", "NOT", "TEST"}:
+        if control.get("practiceId") not in {
+            "ASST",
+            "ARCH",
+            "BER",
+            "DET",
+            "KONF",
+            "NOT",
+            "TEST",
+        }:
             continue
-        control_tokens = token_set(f'{control.get("title", "")} {control.get("statement", "")} {control.get("result", "")}')
+        control_tokens = token_set(
+            f"{control.get('title', '')} {control.get('statement', '')} {control.get('result', '')}"
+        )
         overlap = tokens.intersection(control_tokens)
         if len(overlap) < 2 and not any(len(token) >= 9 for token in overlap):
             continue
-        scored.append((len(overlap), str(control.get("id", "")), control, sorted(overlap)))
+        scored.append(
+            (len(overlap), str(control.get("id", "")), control, sorted(overlap))
+        )
     scored.sort(key=lambda entry: (-entry[0], natural_control_sort_key(entry[1])))
-    return [slim_plusplus_control(control, f"lexical overlap: {', '.join(overlap[:4])}") for _, _, control, overlap in scored[:3]]
+    return [
+        slim_plusplus_control(control, f"lexical overlap: {', '.join(overlap[:4])}")
+        for _, _, control, overlap in scored[:3]
+    ]
 
 
 def slim_plusplus_control(control: dict[str, Any], match_reason: str) -> dict[str, Any]:
+    """Project a GS++ control to the compact context embedded in recommendations."""
     return {
         "id": control["id"],
         "title": control["title"],
@@ -564,6 +780,7 @@ def slim_plusplus_control(control: dict[str, Any], match_reason: str) -> dict[st
 
 
 def merge_plusplus_controls(controls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Deduplicate related GS++ controls while preserving evidence order."""
     merged: list[dict[str, Any]] = []
     seen: set[str] = set()
     for control in controls:
@@ -575,81 +792,110 @@ def merge_plusplus_controls(controls: list[dict[str, Any]]) -> list[dict[str, An
     return merged
 
 
-def build_recommendations(
-    module_catalog: dict[str, dict[str, Any]],
-    threat_catalog: dict[str, str],
-    checklist_threats: dict[str, list[str]],
-    individual_checklists: dict[str, dict[str, Any]],
-    policy_relevant_requirements: list[dict[str, Any]],
-    plusplus: dict[str, Any],
-    errata_map: dict[str, list[dict[str, str]]],
-    field_index: dict[str, list[Any]],
-    apple_mobileconfig_evidence: dict[str, dict[str, Any]],
-) -> list[dict[str, Any]]:
+def build_recommendations(source_data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build deterministic BSI recommendation records for all platform modules."""
     recommendations: list[dict[str, Any]] = []
     for platform in PLATFORM_TARGETS:
         for module in platform.modules:
-            module_data = module_catalog[module.module_id]
+            module_data = source_data["moduleCatalog"][module.module_id]
             for requirement_id, requirement in module_data["requirements"].items():
-                threat_ids = checklist_threats.get(requirement_id, [])
-                source_ids = [module.source_id, "it-grundschutz-checklists-2023"]
-                if requirement_id in errata_map:
-                    source_ids.append("it-grundschutz-errata-2023")
-                source_ids.extend(list(module.supporting_source_ids))
-                plusplus_context = plusplus_context_for(platform.platform, requirement, plusplus)
-                checklist_context = checklist_context_for(
-                    module.module_id,
-                    requirement_id,
-                    requirement,
-                    individual_checklists,
-                    policy_relevant_requirements,
-                )
-                semantic_evidence_sources = semantic_evidence_sources_for(requirement, checklist_context, plusplus_context)
-                semantic_concepts = semantic_concepts_for(platform.platform, semantic_evidence_sources)
-                semantic_candidates = semantic_candidates_for(platform.platform, semantic_concepts)
-                mapping = mapping_for(
-                    platform.platform,
-                    requirement_id,
-                    requirement,
-                    field_index,
-                    apple_mobileconfig_evidence,
-                    semantic_candidates,
-                )
-                semantic_metadata: dict[str, Any]
-                if semantic_concepts:
-                    semantic_metadata = {"semanticConcepts": semantic_concepts}
-                else:
-                    semantic_metadata = {"semanticNoConceptReason": semantic_no_concept_reason(semantic_evidence_sources)}
                 recommendations.append(
-                    {
-                        "id": slugify(f"{platform.platform}-{requirement_id}"),
-                        "platform": platform.platform,
-                        "osFamily": platform.os_family,
-                        "policyName": platform.policy_name,
-                        "moduleId": module.module_id,
-                        "moduleTitle": module.module_title,
-                        "moduleRole": module.role,
-                        "sourceIds": unique_preserving_order(source_ids),
-                        "supportingSourceIds": list(module.supporting_source_ids),
-                        "category": requirement["category"],
-                        "requirementId": requirement_id,
-                        "title": requirement["title"],
-                        "status": requirement["status"],
-                        "protectionLevel": requirement["protectionLevel"],
-                        "actors": requirement["actors"],
-                        "paragraphs": requirement["paragraphs"],
-                        "requirementText": requirement["requirementText"],
-                        "reason": requirement["requirementText"],
-                        "descriptionContext": module_data["description"],
-                        "checklistThreatIds": threat_ids,
-                        "checklistThreatTitles": [threat_catalog[threat_id] for threat_id in threat_ids if threat_id in threat_catalog],
-                        "moduleThreatContext": module_data["moduleThreats"],
-                        "errata": errata_map.get(requirement_id, []),
-                        "grundschutzKompendium": checklist_context,
-                        "grundschutzPlusPlus": plusplus_context,
-                        **semantic_metadata,
-                        "relutionMapping": mapping,
-                    }
+                    build_recommendation_entry(
+                        {
+                            "platform": platform,
+                            "module": module,
+                            "moduleData": module_data,
+                            "requirementId": requirement_id,
+                            "requirement": requirement,
+                            "sourceData": source_data,
+                        }
+                    )
                 )
-    recommendations.sort(key=lambda entry: (entry["platform"], entry["moduleId"], entry["requirementId"]))
+    recommendations.sort(
+        key=lambda entry: (entry["platform"], entry["moduleId"], entry["requirementId"])
+    )
     return recommendations
+
+
+def build_recommendation_entry(context: dict[str, Any]) -> dict[str, Any]:
+    """Build one BSI recommendation with checklist, GS++, and semantic evidence."""
+    platform = context["platform"]
+    module = context["module"]
+    module_data = context["moduleData"]
+    requirement_id = context["requirementId"]
+    requirement = context["requirement"]
+    source_data = context["sourceData"]
+    threat_ids = source_data["checklistThreats"].get(requirement_id, [])
+    source_ids = recommendation_source_ids(
+        module, requirement_id, source_data["errataMap"]
+    )
+    plusplus_context = plusplus_context_for(
+        platform.platform, requirement, source_data["plusplus"]
+    )
+    checklist_context = checklist_context_for(
+        module.module_id,
+        requirement_id,
+        requirement,
+        source_data["individualChecklists"],
+        source_data["policyRelevantRequirements"],
+    )
+    semantic_evidence_sources = semantic_evidence_sources_for(
+        requirement, checklist_context, plusplus_context
+    )
+    semantic_concepts = semantic_concepts_for(
+        platform.platform, semantic_evidence_sources
+    )
+    semantic_candidates = semantic_candidates_for(platform.platform, semantic_concepts)
+    return {
+        "id": slugify(f"{platform.platform}-{requirement_id}"),
+        "platform": platform.platform,
+        "osFamily": platform.os_family,
+        "policyName": platform.policy_name,
+        "moduleId": module.module_id,
+        "moduleTitle": module.module_title,
+        "moduleRole": module.role,
+        "sourceIds": unique_preserving_order(source_ids),
+        "supportingSourceIds": list(module.supporting_source_ids),
+        "category": requirement["category"],
+        "requirementId": requirement_id,
+        "title": requirement["title"],
+        "status": requirement["status"],
+        "protectionLevel": requirement["protectionLevel"],
+        "actors": requirement["actors"],
+        "paragraphs": requirement["paragraphs"],
+        "requirementText": requirement["requirementText"],
+        "reason": requirement["requirementText"],
+        "descriptionContext": module_data["description"],
+        "checklistThreatIds": threat_ids,
+        "checklistThreatTitles": [
+            source_data["threatCatalog"][threat_id]
+            for threat_id in threat_ids
+            if threat_id in source_data["threatCatalog"]
+        ],
+        "moduleThreatContext": module_data["moduleThreats"],
+        "errata": source_data["errataMap"].get(requirement_id, []),
+        "grundschutzKompendium": checklist_context,
+        "grundschutzPlusPlus": plusplus_context,
+        **semantic_metadata_for(semantic_evidence_sources, semantic_concepts),
+        "relutionMapping": mapping_for(
+            {
+                "platform": platform.platform,
+                "requirementId": requirement_id,
+                "requirement": requirement,
+                "fieldIndex": source_data["fieldIndex"],
+                "appleMobileconfigEvidence": source_data["appleMobileconfigEvidence"],
+                "semanticCandidates": semantic_candidates,
+            }
+        ),
+    }
+
+
+def recommendation_source_ids(
+    module: Any, requirement_id: str, errata_map: dict[str, list[dict[str, str]]]
+) -> list[str]:
+    """List stable source IDs that justify a generated BSI recommendation."""
+    source_ids = [module.source_id, "it-grundschutz-checklists-2023"]
+    if requirement_id in errata_map:
+        source_ids.append("it-grundschutz-errata-2023")
+    source_ids.extend(list(module.supporting_source_ids))
+    return source_ids

@@ -11,6 +11,7 @@ import { postJson, readJsonResponse } from "./editor-utils.js";
 
 type Protocol = "http" | "https";
 type DeviceFilter = "all" | "noncompliant" | "missing-policy" | "inactive";
+type ConnectionTestResponse = { ok?: boolean; baseUrl?: string; reason?: string; error?: string };
 
 const DEVICE_FILTERS = ["all", "noncompliant", "missing-policy", "inactive"] as const satisfies readonly DeviceFilter[];
 const RELUTION_LIST_VALUE_PATTERN = /^[A-Z0-9_-]+$/u;
@@ -79,9 +80,9 @@ export function RelutionDashboardPanel(): JSX.Element {
   async function testConnection(): Promise<void> {
     await run(async () => {
       const response = await postJson("/api/relution/test", {});
-      const result = await readJsonResponse<{ ok?: boolean; baseUrl?: string; error?: string }>(response);
-      if (!response.ok || result.ok !== true) {
-        throw new Error(result.error ?? JSON.stringify(result));
+      const result = await readJsonResponse<ConnectionTestResponse>(response);
+      if (!response.ok || result.ok === false) {
+        throw new Error(connectionTestFailureMessage(result));
       }
       setSession(result.baseUrl === undefined
         ? { configured: true, tokenConfigured: true, mode: "read-only" }
@@ -142,9 +143,9 @@ export function RelutionDashboardPanel(): JSX.Element {
   async function testZammadConnection(): Promise<void> {
     await run(async () => {
       const response = await postJson("/api/zammad/test", {});
-      const result = await readJsonResponse<{ ok?: boolean; baseUrl?: string; error?: string }>(response);
-      if (!response.ok || result.ok !== true) {
-        throw new Error(result.error ?? JSON.stringify(result));
+      const result = await readJsonResponse<ConnectionTestResponse>(response);
+      if (!response.ok || result.ok === false) {
+        throw new Error(connectionTestFailureMessage(result));
       }
       setZammadSession((current) => ({
         ...current,
@@ -164,6 +165,9 @@ export function RelutionDashboardPanel(): JSX.Element {
       const result = await readJsonResponse<{ ticket?: ZammadTicketResult; error?: string }>(response);
       if (!response.ok || result.ticket === undefined) {
         throw new Error(result.error ?? JSON.stringify(result));
+      }
+      if (!hasZammadTicketIdentifier(result.ticket)) {
+        throw new Error("Zammad ticket creation returned no ticket id or number");
       }
       setTicketResult(result.ticket);
     });
@@ -218,6 +222,11 @@ export function RelutionDashboardPanel(): JSX.Element {
       {assessment !== undefined ? (
         <section className="preview-block">
           <h3>Devices</h3>
+          {devices?.truncated === true ? (
+            <p className="warning" role="alert">
+              Showing {devices.count} of {devices.total ?? "unknown"} enrolled devices; compliance results are incomplete.
+            </p>
+          ) : null}
           <div className="recommendation-controls">
             <label>Filter
               <select value={filter} onChange={(event) => setFilter(parseDeviceFilter(event.target.value))}>
@@ -262,6 +271,10 @@ export function RelutionDashboardPanel(): JSX.Element {
       />
     </div>
   );
+}
+
+function connectionTestFailureMessage(result: ConnectionTestResponse): string {
+  return result.reason ?? result.error ?? JSON.stringify(result);
 }
 
 function ConnectionSection(props: {
@@ -318,28 +331,53 @@ function DeviceFindingList(props: {
   return (
     <div className="recommendation-list">
       {props.assessments.map((entry) => (
-        <div key={entry.device.uuid ?? entry.device.name} className="recommendation-card">
-          <strong>{entry.device.name}</strong>
-          <span>
-            {entry.device.platform ?? "unknown platform"}
-            <AccessibleSeparator />
-            {entry.device.userEmail ?? entry.device.userName ?? "unknown user"}
-          </span>
-          <span>
-            Status: {entry.device.status ?? "unknown"}
-            <AccessibleSeparator />
-            Policy: {entry.device.policyStatus ?? "unknown"}
-          </span>
-          <span>Last connection: {entry.device.lastConnectionDate ?? "unknown"}{entry.device.inactiveDays === undefined ? "" : ` (${String(entry.device.inactiveDays)}d)`}</span>
-          <span>Assigned policies: {assignedPolicyText(entry.device.assignedPolicies)}</span>
-          {entry.issues.length === 0 ? <span>Issues: none</span> : entry.issues.map((issue) => (
-            <button key={issue.id} type="button" disabled={!props.zammadReady} onClick={() => props.onTicketDraft(buildZammadTicketDraft(entry, issue))}>
-              Ticket: {issue.id}
-            </button>
-          ))}
-        </div>
+        <DeviceFindingCard key={entry.device.uuid ?? entry.device.name} entry={entry} zammadReady={props.zammadReady} onTicketDraft={props.onTicketDraft} />
       ))}
     </div>
+  );
+}
+
+function DeviceFindingCard(props: {
+  readonly entry: RelutionDeviceAssessment;
+  readonly zammadReady: boolean;
+  readonly onTicketDraft: (draft: ZammadTicketDraft) => void;
+}): JSX.Element {
+  return (
+    <div className="recommendation-card">
+      <strong>{props.entry.device.name}</strong>
+      <span>
+        {props.entry.device.platform ?? "unknown platform"}
+        <AccessibleSeparator />
+        {props.entry.device.userEmail ?? props.entry.device.userName ?? "unknown user"}
+      </span>
+      <span>
+        Status: {props.entry.device.status ?? "unknown"}
+        <AccessibleSeparator />
+        Policy: {props.entry.device.policyStatus ?? "unknown"}
+      </span>
+      <span>Last connection: {lastConnectionText(props.entry.device)}</span>
+      <span>Assigned policies: {assignedPolicyText(props.entry.device.assignedPolicies)}</span>
+      <DeviceIssueActions entry={props.entry} zammadReady={props.zammadReady} onTicketDraft={props.onTicketDraft} />
+    </div>
+  );
+}
+
+function DeviceIssueActions(props: {
+  readonly entry: RelutionDeviceAssessment;
+  readonly zammadReady: boolean;
+  readonly onTicketDraft: (draft: ZammadTicketDraft) => void;
+}): JSX.Element {
+  if (props.entry.issues.length === 0) {
+    return <span>Issues: none</span>;
+  }
+  return (
+    <>
+      {props.entry.issues.map((issue) => (
+        <button key={issue.id} type="button" disabled={!props.zammadReady} onClick={() => props.onTicketDraft(buildZammadTicketDraft(props.entry, issue))}>
+          Ticket: {issue.id}
+        </button>
+      ))}
+    </>
   );
 }
 
@@ -350,6 +388,11 @@ function AccessibleSeparator(): JSX.Element {
       <span className="visually-hidden">, </span>
     </>
   );
+}
+
+function lastConnectionText(device: RelutionDeviceAssessment["device"]): string {
+  const lastConnection = device.lastConnectionDate ?? "unknown";
+  return device.inactiveDays === undefined ? lastConnection : `${lastConnection} (${String(device.inactiveDays)}d)`;
 }
 
 function assignedPolicyText(policies: readonly (string | undefined)[] | undefined): string {
@@ -399,9 +442,18 @@ function ZammadSection(props: {
           <button type="button" disabled={props.loading || !props.session.configured} onClick={props.onCreate}>Create ticket</button>
         </details>
       ) : null}
-      {props.result !== undefined ? <p className="ok">Ticket created: {props.result.number ?? props.result.id ?? "unknown"}</p> : null}
+      {props.result !== undefined ? <p className="ok">Ticket created: {zammadTicketIdentifier(props.result)}</p> : null}
     </section>
   );
+}
+
+function hasZammadTicketIdentifier(ticket: ZammadTicketResult): boolean {
+  return (typeof ticket.number === "string" && ticket.number.trim().length > 0)
+    || (typeof ticket.id === "number" && Number.isFinite(ticket.id));
+}
+
+function zammadTicketIdentifier(ticket: ZammadTicketResult): string {
+  return typeof ticket.number === "string" && ticket.number.trim().length > 0 ? ticket.number : String(ticket.id);
 }
 
 function filterAssessments(entries: RelutionDeviceAssessment[], filter: DeviceFilter, search: string): RelutionDeviceAssessment[] {

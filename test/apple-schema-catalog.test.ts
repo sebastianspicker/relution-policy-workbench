@@ -162,8 +162,8 @@ test("refreshAppleSchemaCatalog allows versioned revisions in version-labeled ou
 test("refreshAppleSchemaCatalog reports all failed remote document downloads", async () => {
   const originalFetch = globalThis.fetch;
   const directoryEntries = [
-    { name: "First.yaml", download_url: "https://example.test/First.yaml" },
-    { name: "Second.yaml", download_url: "https://example.test/Second.yaml" },
+    { name: "First.yaml", download_url: "https://raw.githubusercontent.com/apple/device-management/test-fixture/mdm/profiles/First.yaml" },
+    { name: "Second.yaml", download_url: "https://raw.githubusercontent.com/apple/device-management/test-fixture/mdm/profiles/Second.yaml" },
   ];
   globalThis.fetch = async (input: string | URL | Request): Promise<Response> => {
     const url = String(input);
@@ -186,8 +186,8 @@ test("refreshAppleSchemaCatalog reports all failed remote document downloads", a
         assert.equal(error instanceof Error, true);
         const message = error instanceof Error ? error.message : "";
         assert.match(message, /Failed to fetch 18 Apple schema document\(s\)/u);
-        assert.match(message, /https:\/\/example\.test\/First\.yaml: 503 Unavailable/u);
-        assert.match(message, /https:\/\/example\.test\/Second\.yaml: 404 Not Found/u);
+        assert.match(message, /https:\/\/raw\.githubusercontent\.com\/apple\/device-management\/test-fixture\/mdm\/profiles\/First\.yaml: 503 Unavailable/u);
+        assert.match(message, /https:\/\/raw\.githubusercontent\.com\/apple\/device-management\/test-fixture\/mdm\/profiles\/Second\.yaml: 404 Not Found/u);
         return true;
       },
     );

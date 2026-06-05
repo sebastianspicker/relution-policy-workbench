@@ -7,7 +7,7 @@ import {
   parseCorporateTheme,
   readCustomThemeTokens,
   resetCustomThemeTokens,
-  THEME_OPTIONS,
+  THEME_PACKS,
   writeCustomThemeTokens,
   type CorporateTheme,
   type CustomThemeTokenName,
@@ -73,7 +73,7 @@ export function ThemeSwitcher({ theme, onThemeChange }: ThemeSwitcherProps): JSX
           value={theme}
           onChange={(event) => onThemeChange(parseCorporateTheme(event.target.value))}
         >
-          {THEME_OPTIONS.map((option) => (
+          {THEME_PACKS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

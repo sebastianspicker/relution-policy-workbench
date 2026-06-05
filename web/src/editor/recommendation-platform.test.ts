@@ -22,6 +22,34 @@ describe("recommendation-platform", () => {
     expect(filtered.policies[0]?.rules.map((rule) => rule.id)).toEqual(["mapped"]);
   });
 
+  it("keeps rules whose actionable mapping comes from built-in compatibility data", () => {
+    const ruleset: RecommendationRuleset = {
+      version: 1,
+      name: "Recommendation rules",
+      policies: [
+        {
+          platform: "IOS",
+          name: "iOS",
+          rules: [
+            {
+              id: "bsi-ios-disable-camera",
+              title: "Disable camera",
+              informational: false,
+            },
+            {
+              id: "unmapped",
+              title: "Unmapped recommendation",
+            },
+          ],
+        },
+      ],
+    };
+
+    const filtered = filterActionableRecommendationRuleset(ruleset, "IOS");
+
+    expect(filtered.policies[0]?.rules.map((rule) => rule.id)).toEqual(["bsi-ios-disable-camera"]);
+  });
+
   it("drops empty policies after action-only filtering", () => {
     const ruleset = createRuleset();
 

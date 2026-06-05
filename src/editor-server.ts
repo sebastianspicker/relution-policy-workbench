@@ -1,19 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { extname, join, resolve, sep } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createAppleCompatReport } from "./apple-compat.js";
 import { loadAppleSchemaCatalog } from "./apple-schema-catalog.js";
 import { baselineTemplateApiResponse } from "./baseline-template-routes.js";
-import { createDdmArtifact, createMdmCommandArtifact, findAppleSchemaEntry } from "./apple-schema.js";
-import { applyComplianceRemediationToWorkspace, buildComplianceReport } from "./compliance.js";
+import { applyComplianceRemediationToWorkspace, buildComplianceReport, loadComplianceArtifacts } from "./compliance.js";
 import {
-  addDdmArtifact, addMdmCommandArtifact, loadEditorSidecar, replaceEditorSidecarFromWorkspace,
-  reconcileMobileConfigRestoreEntries, recordMobileConfigRestoreEntries, removeDdmArtifact,
-  removeMdmCommandArtifact, updateDdmArtifact, updateMdmCommandArtifact,
+  loadEditorSidecar, replaceEditorSidecarFromWorkspace,
+  reconcileMobileConfigRestoreEntries, recordMobileConfigRestoreEntries,
 } from "./sidecar.js";
-import { inspectMobileConfigText } from "./plist.js";
 import { type RecommendationSource } from "./recommendation-types.js";
 import {
   isRecommendationSource,
@@ -24,20 +21,19 @@ import {
   loadUnifiedRecommendationAnalysis,
 } from "./recommendations.js";
 import { extractRexp, packPlainDirectory, verifyRexp } from "./rexp.js";
-import { createRelutionEditorRuntime, handleRelutionApiRequest, type RelutionEditorRuntime } from "./relution-editor-routes.js";
-import { createZammadEditorRuntime, handleZammadApiRequest, type ZammadEditorRuntime } from "./zammad-editor-routes.js";
+import { handleRelutionApiRequest, type RelutionEditorRuntime } from "./relution-editor-routes.js";
+import { handleZammadApiRequest, type ZammadEditorRuntime } from "./zammad-editor-routes.js";
+import { sendJson } from "./editor-routes-utils.js";
 import {
-  addAppleCompatConfigurationToWorkspace, addAppleSchemaProfileToWorkspace, addConfigurationToWorkspace,
-  addCustomSettingsToWorkspace, addPolicyToWorkspace, loadWorkspace, moveConfigurationInWorkspace,
-  replaceWorkspace, removeConfigurationFromWorkspace, saveWorkspace, validateWorkspace, type PolicyWorkspace,
+  addAppleCompatConfigurationToWorkspace, addConfigurationToWorkspace,
+  addPolicyToWorkspace, loadWorkspace, moveConfigurationInWorkspace,
+  removeConfigurationFromWorkspace, saveWorkspace, schemaCompatibilityIssues, validateWorkspace, type PolicyWorkspace,
 } from "./workspace.js";
 import { loadTemplateBundle, listTemplates, type RelutionTemplateBundle } from "./templates.js";
 import type { AppleSchemaCatalog } from "./apple-schema.js";
 import {
   HttpError, assertNetworkApiToken, assertSafeApiRequestHost, assertSafeEditorHost, assertSafeMutatingApiRequest,
   badRequest, createNetworkApiToken, editorUrlWithNetworkToken,
-  loadComplianceArtifacts,
-  optionalRecord,
   optionalString,
   parseComplianceSelectionBody,
   parseRecommendationSourceBody,
@@ -46,11 +42,12 @@ import {
   readJsonBody,
   requireNumber,
   requireString,
-  shouldServeSpaIndex,
-  uniqueRecommendationSources,
   type JsonRecord,
 } from "./editor-server-helpers.js";
-
+import { validateEditorKeyForOutput, type EditorKeyValidationResponse } from "./editor-key-validation.js";
+import { outputFileName, resolveStaticAssetPath, serveStaticAsset } from "./editor-static-assets.js";
+import { handleAppleArtifactApiRequest } from "./editor-server-apple-routes.js";
+export { resolveStaticAssetPath };
 export interface EditorServerOptions {
   workspace: string;
   key: string;
@@ -67,19 +64,26 @@ export interface EditorServerHandle {
   close: () => Promise<void>;
 }
 
-interface EditorRuntimeState {
+export interface EditorRuntimeState {
   key: string;
+  keyValidation: EditorKeyValidationResponse;
   relution: RelutionEditorRuntime;
   zammad: ZammadEditorRuntime;
   networkApiToken?: string;
 }
 
-interface EditorRequestContext {
+export interface EditorRequestContext {
   readonly options: EditorServerOptions;
   readonly bundle: RelutionTemplateBundle;
   readonly appleSchema: AppleSchemaCatalog;
   readonly runtimeState: EditorRuntimeState;
 }
+
+export type EditorApiHandler = (url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext) => boolean | Promise<boolean>;
+type ComplianceApplyResult = ReturnType<typeof applyComplianceRemediationToWorkspace> & {
+  readonly selection: ReturnType<typeof parseComplianceSelectionBody>;
+  readonly sources: RecommendationSource[];
+};
 
 const STATIC_ROOT = fileURLToPath(new URL("../../dist-web", import.meta.url));
 const IMPORT_JSON_BODY_LIMIT_BYTES = 64 * 1024 * 1024;
@@ -91,7 +95,13 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const bundle = loadTemplateBundle(options.bundlePath);
   const appleSchema = loadAppleSchemaCatalog();
   const networkApiToken = options.allowNetworkHost === true ? createNetworkApiToken() : undefined;
-  const runtimeState: EditorRuntimeState = { key: options.key, relution: createRelutionEditorRuntime(), zammad: createZammadEditorRuntime(), ...(networkApiToken === undefined ? {} : { networkApiToken }) };
+  const runtimeState: EditorRuntimeState = {
+    key: options.key,
+    keyValidation: validateEditorKeyForOutput(options.out, options.key),
+    relution: { lastDevices: [] },
+    zammad: {},
+    ...(networkApiToken === undefined ? {} : { networkApiToken }),
+  };
 
   const server = createServer((request, response) => {
     void handleRequest(request, response, options, bundle, appleSchema, runtimeState).catch((error: unknown) => {
@@ -145,21 +155,28 @@ async function handleRequest(
   if (url.pathname.startsWith("/api/") && request.method === "POST") {
     assertSafeMutatingApiRequest(request, options);
   }
-  if (handleReadOnlyApiRequest(url, request, response, context)) {
+  if (await routeEditorApiRequest(url, request, response, context)) return;
+  if (url.pathname.startsWith("/api/")) {
+    sendJson(response, 404, { error: `Unknown API endpoint: ${request.method ?? "GET"} ${url.pathname}` });
     return;
   }
-  if (await handleComplianceApiRequest(url, request, response, context)) {
-    return;
+  serveStaticAsset(STATIC_ROOT, url.pathname, response);
+}
+
+async function routeEditorApiRequest(url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext): Promise<boolean> {
+  for (const handler of EDITOR_API_HANDLERS) {
+    if (await handler(url, request, response, context)) return true;
   }
-  if (await handleRelutionApiRequest(url, request, response, runtimeState.relution, options.workspace, options.allowLocalServiceHosts === true)) {
-    return;
-  }
-  if (await handleZammadApiRequest(url, request, response, runtimeState.zammad, options.allowLocalServiceHosts === true)) {
-    return;
-  }
-  if (await handleArchiveApiRequest(url, request, response, context)) {
-    return;
-  }
+  return false;
+}
+
+async function handleWorkspaceApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  const { options, bundle, appleSchema } = context;
   if (url.pathname === "/api/workspace" && request.method === "POST") {
     const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
     const previousWorkspace = loadWorkspace(options.workspace);
@@ -174,7 +191,7 @@ async function handleRequest(
       rollbackPersistedEditorState(options.workspace, previousWorkspace, previousSidecar, error);
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) });
     }
-    return;
+    return true;
   }
   if (url.pathname === "/api/workspace/validate" && request.method === "POST") {
     const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
@@ -183,106 +200,28 @@ async function handleRequest(
     } catch (error) {
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) });
     }
-    return;
-  }
-  if (url.pathname === "/api/apple-profile/add" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const workspace = addAppleSchemaProfileToWorkspace(options.workspace, appleSchema, {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      schemaId: requireString(body, "schemaId"),
-    });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar: loadEditorSidecar(options.workspace) });
-    return;
-  }
-  if (url.pathname === "/api/custom-settings/add" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const customSettingsOptions: Parameters<typeof addCustomSettingsToWorkspace>[1] = {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      domain: optionalString(body, "domain") ?? "com.example.app",
-      settings: optionalRecord(body, "settings") ?? {},
-    };
-    const displayName = optionalString(body, "displayName");
-    if (displayName !== undefined) {
-      customSettingsOptions.displayName = displayName;
-    }
-    const workspace = addCustomSettingsToWorkspace(options.workspace, customSettingsOptions);
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar: loadEditorSidecar(options.workspace) });
-    return;
-  }
-  if (url.pathname === "/api/ddm/artifact" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const entry = requireAppleSchemaEntry(appleSchema, requireString(body, "schemaId"));
-    if (entry.kind === undefined) {
-      throw badRequest(`Apple schema entry has no kind: ${entry.id}`);
-    }
-    if (!entry.kind.startsWith("ddm-") || entry.kind === "ddm-status") {
-      throw badRequest(`Apple schema entry is not a DDM authoring declaration: ${entry.id}`);
-    }
-    const sidecar = addDdmArtifact(options.workspace, createDdmArtifact(entry, optionalRecord(body, "values") ?? {}), appleSchema.source.revision);
-    sendJson(response, 200, { sidecar });
-    return;
-  }
-  if (url.pathname === "/api/mdm-command/artifact" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const entry = requireAppleSchemaEntry(appleSchema, requireString(body, "schemaId"));
-    if (entry.kind !== "mdm-command") {
-      throw badRequest(`Apple schema entry is not an MDM command: ${entry.id}`);
-    }
-    const sidecar = addMdmCommandArtifact(options.workspace, createMdmCommandArtifact(entry, optionalRecord(body, "values") ?? {}), appleSchema.source.revision);
-    sendJson(response, 200, { sidecar });
-    return;
-  }
-  if (url.pathname === "/api/ddm/artifact/update" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const sidecar = updateDdmArtifact(
-      options.workspace,
-      appleSchema,
-      requireString(body, "uuid"),
-      optionalRecord(body, "values") ?? {},
-      appleSchema.source.revision,
-    );
-    sendJson(response, 200, { sidecar });
-    return;
-  }
-  if (url.pathname === "/api/mdm-command/artifact/update" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const sidecar = updateMdmCommandArtifact(
-      options.workspace,
-      appleSchema,
-      requireString(body, "uuid"),
-      optionalRecord(body, "values") ?? {},
-      appleSchema.source.revision,
-    );
-    sendJson(response, 200, { sidecar });
-    return;
-  }
-  if (url.pathname === "/api/ddm/artifact/remove" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    sendJson(response, 200, { sidecar: removeDdmArtifact(options.workspace, requireString(body, "uuid"), appleSchema.source.revision) });
-    return;
-  }
-  if (url.pathname === "/api/mdm-command/artifact/remove" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    sendJson(response, 200, { sidecar: removeMdmCommandArtifact(options.workspace, requireString(body, "uuid"), appleSchema.source.revision) });
-    return;
-  }
-  if (url.pathname === "/api/mobileconfig/inspect" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    sendJson(response, 200, inspectMobileConfigText(requireString(body, "rawContent")));
-    return;
+    return true;
   }
   if (url.pathname === "/api/roundtrip/sidecar" && request.method === "GET") {
     sendJson(response, 200, loadEditorSidecar(options.workspace));
-    return;
+    return true;
   }
   if (url.pathname === "/api/roundtrip/reconcile" && request.method === "POST") {
     const workspace = reconcileMobileConfigRestoreEntries(loadWorkspace(options.workspace), loadEditorSidecar(options.workspace));
-    replaceWorkspace(options.workspace, workspace);
+    saveWorkspace(options.workspace, workspace);
     sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar: loadEditorSidecar(options.workspace) });
-    return;
+    return true;
   }
+  return false;
+}
+
+async function handleWorkspaceMutationApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  const { options, bundle } = context;
   if (url.pathname === "/api/add-configuration" && request.method === "POST") {
     const body = await readJsonBody(request);
     const workspace = addConfigurationToWorkspace(options.workspace, bundle, {
@@ -291,7 +230,7 @@ async function handleRequest(
       type: requireString(body, "type"),
     });
     sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return;
+    return true;
   }
   if (url.pathname === "/api/apple-compat/add" && request.method === "POST") {
     const body = await readJsonBody(request);
@@ -301,7 +240,7 @@ async function handleRequest(
       settingId: requireString(body, "settingId"),
     });
     sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return;
+    return true;
   }
   if (url.pathname === "/api/configuration/remove" && request.method === "POST") {
     const body = await readJsonBody(request);
@@ -311,22 +250,18 @@ async function handleRequest(
       configurationIndex: requireNumber(body, "configurationIndex"),
     });
     sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return;
+    return true;
   }
   if (url.pathname === "/api/configuration/move" && request.method === "POST") {
     const body = await readJsonBody(request);
-    const direction = requireString(body, "direction");
-    if (direction !== "up" && direction !== "down") {
-      throw badRequest(`Unsupported move direction: ${direction}`);
-    }
     const workspace = moveConfigurationInWorkspace(options.workspace, {
       policyPath: requireString(body, "policyPath"),
       versionIndex: requireNumber(body, "versionIndex"),
       configurationIndex: requireNumber(body, "configurationIndex"),
-      direction,
+      direction: requireMoveDirection(body),
     });
     sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return;
+    return true;
   }
   if (url.pathname === "/api/add-policy" && request.method === "POST") {
     const body = await readJsonBody(request);
@@ -334,25 +269,51 @@ async function handleRequest(
       platform: requireString(body, "platform"),
       name: requireString(body, "name"),
     });
-    sendJson(response, 200, {
-      workspace: result.workspace,
-      validation: validateWorkspace(result.workspace, bundle),
-      policyPath: result.policyPath,
-    });
-    return;
+    sendJson(response, 200, { workspace: result.workspace, validation: validateWorkspace(result.workspace, bundle), policyPath: result.policyPath });
+    return true;
   }
-  if (url.pathname === "/api/key" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    runtimeState.key = requireString(body, "key");
-    sendJson(response, 200, { keySet: true });
-    return;
-  }
-  if (url.pathname.startsWith("/api/")) {
-    sendJson(response, 404, { error: `Unknown API endpoint: ${request.method ?? "GET"} ${url.pathname}` });
-    return;
-  }
-  serveStatic(url.pathname, response);
+  return false;
 }
+
+async function handleKeyApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  const { options, runtimeState } = context;
+  if (url.pathname !== "/api/key" || request.method !== "POST") {
+    return false;
+  }
+  const body = await readJsonBody(request);
+  const key = requireString(body, "key");
+  const keyValidation = validateEditorKeyForOutput(options.out, key);
+  runtimeState.key = key;
+  runtimeState.keyValidation = keyValidation;
+  sendJson(response, 200, keyValidation);
+  return true;
+}
+
+const EDITOR_API_HANDLERS: readonly EditorApiHandler[] = [
+  handleReadOnlyApiRequest,
+  handleComplianceApiRequest,
+  async (url, request, response, context) =>
+    await handleRelutionApiRequest(
+      url,
+      request,
+      response,
+      context.runtimeState.relution,
+      context.options.workspace,
+      context.options.allowLocalServiceHosts === true,
+    ),
+  async (url, request, response, context) =>
+    await handleZammadApiRequest(url, request, response, context.runtimeState.zammad, context.options.allowLocalServiceHosts === true),
+  handleArchiveApiRequest,
+  handleWorkspaceApiRequest,
+  handleAppleArtifactApiRequest,
+  handleWorkspaceMutationApiRequest,
+  handleKeyApiRequest,
+];
 
 function handleReadOnlyApiRequest(
   url: URL,
@@ -363,6 +324,18 @@ function handleReadOnlyApiRequest(
   if (request.method !== "GET") {
     return false;
   }
+  for (const handler of READ_ONLY_API_HANDLERS) {
+    if (handler(url, request, response, context)) return true;
+  }
+  return false;
+}
+
+function handleStateApiRequest(
+  url: URL,
+  _request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): boolean {
   const { options, bundle, appleSchema, runtimeState } = context;
   if (url.pathname === "/api/state") {
     const workspace = loadWorkspace(options.workspace);
@@ -372,12 +345,24 @@ function handleReadOnlyApiRequest(
       validation: validateWorkspace(workspace, bundle),
       outputFile: options.out,
       keySet: runtimeState.key.length > 0,
+      keyValidated: runtimeState.keyValidation.validated,
+      ...(runtimeState.keyValidation.reason === undefined ? {} : { keyValidationReason: runtimeState.keyValidation.reason }),
       appleCompat: createAppleCompatReport(bundle),
       appleSchema,
       sidecar: loadEditorSidecar(options.workspace),
     });
     return true;
   }
+  return false;
+}
+
+function handleCatalogApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): boolean {
+  const { bundle, appleSchema } = context;
   if (url.pathname === "/api/apple-compat") {
     sendJson(response, 200, createAppleCompatReport(bundle));
     return true;
@@ -396,6 +381,14 @@ function handleReadOnlyApiRequest(
     sendJson(response, 200, appleSchema);
     return true;
   }
+  return false;
+}
+
+function handleRecommendationApiRequest(
+  url: URL,
+  _request: IncomingMessage,
+  response: ServerResponse,
+): boolean {
   if (url.pathname === "/api/recommendations") {
     sendJson(response, 200, listRecommendationCatalogs());
     return true;
@@ -421,6 +414,16 @@ function handleReadOnlyApiRequest(
     sendJson(response, 200, loadRecommendationCatalog(source));
     return true;
   }
+  return false;
+}
+
+function handleOutputApiRequest(
+  url: URL,
+  _request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): boolean {
+  const { options } = context;
   if (url.pathname === "/api/output") {
     if (!existsSync(options.out) || !statSync(options.out).isFile()) {
       sendJson(response, 404, { error: "No built .rexp output is available yet" });
@@ -436,13 +439,32 @@ function handleReadOnlyApiRequest(
   return false;
 }
 
+const READ_ONLY_API_HANDLERS: readonly EditorApiHandler[] = [
+  handleStateApiRequest,
+  handleCatalogApiRequest,
+  handleRecommendationApiRequest,
+  handleOutputApiRequest,
+];
+
 async function handleComplianceApiRequest(
   url: URL,
   request: IncomingMessage,
   response: ServerResponse,
   context: EditorRequestContext,
 ): Promise<boolean> {
-  const { options, bundle, appleSchema } = context;
+  for (const handler of COMPLIANCE_API_HANDLERS) {
+    if (await handler(url, request, response, context)) return true;
+  }
+  return false;
+}
+
+async function handleComplianceCheckApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  const { bundle, appleSchema } = context;
   if (url.pathname === "/api/compliance/check" && request.method === "POST") {
     const body = await readJsonBody(request);
     const workspace = parseWorkspaceBody(body);
@@ -460,46 +482,22 @@ async function handleComplianceApiRequest(
     });
     return true;
   }
+  return false;
+}
+
+async function handleComplianceApplyApiRequest(
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  const { options } = context;
   if (url.pathname === "/api/compliance/apply" && request.method === "POST") {
     const body = await readJsonBody(request);
     const previousWorkspace = loadWorkspace(options.workspace);
     const previousSidecar = captureSidecarState(options.workspace);
     try {
-      const workspace = parseWorkspaceBody(body);
-      const selection = parseComplianceSelectionBody(body);
-      const source = parseRecommendationSourceBody(body);
-      const sources = uniqueRecommendationSources([...parseRecommendationSourcesBody(body), source]);
-      const applied = applyComplianceRemediationToWorkspace({
-        workspace,
-        selection,
-        sources,
-        source,
-        recommendationId: requireString(body, "recommendationId"),
-        remediationId: requireString(body, "remediationId"),
-        catalogs: loadComplianceArtifacts(sources),
-        bundle,
-        appleSchema,
-      });
-      const validation = validateWorkspace(applied.workspace, bundle);
-      if (!validation.ok) {
-        throw badRequest(`Compliance remediation produced an invalid workspace: ${validation.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
-      }
-      saveWorkspace(options.workspace, applied.workspace);
-      const persisted = loadWorkspace(options.workspace);
-      const sidecar = recordMobileConfigRestoreEntries(options.workspace, persisted, appleSchema.source.revision);
-      sendJson(response, 200, {
-        workspace: persisted,
-        validation,
-        sidecar,
-        report: buildComplianceReport({
-          workspace: persisted,
-          selection,
-          sources,
-          catalogs: loadComplianceArtifacts(sources),
-          bundle,
-          appleSchema,
-        }),
-      });
+      sendAppliedComplianceResponse(response, context, applyComplianceRequestBody(body, context));
     } catch (error) {
       rollbackPersistedEditorState(options.workspace, previousWorkspace, previousSidecar, error);
       sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) });
@@ -508,6 +506,11 @@ async function handleComplianceApiRequest(
   }
   return false;
 }
+
+const COMPLIANCE_API_HANDLERS: readonly EditorApiHandler[] = [
+  handleComplianceCheckApiRequest,
+  handleComplianceApplyApiRequest,
+];
 
 async function handleArchiveApiRequest(
   url: URL,
@@ -524,6 +527,8 @@ async function handleArchiveApiRequest(
     }
     const previousWorkspace = loadWorkspace(options.workspace);
     const previousSidecar = captureSidecarState(options.workspace);
+    const previousKey = runtimeState.key;
+    const previousKeyValidation = runtimeState.keyValidation;
     const archive = Buffer.from(requireString(body, "dataBase64"), "base64");
     const importDir = mkdtempSync(join(tmpdir(), "relution-rexp-import-"));
     const archivePath = join(importDir, "import.rexp");
@@ -532,9 +537,10 @@ async function handleArchiveApiRequest(
       writeFileSync(archivePath, archive);
       extractRexp(archivePath, extractedDir, importKey, { force: true, pretty: true });
       const workspace = loadWorkspace(extractedDir);
-      replaceWorkspace(options.workspace, workspace);
+      saveWorkspace(options.workspace, workspace);
       const sidecar = replaceEditorSidecarFromWorkspace(options.workspace, workspace, appleSchema.source.revision);
       runtimeState.key = importKey;
+      runtimeState.keyValidation = { keySet: true, validated: true };
       sendJson(response, 200, {
         workspace,
         validation: validateWorkspace(workspace, bundle),
@@ -542,6 +548,8 @@ async function handleArchiveApiRequest(
         sidecar,
       });
     } catch (error) {
+      runtimeState.key = previousKey;
+      runtimeState.keyValidation = previousKeyValidation;
       rollbackPersistedEditorState(options.workspace, previousWorkspace, previousSidecar, error);
       throw error;
     } finally {
@@ -556,87 +564,91 @@ async function handleArchiveApiRequest(
     }
     const workspace = loadWorkspace(options.workspace);
     const validation = validateWorkspace(workspace, bundle);
+    const constraintsRemoved = schemaCompatibilityIssues(bundle).map((issue) => ({
+      path: issue.path,
+      constraint: issue.kind === "invalid-pattern" ? "pattern" : issue.kind,
+      original: issue.pattern,
+    }));
     if (!validation.ok) {
-      sendJson(response, 400, { validation });
+      sendJson(response, 400, { validation, ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }) });
       return true;
     }
-    recordMobileConfigRestoreEntries(options.workspace, workspace, appleSchema.source.revision);
+    const sidecar = recordMobileConfigRestoreEntries(options.workspace, workspace, appleSchema.source.revision);
     packPlainDirectory(options.workspace, options.out, runtimeState.key, { force: true });
+    const verification = verifyRexp(options.out, runtimeState.key);
+    if (!verification.ok) {
+      const failedEntryCount = verification.checkedEntries.filter((entry) => entry.hashStatus !== "match").length;
+      sendJson(response, 500, {
+        error: `Build verification failed for ${failedEntryCount} archive entr${failedEntryCount === 1 ? "y" : "ies"}`,
+        validation,
+        verification,
+        failedEntryCount,
+        ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }),
+      });
+      return true;
+    }
+    runtimeState.keyValidation = { keySet: true, validated: true };
     sendJson(response, 200, {
       validation,
-      verification: verifyRexp(options.out, runtimeState.key),
+      verification,
       outputFile: options.out,
-      sidecar: loadEditorSidecar(options.workspace),
+      sidecar,
+      ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }),
     });
     return true;
   }
   return false;
 }
 
-function requireAppleSchemaEntry(catalog: AppleSchemaCatalog, schemaId: string) {
-  const entry = findAppleSchemaEntry(catalog, schemaId);
-  if (entry === undefined) {
-    throw badRequest(`Unknown Apple schema entry: ${schemaId}`);
-  }
-  return entry;
+function applyComplianceRequestBody(body: JsonRecord, context: EditorRequestContext): ComplianceApplyResult {
+  const { bundle, appleSchema } = context;
+  const workspace = parseWorkspaceBody(body);
+  const selection = parseComplianceSelectionBody(body);
+  const source = parseRecommendationSourceBody(body);
+  const sources = [...new Set([...parseRecommendationSourcesBody(body), source])];
+  return {
+    ...applyComplianceRemediationToWorkspace({
+      workspace,
+      selection,
+      sources,
+      source,
+      recommendationId: requireString(body, "recommendationId"),
+      remediationId: requireString(body, "remediationId"),
+      catalogs: loadComplianceArtifacts(sources),
+      bundle,
+      appleSchema,
+    }),
+    selection,
+    sources,
+  };
 }
 
-function serveStatic(pathname: string, response: ServerResponse): void {
-  const file = resolveStaticAssetPath(STATIC_ROOT, pathname);
-  if (!existsSync(file)) {
-    sendText(response, 404, "Editor assets are missing. Run pnpm build first.");
-    return;
+function sendAppliedComplianceResponse(response: ServerResponse, context: EditorRequestContext, result: ComplianceApplyResult): void {
+  const { options, bundle, appleSchema } = context;
+  const validation = validateWorkspace(result.workspace, bundle);
+  if (!validation.ok) {
+    throw badRequest(`Compliance remediation produced an invalid workspace: ${validation.errors.map((error) => `${error.path}: ${error.message}`).join("; ")}`);
   }
-  const type = contentType(file);
-  if (type === undefined) {
-    sendText(response, 404, "Editor asset type is not supported.");
-    return;
-  }
-  response.writeHead(200, { "content-type": type, "x-content-type-options": "nosniff" });
-  response.end(readFileSync(file));
+  saveWorkspace(options.workspace, result.workspace);
+  const persisted = loadWorkspace(options.workspace);
+  const sidecar = recordMobileConfigRestoreEntries(options.workspace, persisted, appleSchema.source.revision);
+  const report = buildComplianceReport({
+    workspace: persisted,
+    selection: result.selection,
+    sources: result.sources,
+    catalogs: loadComplianceArtifacts(result.sources),
+    bundle,
+    appleSchema,
+  });
+  sendJson(response, 200, { workspace: persisted, validation, sidecar, report });
 }
 
-export function resolveStaticAssetPath(staticRoot: string, pathname: string): string {
-  const relativePath = pathname === "/" ? "index.html" : pathname.replace(/^\/+/, "");
-  const candidate = resolve(staticRoot, relativePath);
-  const index = join(staticRoot, "index.html");
-  const withinRoot = candidate === staticRoot || candidate.startsWith(`${staticRoot}${sep}`);
-  if (!withinRoot) {
-    return index;
+function requireMoveDirection(body: JsonRecord): "up" | "down" {
+  const direction = requireString(body, "direction");
+  if (direction !== "up" && direction !== "down") {
+    throw badRequest(`Unsupported move direction: ${direction}`);
   }
-  if (existsSync(candidate) && statSync(candidate).isFile()) {
-    return candidate;
-  }
-  return shouldServeSpaIndex(pathname) ? index : candidate;
-}
-
-function sendJson(response: ServerResponse, status: number, value: unknown): void {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(value));
-}
-
-function sendText(response: ServerResponse, status: number, value: string): void {
-  response.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
-  response.end(value);
-}
-
-function contentType(path: string): string | undefined {
-  switch (extname(path)) {
-    case ".html":
-      return "text/html; charset=utf-8";
-    case ".js":
-      return "text/javascript; charset=utf-8";
-    case ".css":
-      return "text/css; charset=utf-8";
-    case ".svg":
-      return "image/svg+xml";
-    default:
-      return undefined;
-  }
-}
-
-function outputFileName(path: string): string {
-  return path.split(/[\\/]/u).at(-1) ?? "output.rexp";
+  return direction;
 }
 
 type SidecarPathState =
@@ -687,7 +699,7 @@ function rollbackPersistedEditorState(
   const rollbackErrors: string[] = [];
 
   try {
-    replaceWorkspace(workspaceDir, previousWorkspace);
+    saveWorkspace(workspaceDir, previousWorkspace);
   } catch (error) {
     rollbackErrors.push(`workspace rollback failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -702,8 +714,4 @@ function rollbackPersistedEditorState(
     const originalMessage = originalError instanceof Error ? originalError.message : String(originalError);
     throw new Error(`${originalMessage}; ${rollbackErrors.join("; ")}`);
   }
-}
-
-export function editorFileUrl(): string {
-  return pathToFileURL(join(STATIC_ROOT, "index.html")).toString();
 }

@@ -10,7 +10,7 @@ import { loadTemplateBundle } from "../src/templates.js";
 import { saveWorkspace } from "../src/workspace.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
 import {
-  archiveKey,
+  archiveSecret,
   baseUrl,
   configurationsHaveType,
   dockerCompose,
@@ -46,8 +46,8 @@ test("local Docker Relution import/export supports dashboard audit with mock dev
     const rexpPath = join(root, "dashboard-baseline.rexp");
     const exportedPath = join(root, "dashboard-baseline-exported.rexp");
     saveWorkspace(workspaceDir, workspace);
-    packPlainDirectory(workspaceDir, rexpPath, archiveKey, { force: true });
-    assert.equal(verifyRexp(rexpPath, archiveKey).ok, true, "local rexp verification");
+    packPlainDirectory(workspaceDir, rexpPath, archiveSecret, { force: true });
+    assert.equal(verifyRexp(rexpPath, archiveSecret).ok, true, "local rexp verification");
 
     const importReport = await importBaselineTemplate(rexpPath, templatePath);
     const firstPolicy = requireExportablePolicy(template);
@@ -61,8 +61,8 @@ test("local Docker Relution import/export supports dashboard audit with mock dev
 
     const exportedArchive = await exportPolicy(policyUuid);
     writeFileSync(exportedPath, new Uint8Array(await exportedArchive.arrayBuffer()));
-    assert.equal(verifyRexp(exportedPath, archiveKey).ok, true, "exported rexp verification");
-    const exported = inspectRexp(exportedPath, archiveKey);
+    assert.equal(verifyRexp(exportedPath, archiveSecret).ok, true, "exported rexp verification");
+    const exported = inspectRexp(exportedPath, archiveSecret);
     assert.equal(exported.policies?.some((policy) => policy.name === firstPolicy.name), true, "exported archive policy");
 
     await probeDashboardWithMockDevices({ apiToken, workspaceDir, root, expectedPolicyName: firstPolicy.name });
@@ -121,7 +121,7 @@ async function probeDashboardWithMockDevices(options: {
   const handle = await startEditorServer({
     workspace: options.workspaceDir,
     out: join(options.root, "dashboard-out.rexp"),
-    key: archiveKey,
+    key: archiveSecret,
     port: 0,
     allowLocalServiceHosts: true,
   });

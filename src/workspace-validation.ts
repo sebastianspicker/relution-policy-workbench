@@ -2,7 +2,8 @@ import { Ajv, type ErrorObject, type ValidateFunction } from "ajv/dist/ajv.js";
 import { inspectMobileConfigText } from "./plist.js";
 import { findTemplate, type RelutionTemplateBundle } from "./templates.js";
 import type { PolicyWorkspace, SchemaCompatibilityIssue, WorkspaceValidationError, WorkspaceValidationResult } from "./workspace.js";
-import { asRecord, stringValue, type JsonRecord } from "./utils/json-guards.js";
+import { requireRecord, stringValue } from "./utils/json-guards.js";
+import type { JsonRecord as SharedJsonRecord } from "./utils/json-guards.js";
 
 interface ValidatorContext {
   ajv: Ajv;
@@ -10,6 +11,8 @@ interface ValidatorContext {
   schemaCompatibilityIssues: SchemaCompatibilityIssue[];
 }
 
+// Template bundles are treated as immutable after load; cache compiled AJV
+// validators per bundle object so editor requests do not recompile schemas.
 const validatorContexts = new WeakMap<RelutionTemplateBundle, ValidatorContext>();
 
 export function validateWorkspace(workspace: PolicyWorkspace, bundle: RelutionTemplateBundle): WorkspaceValidationResult {
@@ -17,54 +20,85 @@ export function validateWorkspace(workspace: PolicyWorkspace, bundle: RelutionTe
   const validatorContext = getValidatorContext(bundle);
 
   for (const policy of workspace.policies) {
-    const platform = stringValue(policy.document.platform);
-    if (platform === undefined || !bundle.platforms.includes(platform)) {
-      errors.push({ path: policy.path, message: `Policy platform is invalid: ${String(policy.document.platform)}` });
-      continue;
-    }
-    const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
-    for (const [versionIndex, versionValue] of versions.entries()) {
-      const version = asRecord(versionValue, `${policy.path}.versions[${versionIndex}]`);
-      const configurations = Array.isArray(version.configurations) ? version.configurations : [];
-      const seen = new Set<string>();
-      for (const [configurationIndex, configurationValue] of configurations.entries()) {
-        const type = configurationType(configurationValue);
-        const path = `${policy.path}.versions[${versionIndex}].configurations[${configurationIndex}]`;
-        if (type === undefined) {
-          errors.push({ path, message: "Configuration details.type is missing" });
-          continue;
-        }
-        const template = findTemplate(bundle, type);
-        if (template === undefined) {
-          errors.push({ path, message: `Unknown configuration type: ${type}` });
-          continue;
-        }
-        if (!template.platforms.includes(platform)) {
-          errors.push({ path, message: `${type} is not compatible with policy platform ${platform}` });
-        }
-        if (!template.multiConfig && seen.has(type)) {
-          errors.push({ path, message: `${type} is not multi-config and appears more than once` });
-        }
-        seen.add(type);
-        const details = configurationDetails(configurationValue);
-        if (details === undefined) {
-          errors.push({ path, message: "Configuration details object is missing" });
-          continue;
-        }
-        const validate = getSchemaValidator(validatorContext, template.schemaName);
-        if (!validate(details)) {
-          for (const error of validate.errors ?? []) {
-            errors.push({ path: `${path}.details${error.instancePath}`, message: formatAjvError(error) });
-          }
-        }
-        for (const error of mobileConfigValidationErrors(details)) {
-          errors.push({ path: `${path}.details.rawContent`, message: error });
-        }
-      }
-    }
+    errors.push(...validatePolicy(policy, bundle, validatorContext));
   }
 
-  return { ok: errors.length === 0, errors };
+  return {
+    ok: errors.length === 0,
+    errors,
+    schemaCompatibilityIssueCount: validatorContext.schemaCompatibilityIssues.length,
+    ...(validatorContext.schemaCompatibilityIssues.length === 0 ? {} : { schemaCompatibilityIssues: validatorContext.schemaCompatibilityIssues }),
+  };
+}
+
+function validatePolicy(policy: PolicyWorkspace["policies"][number], bundle: RelutionTemplateBundle, validatorContext: ValidatorContext): WorkspaceValidationError[] {
+  const platform = stringValue(policy.document.platform);
+  if (platform === undefined || !bundle.platforms.includes(platform)) {
+    return [{ path: policy.path, message: `Policy platform is invalid: ${String(policy.document.platform)}` }];
+  }
+  const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
+  return versions.flatMap((versionValue, versionIndex) =>
+    validatePolicyVersion(policy.path, platform, versionValue, versionIndex, bundle, validatorContext),
+  );
+}
+
+function validatePolicyVersion(
+  policyPath: string,
+  platform: string,
+  versionValue: unknown,
+  versionIndex: number,
+  bundle: RelutionTemplateBundle,
+  validatorContext: ValidatorContext,
+): WorkspaceValidationError[] {
+  const version = requireRecord(versionValue, `${policyPath}.versions[${versionIndex}]`);
+  const configurations = Array.isArray(version.configurations) ? version.configurations : [];
+  const seen = new Set<string>();
+  return configurations.flatMap((configurationValue, configurationIndex) =>
+    validateConfiguration(configurationValue, `${policyPath}.versions[${versionIndex}].configurations[${configurationIndex}]`, platform, seen, bundle, validatorContext),
+  );
+}
+
+function validateConfiguration(
+  configurationValue: unknown,
+  path: string,
+  platform: string,
+  seen: Set<string>,
+  bundle: RelutionTemplateBundle,
+  validatorContext: ValidatorContext,
+): WorkspaceValidationError[] {
+  const type = configurationType(configurationValue);
+  if (type === undefined) {
+    return [{ path, message: "Configuration details.type is missing" }];
+  }
+  const template = findTemplate(bundle, type);
+  if (template === undefined) {
+    return [{ path, message: `Unknown configuration type: ${type}` }];
+  }
+  const errors = configurationTemplateErrors(path, platform, type, seen, template.platforms, template.multiConfig);
+  const details = configurationDetails(configurationValue);
+  if (details === undefined) {
+    return [...errors, { path, message: "Configuration details object is missing" }];
+  }
+  return [...errors, ...schemaValidationErrors(path, details, getSchemaValidator(validatorContext, template.schemaName)), ...mobileConfigValidationErrors(details).map((message) => ({ path: `${path}.details.rawContent`, message }))];
+}
+
+function configurationTemplateErrors(path: string, platform: string, type: string, seen: Set<string>, platforms: string[], multiConfig: boolean): WorkspaceValidationError[] {
+  const errors: WorkspaceValidationError[] = [];
+  if (!platforms.includes(platform)) {
+    errors.push({ path, message: `${type} is not compatible with policy platform ${platform}` });
+  }
+  if (!multiConfig && seen.has(type)) {
+    errors.push({ path, message: `${type} is not multi-config and appears more than once` });
+  }
+  seen.add(type);
+  return errors;
+}
+
+function schemaValidationErrors(path: string, details: SharedJsonRecord, validate: ValidateFunction): WorkspaceValidationError[] {
+  if (validate(details)) {
+    return [];
+  }
+  return (validate.errors ?? []).map((error) => ({ path: `${path}.details${error.instancePath}`, message: formatAjvError(error) }));
 }
 
 export function schemaCompatibilityIssues(bundle: RelutionTemplateBundle): SchemaCompatibilityIssue[] {
@@ -76,10 +110,10 @@ function configurationType(value: unknown): string | undefined {
   return stringValue(details?.type);
 }
 
-function configurationDetails(value: unknown): JsonRecord | undefined {
-  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonRecord) : undefined;
+function configurationDetails(value: unknown): SharedJsonRecord | undefined {
+  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as SharedJsonRecord) : undefined;
   const details = record?.details;
-  return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as JsonRecord) : undefined;
+  return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as SharedJsonRecord) : undefined;
 }
 
 function formatAjvError(error: ErrorObject): string {
@@ -89,7 +123,7 @@ function formatAjvError(error: ErrorObject): string {
   return error.message;
 }
 
-function mobileConfigValidationErrors(details: JsonRecord): string[] {
+function mobileConfigValidationErrors(details: SharedJsonRecord): string[] {
   if (details.type !== "APPLE_MOBILECONFIG") {
     return [];
   }
@@ -133,15 +167,15 @@ function getSchemaValidator(context: ValidatorContext, schemaName: string): Vali
   return validate;
 }
 
-function prepareValidationSchemas(schemas: Record<string, JsonRecord>): {
-  schemas: Record<string, JsonRecord>;
+function prepareValidationSchemas(schemas: Record<string, SharedJsonRecord>): {
+  schemas: Record<string, SharedJsonRecord>;
   issues: SchemaCompatibilityIssue[];
 } {
   const issues: SchemaCompatibilityIssue[] = [];
-  const prepared: Record<string, JsonRecord> = {};
+  const prepared: Record<string, SharedJsonRecord> = {};
   for (const [schemaName, schema] of Object.entries(schemas)) {
     const sanitized = sanitizeSchema(schema, { schemaName, path: schemaName, issues });
-    prepared[schemaName] = asRecord(sanitized, schemaName);
+    prepared[schemaName] = requireRecord(sanitized, schemaName);
   }
   return { schemas: prepared, issues };
 }
@@ -157,8 +191,8 @@ function sanitizeSchema(
     return value;
   }
 
-  const record = value as JsonRecord;
-  const sanitized: JsonRecord = {};
+  const record = value as SharedJsonRecord;
+  const sanitized: SharedJsonRecord = {};
   for (const [key, childValue] of Object.entries(record)) {
     if (key === "properties") {
       continue;
@@ -169,7 +203,7 @@ function sanitizeSchema(
   if (typeof sanitized.pattern === "string") {
     const pattern = sanitized.pattern;
     try {
-      new RegExp(pattern, "u");
+      compileSchemaPattern(pattern);
     } catch (error) {
       context.issues.push({
         schemaName: context.schemaName,
@@ -185,8 +219,8 @@ function sanitizeSchema(
   const properties = record.properties;
   if (typeof properties === "object" && properties !== null && !Array.isArray(properties)) {
     const required = new Set(Array.isArray(record.required) ? record.required.filter((entry): entry is string => typeof entry === "string") : []);
-    const sanitizedProperties: JsonRecord = {};
-    for (const [propertyName, propertySchema] of Object.entries(properties as JsonRecord)) {
+    const sanitizedProperties: SharedJsonRecord = {};
+    for (const [propertyName, propertySchema] of Object.entries(properties as SharedJsonRecord)) {
       const childPath = `${context.path}.properties.${propertyName}`;
       const childSchema = sanitizeSchema(propertySchema, { ...context, path: childPath });
       sanitizedProperties[propertyName] = required.has(propertyName) ? childSchema : allowNull(childSchema);
@@ -197,12 +231,19 @@ function sanitizeSchema(
   return sanitized;
 }
 
+function compileSchemaPattern(pattern: string): RegExp {
+  if (pattern.length > 2048) {
+    throw new Error("Pattern exceeds the supported 2048 character limit");
+  }
+  return Reflect.construct(RegExp, [pattern, "u"]) as RegExp;
+}
+
 function allowNull(schema: unknown): unknown {
   if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
     return schema;
   }
 
-  const record = schema as JsonRecord;
+  const record = schema as SharedJsonRecord;
   if (record.nullable === true) {
     return record;
   }

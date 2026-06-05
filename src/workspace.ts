@@ -11,23 +11,26 @@ import {
   type CustomSettingsInput,
 } from "./apple-schema.js";
 import { findTemplate, defaultValueForSchema, objectProperties, type ConfigurationTemplate, type RelutionTemplateBundle } from "./templates.js";
-import { asOptionalRecord, asRecord, stringValue, type JsonRecord } from "./utils/json-guards.js";
+import { asRecord, requireRecord, stringValue } from "./utils/json-guards.js";
+import type { JsonRecord as SharedJsonRecord } from "./utils/json-guards.js";
 import { assertNoSymlinkPath } from "./utils/path-safety.js";
 
 export interface PolicyWorkspace {
-  metadata: JsonRecord;
-  report: JsonRecord;
+  metadata: SharedJsonRecord;
+  report: SharedJsonRecord;
   policies: WorkspacePolicy[];
 }
 
 export interface WorkspacePolicy {
   path: string;
-  document: JsonRecord;
+  document: SharedJsonRecord;
 }
 
 export interface WorkspaceValidationResult {
   ok: boolean;
   errors: WorkspaceValidationError[];
+  schemaCompatibilityIssueCount?: number;
+  schemaCompatibilityIssues?: SchemaCompatibilityIssue[];
 }
 
 export interface WorkspaceValidationError {
@@ -97,7 +100,7 @@ export interface AddPolicyResult {
 interface CreatedPolicy {
   uuid: string;
   path: string;
-  document: JsonRecord;
+  document: SharedJsonRecord;
 }
 
 const POLICY_PATH_PATTERN = /^policies\/policy_[^/]+\.json$/u;
@@ -152,8 +155,44 @@ export function saveWorkspace(workspaceDir: string, workspace: PolicyWorkspace):
   }
 }
 
-export function replaceWorkspace(workspaceDir: string, workspace: PolicyWorkspace): void {
+function mutateWorkspace<T>(workspaceDir: string, mutate: (workspace: PolicyWorkspace) => T): { workspace: PolicyWorkspace; result: T } {
+  const workspace = loadWorkspace(workspaceDir);
+  const result = mutate(workspace);
   saveWorkspace(workspaceDir, workspace);
+  return { workspace, result };
+}
+
+function requireWorkspacePolicy(workspace: PolicyWorkspace, policyPath: string): WorkspacePolicy {
+  const policy = workspace.policies.find((candidate) => candidate.path === policyPath);
+  if (policy === undefined) {
+    throw new Error(`Policy not found in workspace: ${policyPath}`);
+  }
+  return policy;
+}
+
+interface AddConfigurationCoreOptions {
+  policyPath: string;
+  versionIndex: number;
+}
+
+interface AddConfigurationCoreContext {
+  workspace: PolicyWorkspace;
+  policy: WorkspacePolicy;
+  configurations: unknown[];
+}
+
+function addConfigurationCore(
+  workspaceDir: string,
+  options: AddConfigurationCoreOptions,
+  buildConfig: (context: AddConfigurationCoreContext) => SharedJsonRecord,
+): PolicyWorkspace {
+  return mutateWorkspace(workspaceDir, (workspace) => {
+    const policy = requireWorkspacePolicy(workspace, options.policyPath);
+    const versions = getArray(policy.document, "versions", options.policyPath);
+    const version = requireRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
+    const configurations = getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
+    configurations.push(buildConfig({ workspace, policy, configurations }));
+  }).workspace;
 }
 
 export function addConfigurationToWorkspace(
@@ -161,49 +200,33 @@ export function addConfigurationToWorkspace(
   bundle: RelutionTemplateBundle,
   options: AddConfigurationOptions,
 ): PolicyWorkspace {
-  const workspace = loadWorkspace(workspaceDir);
-  const policy = workspace.policies.find((candidate) => candidate.path === options.policyPath);
-  if (policy === undefined) {
-    throw new Error(`Policy not found in workspace: ${options.policyPath}`);
-  }
-  const versions = getArray(policy.document, "versions", options.policyPath);
-  const version = asRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
-  const configurations = getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
-  const template = findTemplate(bundle, options.type);
-  if (template === undefined) {
-    throw new Error(`Unknown configuration type: ${options.type}`);
-  }
-  if (!template.multiConfig && configurations.some((entry) => configurationType(entry) === options.type)) {
-    throw new Error(`Configuration type ${options.type} is not multi-config and already exists in this policy version`);
-  }
-  configurations.push(createConfiguration(template, bundle));
-  saveWorkspace(workspaceDir, workspace);
-  return workspace;
+  return addConfigurationCore(workspaceDir, options, ({ configurations }) => {
+    const template = findTemplate(bundle, options.type);
+    if (template === undefined) {
+      throw new Error(`Unknown configuration type: ${options.type}`);
+    }
+    if (!template.multiConfig && configurations.some((entry) => configurationType(entry) === options.type)) {
+      throw new Error(`Configuration type ${options.type} is not multi-config and already exists in this policy version`);
+    }
+    return createConfiguration(template, bundle);
+  });
 }
 
 export function addAppleCompatConfigurationToWorkspace(
   workspaceDir: string,
   options: AddAppleCompatConfigurationOptions,
 ): PolicyWorkspace {
-  const workspace = loadWorkspace(workspaceDir);
-  const policy = workspace.policies.find((candidate) => candidate.path === options.policyPath);
-  if (policy === undefined) {
-    throw new Error(`Policy not found in workspace: ${options.policyPath}`);
-  }
-  const platform = stringValue(policy.document.platform);
-  if (platform === undefined) {
-    throw new Error(`Policy platform is invalid: ${String(policy.document.platform)}`);
-  }
-  const setting = findAppleCompatSetting(options.settingId);
-  if (setting === undefined || !appleCompatSettingsForPlatform(platform).some((candidate) => candidate.id === setting.id)) {
-    throw new Error(`Apple compatibility setting ${options.settingId} is not compatible with policy platform ${platform}`);
-  }
-  const versions = getArray(policy.document, "versions", options.policyPath);
-  const version = asRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
-  const configurations = getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
-  configurations.push(createAppleCompatConfiguration(setting.id));
-  saveWorkspace(workspaceDir, workspace);
-  return workspace;
+  return addConfigurationCore(workspaceDir, options, ({ policy }) => {
+    const platform = stringValue(policy.document.platform);
+    if (platform === undefined) {
+      throw new Error(`Policy platform is invalid: ${String(policy.document.platform)}`);
+    }
+    const setting = findAppleCompatSetting(options.settingId);
+    if (setting === undefined || !appleCompatSettingsForPlatform(platform).some((candidate) => candidate.id === setting.id)) {
+      throw new Error(`Apple compatibility setting ${options.settingId} is not compatible with policy platform ${platform}`);
+    }
+    return createAppleCompatConfiguration(setting.id);
+  });
 }
 
 export function addAppleSchemaProfileToWorkspace(
@@ -211,46 +234,30 @@ export function addAppleSchemaProfileToWorkspace(
   catalog: AppleSchemaCatalog,
   options: AddAppleSchemaProfileOptions,
 ): PolicyWorkspace {
-  const workspace = loadWorkspace(workspaceDir);
-  const policy = workspace.policies.find((candidate) => candidate.path === options.policyPath);
-  if (policy === undefined) {
-    throw new Error(`Policy not found in workspace: ${options.policyPath}`);
-  }
-  const platform = stringValue(policy.document.platform);
-  if (platform === undefined) {
-    throw new Error(`Policy platform is invalid: ${String(policy.document.platform)}`);
-  }
-  const entry = findAppleSchemaEntry(catalog, options.schemaId);
-  if (entry === undefined || entry.kind !== "profile") {
-    throw new Error(`Apple profile schema not found: ${options.schemaId}`);
-  }
-  if (!appleSchemaEntriesForPlatform(catalog, platform, "profile").some((candidate) => candidate.id === entry.id)) {
-    throw new Error(`Apple profile schema ${options.schemaId} is not compatible with policy platform ${platform}`);
-  }
-  const versions = getArray(policy.document, "versions", options.policyPath);
-  const version = asRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
-  const configurations = getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
-  configurations.push(createAppleSchemaProfileConfiguration(entry));
-  saveWorkspace(workspaceDir, workspace);
-  return workspace;
+  return addConfigurationCore(workspaceDir, options, ({ policy }) => {
+    const platform = stringValue(policy.document.platform);
+    if (platform === undefined) {
+      throw new Error(`Policy platform is invalid: ${String(policy.document.platform)}`);
+    }
+    const entry = findAppleSchemaEntry(catalog, options.schemaId);
+    if (entry === undefined || entry.kind !== "profile") {
+      throw new Error(`Apple profile schema not found: ${options.schemaId}`);
+    }
+    if (!appleSchemaEntriesForPlatform(catalog, platform, "profile").some((candidate) => candidate.id === entry.id)) {
+      throw new Error(`Apple profile schema ${options.schemaId} is not compatible with policy platform ${platform}`);
+    }
+    return createAppleSchemaProfileConfiguration(entry);
+  });
 }
 
 export function addCustomSettingsToWorkspace(workspaceDir: string, options: AddCustomSettingsOptions): PolicyWorkspace {
-  const workspace = loadWorkspace(workspaceDir);
-  const policy = workspace.policies.find((candidate) => candidate.path === options.policyPath);
-  if (policy === undefined) {
-    throw new Error(`Policy not found in workspace: ${options.policyPath}`);
-  }
-  const platform = stringValue(policy.document.platform);
-  if (platform !== "MACOS") {
-    throw new Error(`Application & Custom Settings is compatible with MACOS policies, not ${String(platform)}`);
-  }
-  const versions = getArray(policy.document, "versions", options.policyPath);
-  const version = asRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
-  const configurations = getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
-  configurations.push(createCustomSettingsConfiguration(options));
-  saveWorkspace(workspaceDir, workspace);
-  return workspace;
+  return addConfigurationCore(workspaceDir, options, ({ policy }) => {
+    const platform = stringValue(policy.document.platform);
+    if (platform !== "MACOS") {
+      throw new Error(`Application & Custom Settings is compatible with MACOS policies, not ${String(platform)}`);
+    }
+    return createCustomSettingsConfiguration(options);
+  });
 }
 
 export function removeConfigurationFromWorkspace(workspaceDir: string, options: ConfigurationPositionOptions): PolicyWorkspace {
@@ -283,23 +290,25 @@ export function addPolicyToWorkspace(
   options: AddPolicyOptions,
 ): AddPolicyResult {
   validateNewPolicyInput(bundle, options);
-  const workspace = loadWorkspace(workspaceDir);
-  const policy = createPolicyDocument({ platform: options.platform, name: options.name.trim() });
-  workspace.policies.push({ path: policy.path, document: policy.document });
-  recordPolicyInReport(workspace.report, policy.uuid, options.name.trim());
-  saveWorkspace(workspaceDir, workspace);
-  return { workspace, policyPath: policy.path };
+  const name = options.name.trim();
+  const { workspace, result: policyPath } = mutateWorkspace(workspaceDir, (workspace) => {
+    const policy = createPolicyDocument({ platform: options.platform, name });
+    workspace.policies.push({ path: policy.path, document: policy.document });
+    recordPolicyInReport(workspace.report, policy.uuid, name);
+    return policy.path;
+  });
+  return { workspace, policyPath };
 }
 
 export { validateWorkspace, schemaCompatibilityIssues } from "./workspace-validation.js";
 
-export function createConfiguration(template: ConfigurationTemplate, bundle: RelutionTemplateBundle): JsonRecord {
+export function createConfiguration(template: ConfigurationTemplate, bundle: RelutionTemplateBundle): SharedJsonRecord {
   const schema = bundle.schemas[template.schemaName];
   const details = schema === undefined ? {} : defaultValueForSchema(schema, bundle.schemas);
   if (typeof details !== "object" || details === null || Array.isArray(details)) {
     throw new Error(`Default details for ${template.type} must be an object`);
   }
-  const detailRecord = details as JsonRecord;
+  const detailRecord = details as SharedJsonRecord;
   detailRecord.type = template.type;
   detailRecord.uuid = randomUUID().toUpperCase();
   detailRecord.enabled = true;
@@ -332,7 +341,7 @@ export function createConfiguration(template: ConfigurationTemplate, bundle: Rel
   };
 }
 
-function createWorkspaceMetadata(serverVersion: string): JsonRecord {
+function createWorkspaceMetadata(serverVersion: string): SharedJsonRecord {
   return {
     version: 1,
     type: "POLICY",
@@ -344,8 +353,8 @@ function createWorkspaceMetadata(serverVersion: string): JsonRecord {
   };
 }
 
-function createExportReport(policyUuid: string, policyName: string): JsonRecord {
-  const report: JsonRecord = {
+function createExportReport(policyUuid: string, policyName: string): SharedJsonRecord {
+  const report: SharedJsonRecord = {
     policiesToExport: [],
     exportedPolicies: {},
     failedPolicies: {},
@@ -413,7 +422,7 @@ function validateNewPolicyInput(bundle: RelutionTemplateBundle, options: AddPoli
   }
 }
 
-function recordPolicyInReport(report: JsonRecord, policyUuid: string, policyName: string): void {
+function recordPolicyInReport(report: SharedJsonRecord, policyUuid: string, policyName: string): void {
   const policiesToExport = Array.isArray(report.policiesToExport)
     ? report.policiesToExport.filter((entry): entry is string => typeof entry === "string")
     : [];
@@ -424,7 +433,7 @@ function recordPolicyInReport(report: JsonRecord, policyUuid: string, policyName
 
   const exportedPolicies =
     typeof report.exportedPolicies === "object" && report.exportedPolicies !== null && !Array.isArray(report.exportedPolicies)
-      ? (report.exportedPolicies as JsonRecord)
+      ? (report.exportedPolicies as SharedJsonRecord)
       : {};
   exportedPolicies[policyUuid] = {
     policyUuid,
@@ -447,10 +456,10 @@ function prepareWorkspace(workspaceDir: string, force: boolean): void {
 }
 
 function assertPersistableWorkspace(workspace: PolicyWorkspace): void {
-  if (!asOptionalRecord(workspace.metadata)) {
+  if (!asRecord(workspace.metadata)) {
     throw new Error("Workspace metadata must be an object");
   }
-  if (!asOptionalRecord(workspace.report)) {
+  if (!asRecord(workspace.report)) {
     throw new Error("Workspace report must be an object");
   }
   if (!Array.isArray(workspace.policies)) {
@@ -468,7 +477,7 @@ function assertPersistableWorkspace(workspace: PolicyWorkspace): void {
       throw new Error(`Workspace policy path is duplicated: ${policy.path}`);
     }
     seenPaths.add(policy.path);
-    if (!asOptionalRecord(policy.document)) {
+    if (!asRecord(policy.document)) {
       throw new Error(`Workspace policy document must be an object: ${policy.path}`);
     }
     resolveWorkspacePath(".", policy.path);
@@ -496,9 +505,17 @@ interface SerializedWorkspace {
   }>;
 }
 
-function readJsonFile(path: string): JsonRecord {
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  return asRecord(parsed, path);
+function readJsonFile(path: string): SharedJsonRecord {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch (error) {
+    throw new Error(
+      `Failed to parse workspace JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+  return requireRecord(parsed, path);
 }
 
 function writeJsonFile(path: string, value: unknown): void {
@@ -596,7 +613,7 @@ function workspaceTempPrefix(workspaceDir: string): string {
   return `${base.length > 0 ? base : "workspace"}-`;
 }
 
-function getArray(record: JsonRecord, key: string, label: string): unknown[] {
+function getArray(record: SharedJsonRecord, key: string, label: string): unknown[] {
   const value = record[key];
   if (!Array.isArray(value)) {
     throw new Error(`${label}.${key} is not an array`);
@@ -610,7 +627,7 @@ function getConfigurations(workspace: PolicyWorkspace, options: ConfigurationPos
     throw new Error(`Policy not found in workspace: ${options.policyPath}`);
   }
   const versions = getArray(policy.document, "versions", options.policyPath);
-  const version = asRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
+  const version = requireRecord(versions[options.versionIndex], `${options.policyPath}.versions[${options.versionIndex}]`);
   return getArray(version, "configurations", `${options.policyPath}.versions[${options.versionIndex}]`);
 }
 
@@ -627,10 +644,10 @@ function configurationType(value: unknown): string | undefined {
   return stringValue(details?.type);
 }
 
-function configurationDetails(value: unknown): JsonRecord | undefined {
-  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonRecord) : undefined;
+function configurationDetails(value: unknown): SharedJsonRecord | undefined {
+  const record = typeof value === "object" && value !== null && !Array.isArray(value) ? (value as SharedJsonRecord) : undefined;
   const details = record?.details;
-  return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as JsonRecord) : undefined;
+  return typeof details === "object" && details !== null && !Array.isArray(details) ? (details as SharedJsonRecord) : undefined;
 }
 
 function resolveWorkspacePath(workspaceDir: string, relativePath: string): string {

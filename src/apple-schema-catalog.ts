@@ -10,6 +10,7 @@ import type {
   AppleSchemaFieldKind,
   AppleSchemaKind,
 } from "./apple-schema.js";
+import type { JsonRecord } from "./utils/json-guards.js";
 
 export interface RefreshAppleSchemaOptions {
   out?: string;
@@ -22,14 +23,13 @@ interface SourcePath {
   path: string;
 }
 
-type JsonRecord = Record<string, unknown>;
-
 export const DEFAULT_APPLE_SCHEMA_CATALOG_PATH = "data/apple-device-management/catalog.json";
 const BUNDLED_APPLE_SCHEMA_CATALOG_PATH = fileURLToPath(new URL("../../data/apple-device-management/catalog.json", import.meta.url));
 export const APPLE_DEVICE_MANAGEMENT_REPOSITORY = "https://github.com/apple/device-management";
 export const DEFAULT_APPLE_SCHEMA_REVISION = "release";
 
 const GITHUB_API_ROOT = "https://api.github.com/repos/apple/device-management/contents";
+const GITHUB_RAW_ROOT = "https://raw.githubusercontent.com/apple/device-management";
 const SOURCE_PATHS: SourcePath[] = [
   { kind: "profile", path: "mdm/profiles" },
   { kind: "ddm-configuration", path: "declarative/declarations/configurations" },
@@ -91,9 +91,11 @@ async function readRemoteDocuments(revision: string): Promise<Array<{ kind: Appl
       if (!file.name.endsWith(".yaml") || file.downloadUrl === undefined) {
         continue;
       }
-      const response = await fetch(file.downloadUrl);
+      const documentUrl = appleSchemaRawDocumentUrl(source.path, file.name, revision);
+      assertExpectedAppleDownloadUrl(file.downloadUrl, documentUrl);
+      const response = await fetchAppleSchemaUrl(documentUrl);
       if (!response.ok) {
-        errors.push(`Failed to fetch ${file.downloadUrl}: ${response.status} ${response.statusText}`);
+        errors.push(`Failed to fetch ${documentUrl.href}: ${response.status} ${response.statusText}`);
         continue;
       }
       documents.push({ kind: source.kind, path: `${source.path}/${file.name}`, content: await response.text() });
@@ -106,7 +108,7 @@ async function readRemoteDocuments(revision: string): Promise<Array<{ kind: Appl
 }
 
 async function readRemoteDirectory(path: string, revision: string): Promise<Array<{ name: string; downloadUrl?: string }>> {
-  const response = await fetch(`${GITHUB_API_ROOT}/${path}?ref=${encodeURIComponent(revision)}`);
+  const response = await fetchAppleSchemaUrl(appleSchemaGithubApiUrl(path, revision));
   if (!response.ok) {
     throw new Error(`Failed to list Apple schema path ${path}: ${response.status} ${response.statusText}`);
   }
@@ -122,6 +124,59 @@ async function readRemoteDirectory(path: string, revision: string): Promise<Arra
       return downloadUrl === undefined ? { name } : { name, downloadUrl };
     })
     .filter((entry) => entry.name.length > 0);
+}
+
+function appleSchemaGithubApiUrl(path: string, revision: string): URL {
+  assertKnownAppleSchemaSourcePath(path);
+  const url = new URL(`${GITHUB_API_ROOT}/${path}`);
+  url.searchParams.set("ref", revision);
+  return url;
+}
+
+function appleSchemaRawDocumentUrl(path: string, name: string, revision: string): URL {
+  assertKnownAppleSchemaSourcePath(path);
+  if (!name.endsWith(".yaml") || name.includes("/") || name.includes("\\")) {
+    throw new Error(`Unexpected Apple schema document name: ${name}`);
+  }
+  return new URL(`${GITHUB_RAW_ROOT}/${encodeURIComponent(revision)}/${path}/${encodeURIComponent(name)}`);
+}
+
+async function fetchAppleSchemaUrl(url: URL): Promise<Response> {
+  assertExpectedAppleUrl(url);
+  const fetchImpl = globalThis.fetch;
+  return await fetchImpl(url);
+}
+
+function assertExpectedAppleUrl(url: URL): void {
+  if (url.protocol !== "https:" || (url.hostname !== "api.github.com" && url.hostname !== "raw.githubusercontent.com")) {
+    throw new Error(`Unexpected Apple schema URL: ${url.href}`);
+  }
+}
+
+function assertExpectedAppleDownloadUrl(value: string | undefined, expected: URL): void {
+  if (value === undefined) {
+    return;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`Unexpected Apple schema download URL: ${value}`);
+  }
+  const expectedPrefix = expected.pathname.split("/").slice(0, 4).join("/");
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.hostname !== "raw.githubusercontent.com" ||
+    !parsed.pathname.startsWith(`${expectedPrefix}/`)
+  ) {
+    throw new Error(`Unexpected Apple schema download URL: ${value}`);
+  }
+}
+
+function assertKnownAppleSchemaSourcePath(path: string): void {
+  if (!SOURCE_PATHS.some((source) => source.path === path)) {
+    throw new Error(`Unexpected Apple schema source path: ${path}`);
+  }
 }
 
 function readLocalDocuments(root: string): Array<{ kind: AppleSchemaKind; path: string; content: string }> {

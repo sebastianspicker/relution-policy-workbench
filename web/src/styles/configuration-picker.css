@@ -117,13 +117,13 @@
 
 .config-picker-card-item:hover {
   border-color: var(--ci-color-primary, #1d6fb8);
-  background: color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 5%, var(--ci-color-surface, #ffffff));
+  background: var(--ci-color-primary-soft, #e8f1f8);
 }
 
 .config-picker-card-item.selected {
   border-color: var(--ci-color-primary, #1d6fb8);
-  background: color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 10%, var(--ci-color-surface, #ffffff));
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 30%, transparent);
+  background: var(--ci-color-primary-soft, #e8f1f8);
+  box-shadow: 0 0 0 2px var(--ci-color-focus-ring, #d2e2f1);
 }
 
 .config-card-label {

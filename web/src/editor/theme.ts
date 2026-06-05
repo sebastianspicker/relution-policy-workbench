@@ -1,5 +1,5 @@
-export const THEME_STORAGE_KEY = "relution-policy-workbench:corporate-theme";
-export const CUSTOM_THEME_STORAGE_KEY = "relution-policy-workbench:custom-corporate-theme";
+export const THEME_STORAGE_NAME = "relution-policy-workbench:corporate-theme";
+export const CUSTOM_THEME_STORAGE_NAME = "relution-policy-workbench:custom-corporate-theme";
 
 const CUSTOM_THEME_TOKEN_NAMES = [
   "--ci-color-page",
@@ -23,11 +23,7 @@ export type CustomThemeTokenName = (typeof CUSTOM_THEME_TOKEN_NAMES)[number];
 export type CustomThemeTokens = Partial<Record<CustomThemeTokenName, string>>;
 export type ThemePack = (typeof THEME_PACKS)[number];
 
-export type ThemeReader = Pick<Storage, "getItem">;
-
-export type ThemeWriter = Pick<Storage, "setItem">;
-
-export type ThemeResetWriter = Pick<Storage, "removeItem">;
+export type ThemeStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 export const DEFAULT_THEME: CorporateTheme = "default";
 export const DEFAULT_CUSTOM_THEME_TOKENS: CustomThemeTokens = {
@@ -38,8 +34,6 @@ export const DEFAULT_CUSTOM_THEME_TOKENS: CustomThemeTokens = {
   "--ci-color-primary": "#1d6fb8",
   "--ci-color-primary-contrast": "#ffffff",
 };
-
-export const THEME_OPTIONS = THEME_PACKS;
 
 export const CUSTOM_THEME_TOKEN_OPTIONS = [
   { name: "--ci-color-page", label: "Page" },
@@ -58,25 +52,25 @@ export function parseCorporateTheme(value: unknown): CorporateTheme {
   return isCorporateTheme(value) ? value : DEFAULT_THEME;
 }
 
-export function readCorporateTheme(storage: ThemeReader | undefined): CorporateTheme {
+export function readCorporateTheme(storage: ThemeStorage | undefined): CorporateTheme {
   if (storage === undefined) {
     return DEFAULT_THEME;
   }
 
   try {
-    return parseCorporateTheme(storage.getItem(THEME_STORAGE_KEY));
+    return parseCorporateTheme(storage.getItem(THEME_STORAGE_NAME));
   } catch {
     return DEFAULT_THEME;
   }
 }
 
-export function writeCorporateTheme(storage: ThemeWriter | undefined, theme: CorporateTheme): boolean {
+export function writeCorporateTheme(storage: ThemeStorage | undefined, theme: CorporateTheme): boolean {
   if (storage === undefined) {
     return false;
   }
 
   try {
-    storage.setItem(THEME_STORAGE_KEY, theme);
+    storage.setItem(THEME_STORAGE_NAME, theme);
     return true;
   } catch {
     return false;
@@ -126,19 +120,19 @@ export function parseCustomThemeTokens(value: unknown): CustomThemeTokens {
   }
 }
 
-export function readCustomThemeTokens(storage: ThemeReader | undefined): CustomThemeTokens {
+export function readCustomThemeTokens(storage: ThemeStorage | undefined): CustomThemeTokens {
   if (storage === undefined) {
     return {};
   }
 
   try {
-    return parseCustomThemeTokens(storage.getItem(CUSTOM_THEME_STORAGE_KEY));
+    return parseCustomThemeTokens(storage.getItem(CUSTOM_THEME_STORAGE_NAME));
   } catch {
     return {};
   }
 }
 
-export function writeCustomThemeTokens(storage: ThemeWriter | undefined, tokens: CustomThemeTokens): boolean {
+export function writeCustomThemeTokens(storage: ThemeStorage | undefined, tokens: CustomThemeTokens): boolean {
   if (storage === undefined) {
     return false;
   }
@@ -154,20 +148,20 @@ export function writeCustomThemeTokens(storage: ThemeWriter | undefined, tokens:
   }
 
   try {
-    storage.setItem(CUSTOM_THEME_STORAGE_KEY, JSON.stringify(sanitizedTokens));
+    storage.setItem(CUSTOM_THEME_STORAGE_NAME, JSON.stringify(sanitizedTokens));
     return true;
   } catch {
     return false;
   }
 }
 
-export function resetCustomThemeTokens(storage: ThemeResetWriter | undefined): boolean {
+export function resetCustomThemeTokens(storage: ThemeStorage | undefined): boolean {
   if (storage === undefined) {
     return false;
   }
 
   try {
-    storage.removeItem(CUSTOM_THEME_STORAGE_KEY);
+    storage.removeItem(CUSTOM_THEME_STORAGE_NAME);
     return true;
   } catch {
     return false;

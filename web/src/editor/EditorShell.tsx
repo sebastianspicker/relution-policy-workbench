@@ -4,7 +4,7 @@ import { BaselinePanel } from "./BaselinePanel.js";
 import { ConfigurationInspector } from "./ConfigurationInspector.js";
 import { ConfigurationPickerModal } from "./ConfigurationPickerModal.js";
 import { EditorBreadcrumb } from "./EditorBreadcrumb.js";
-import { asRecord, cx } from "./editor-utils.js";
+import { asRecord } from "./editor-utils.js";
 import { AppleCompatFields } from "./fields/AppleCompatFields.js";
 import { AppleSchemaFields } from "./fields/AppleSchemaFields.js";
 import { GeneratedFields } from "./fields/GeneratedFields.js";
@@ -19,11 +19,11 @@ import type { CorporateTheme } from "./theme.js";
 import type { EditorController } from "./types.js";
 import { WorkspaceToolbar } from "./WorkspaceToolbar.js";
 
-const INSPECTOR_PINNED_KEY = "relution-editor-inspector-pinned";
+const INSPECTOR_PINNED_STORAGE_NAME = "relution-editor-inspector-pinned";
 
 function readInspectorPinned(): boolean {
   try {
-    const stored = window.localStorage.getItem(INSPECTOR_PINNED_KEY);
+    const stored = window.localStorage.getItem(INSPECTOR_PINNED_STORAGE_NAME);
     return stored === null ? true : stored === "true";
   } catch {
     return true;
@@ -55,7 +55,7 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(INSPECTOR_PINNED_KEY, String(inspectorPinned));
+      window.localStorage.setItem(INSPECTOR_PINNED_STORAGE_NAME, String(inspectorPinned));
     } catch {
       // ignore
     }
@@ -89,12 +89,7 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [controller]);
 
-  const workspaceClassName = cx(
-    "workspace-grid",
-    appSection === "policies" && navigationOpen ? "show-navigation" : "",
-    appSection === "policies" && inspectorOpen ? "show-inspector" : "",
-    inspectorPinned ? "inspector-pinned" : "",
-  );
+  const workspaceClassName = `workspace-grid${appSection === "policies" && navigationOpen ? " show-navigation" : ""}${appSection === "policies" && inspectorOpen ? " show-inspector" : ""}${inspectorPinned ? " inspector-pinned" : ""}`;
 
   return (
     <main className="editor-root" data-theme={theme}>
@@ -216,7 +211,6 @@ function AppRail({
 function EditorWorkspace({ controller }: { readonly controller: EditorController }): JSX.Element {
   const [pickerOpen, setPickerOpen] = useState(false);
   const hasConfig = controller.configuration !== undefined;
-
   const versionName = getVersionName(controller);
 
   function openPicker(): void {
@@ -248,61 +242,10 @@ function EditorWorkspace({ controller }: { readonly controller: EditorController
   ) : null;
 
   if (!hasConfig) {
-    const name = typeof controller.policy?.document.name === "string" ? controller.policy.document.name : "";
-    const description =
-      typeof controller.policy?.document.description === "string" ? controller.policy.document.description : "";
-    const platform =
-      typeof controller.policy?.document.platform === "string" ? controller.policy.document.platform : "";
-    return (
-      <>
-        <EditorBreadcrumb
-          policy={controller.policy}
-          versionName={versionName}
-        />
-        <div className="policy-version-context">
-          <div className="pvc-identity">
-            <div className="pvc-meta">
-              <span className="pvc-platform">{platform}</span>
-            </div>
-            <input
-              className="pvc-name"
-              aria-label="Policy name"
-              value={name}
-              onChange={(e) => controller.renameSelectedPolicy(e.target.value)}
-            />
-            <textarea
-              className="pvc-description"
-              aria-label="Policy description"
-              placeholder="Add a description…"
-              value={description}
-              onChange={(e) => controller.updateSelectedPolicyDescription(e.target.value)}
-            />
-          </div>
-          <div className="pvc-actions">
-            <button type="button" onClick={controller.duplicateSelectedPolicy}>
-              Duplicate
-            </button>
-            <button type="button" className="btn-danger" onClick={controller.deleteSelectedPolicy}>
-              Delete
-            </button>
-          </div>
-        </div>
-        <div className="panel-header">
-          <div>
-            <h1>Configurations</h1>
-            <p>Add or import configurations for this policy version.</p>
-          </div>
-          <div className="configuration-tools">
-            <button type="button" className="btn-add-configuration" onClick={openPicker}>
-              + Add configuration
-            </button>
-          </div>
-        </div>
-        {pickerModal}
-      </>
-    );
+    return <PolicyWithoutConfiguration controller={controller} pickerModal={pickerModal} versionName={versionName} onOpenPicker={openPicker} />;
   }
 
+  const header = configurationHeader(controller);
   return (
     <>
       <EditorBreadcrumb
@@ -311,21 +254,9 @@ function EditorWorkspace({ controller }: { readonly controller: EditorController
       />
       <div className="panel-header">
         <div>
-          <h1>
-            {controller.appleCompatSetting !== undefined
-              ? `${controller.appleCompatSetting.label} *`
-              : controller.appleSchemaProfile !== undefined
-              ? `${controller.appleSchemaProfile.title} *`
-              : controller.template?.label ?? "Configuration"}
-          </h1>
+          <h1>{header.title}</h1>
           <p>
-            {controller.appleCompatSetting !== undefined
-              ? `APPLE_MOBILECONFIG | ${controller.appleCompatSetting.payloadType}`
-              : controller.appleSchemaProfile !== undefined
-              ? `APPLE_MOBILECONFIG | ${controller.appleSchemaProfile.identifier} | Apple schema ${controller.state.appleSchema.source.revision}`
-              : controller.template === undefined
-              ? "Select or add a configuration."
-              : `${controller.template.type} | ${controller.template.schemaName} | ${controller.template.multiConfig ? "multi" : "single"}`}
+            {header.description}
             {controller.appleCompatSetting !== undefined ? (
               <InfoButton label={controller.appleCompatSetting.label} description={APPLE_COMPAT_HINT} source="Relution APPLE_MOBILECONFIG" />
             ) : controller.template?.description !== undefined ? (
@@ -352,6 +283,97 @@ function EditorWorkspace({ controller }: { readonly controller: EditorController
       </div>
     </>
   );
+}
+
+function PolicyWithoutConfiguration(props: {
+  readonly controller: EditorController;
+  readonly pickerModal: JSX.Element | null;
+  readonly versionName: string | undefined;
+  readonly onOpenPicker: () => void;
+}): JSX.Element {
+  const identity = policyIdentity(props.controller);
+  return (
+    <>
+      <EditorBreadcrumb policy={props.controller.policy} versionName={props.versionName} />
+      <div className="policy-version-context">
+        <div className="pvc-identity">
+          <div className="pvc-meta">
+            <span className="pvc-platform">{identity.platform}</span>
+          </div>
+          <input
+            className="pvc-name"
+            aria-label="Policy name"
+            value={identity.name}
+            onChange={(event) => props.controller.renameSelectedPolicy(event.target.value)}
+          />
+          <textarea
+            className="pvc-description"
+            aria-label="Policy description"
+            placeholder="Add a description…"
+            value={identity.description}
+            onChange={(event) => props.controller.updateSelectedPolicyDescription(event.target.value)}
+          />
+        </div>
+        <div className="pvc-actions">
+          <button type="button" onClick={props.controller.duplicateSelectedPolicy}>
+            Duplicate
+          </button>
+          <button type="button" className="btn-danger" onClick={props.controller.deleteSelectedPolicy}>
+            Delete
+          </button>
+        </div>
+      </div>
+      <div className="panel-header">
+        <div>
+          <h1>Configurations</h1>
+          <p>Add or import configurations for this policy version.</p>
+        </div>
+        <div className="configuration-tools">
+          <button type="button" className="btn-add-configuration" onClick={props.onOpenPicker}>
+            + Add configuration
+          </button>
+        </div>
+      </div>
+      {props.pickerModal}
+    </>
+  );
+}
+
+function policyIdentity(controller: EditorController): {
+  readonly description: string;
+  readonly name: string;
+  readonly platform: string;
+} {
+  return {
+    description: typeof controller.policy?.document.description === "string" ? controller.policy.document.description : "",
+    name: typeof controller.policy?.document.name === "string" ? controller.policy.document.name : "",
+    platform: typeof controller.policy?.document.platform === "string" ? controller.policy.document.platform : "",
+  };
+}
+
+function configurationHeader(controller: EditorController): {
+  readonly description: string;
+  readonly title: string;
+} {
+  if (controller.appleCompatSetting !== undefined) {
+    return {
+      description: `APPLE_MOBILECONFIG | ${controller.appleCompatSetting.payloadType}`,
+      title: `${controller.appleCompatSetting.label} *`,
+    };
+  }
+  if (controller.appleSchemaProfile !== undefined) {
+    return {
+      description: `APPLE_MOBILECONFIG | ${controller.appleSchemaProfile.identifier} | Apple schema ${controller.state.appleSchema.source.revision}`,
+      title: `${controller.appleSchemaProfile.title} *`,
+    };
+  }
+  if (controller.template === undefined) {
+    return { description: "Select or add a configuration.", title: "Configuration" };
+  }
+  return {
+    description: `${controller.template.type} | ${controller.template.schemaName} | ${controller.template.multiConfig ? "multi" : "single"}`,
+    title: controller.template.label,
+  };
 }
 
 function EditorFields({ controller }: { readonly controller: EditorController }): JSX.Element {

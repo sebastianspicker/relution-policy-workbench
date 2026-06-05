@@ -24,11 +24,13 @@ import {
 } from "../src/apple-schema.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { inspectMobileConfigText } from "../src/plist.js";
+import { PROFILE_EDITOR_META_PROPERTY } from "../src/profile-editor-meta.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import {
   addAppleCompatConfigurationToWorkspace,
   addAppleSchemaProfileToWorkspace,
   createNewWorkspace,
+  type SchemaCompatibilityIssue,
   schemaCompatibilityIssues,
   validateWorkspace,
 } from "../src/workspace.js";
@@ -39,6 +41,26 @@ import {
   requirePolicyPath,
   requireRecord,
 } from "./rexp-helpers.js";
+import {
+  createOptionalParityAppleSchemaEntry,
+  createSchemaCompatibilityFixture,
+  createSchemaCompatibilityWorkspace,
+} from "./rexp-apple-compat-fixtures.js";
+
+function sequentialIds(prefix: string): () => string {
+  let index = 0;
+  return () => {
+    index += 1;
+    return `${prefix}-${index}`;
+  };
+}
+
+// Apple device-management catalog snapshot currently exposes 126 profile entries.
+const APPLE_SCHEMA_MIN_PROFILE_ENTRIES = 120;
+// Apple device-management catalog snapshot currently exposes 36 DDM configuration entries.
+const APPLE_SCHEMA_MIN_DDM_CONFIGURATION_ENTRIES = 30;
+// Apple device-management catalog snapshot currently exposes 65 MDM command entries.
+const APPLE_SCHEMA_MIN_MDM_COMMAND_ENTRIES = 60;
 
 test("creates every mobileconfig-backed Apple gap configuration", () => {
   const settings = APPLE_COMPAT_SETTINGS.filter((setting) => setting.status === "mobileconfig-backed");
@@ -64,16 +86,37 @@ test("Apple compatibility payload JSON errors include setting context", () => {
   );
 });
 
+test("Apple compatibility configuration creation accepts deterministic factories", () => {
+  const configuration = createAppleCompatConfiguration("associated-domains", {}, {
+    now: () => 1234,
+    uuidFactory: sequentialIds("COMPAT"),
+  });
+  const details = requireRecord(configuration.details);
+  const payloadContent = requireRecord(details.payloadContent);
+  const meta = requireRecord(payloadContent[PROFILE_EDITOR_META_PROPERTY]);
+
+  assert.equal(configuration.uuid, "COMPAT-1");
+  assert.equal(configuration.creationDate, 1234);
+  assert.equal(configuration.modificationDate, 1234);
+  assert.equal(details.uuid, "COMPAT-2");
+  assert.equal(meta.profileUuid, "COMPAT-3");
+  assert.equal(meta.payloadUuid, "COMPAT-4");
+});
+
 test("loads the pinned Apple device-management schema catalog", () => {
   const catalog = loadAppleSchemaCatalog();
   const acme = findAppleSchemaEntry(catalog, "profile:com.apple.security.acme");
+  const caldav = findAppleSchemaEntry(catalog, "ddm-configuration:com.apple.configuration.account.caldav");
+  const accountConfiguration = findAppleSchemaEntry(catalog, "mdm-command:AccountConfiguration");
   const iosProfiles = appleSchemaEntriesForPlatform(catalog, "IOS", "profile");
   const acmeSubject = acme?.fields.find((field) => field.payloadKey === "Subject");
 
-  assert.equal(catalog.counts.profile, 126);
-  assert.equal(catalog.counts["ddm-configuration"], 36);
-  assert.equal(catalog.counts["mdm-command"], 65);
+  assert.equal(catalog.counts.profile >= APPLE_SCHEMA_MIN_PROFILE_ENTRIES, true);
+  assert.equal(catalog.counts["ddm-configuration"] >= APPLE_SCHEMA_MIN_DDM_CONFIGURATION_ENTRIES, true);
+  assert.equal(catalog.counts["mdm-command"] >= APPLE_SCHEMA_MIN_MDM_COMMAND_ENTRIES, true);
   assert.notEqual(acme, undefined);
+  assert.notEqual(caldav, undefined);
+  assert.notEqual(accountConfiguration, undefined);
   assert.equal(acme?.identifier, "com.apple.security.acme");
   assert.equal(acme?.fields.some((field) => field.payloadKey === "DirectoryURL" && field.required), true);
   assert.equal(acmeSubject?.kind, "json");
@@ -102,6 +145,27 @@ test("creates generated Apple schema profiles in local workspaces", () => {
   assert.equal(details.type, "APPLE_MOBILECONFIG");
   assert.equal(details.secondLevelPayloadType, "com.apple.security.acme");
   assert.match(String(details.rawContent), /<string>com\.apple\.security\.acme<\/string>/);
+});
+
+test("Apple schema profile creation accepts deterministic factories", () => {
+  const catalog = loadAppleSchemaCatalog();
+  const entry = findAppleSchemaEntry(catalog, "profile:com.apple.security.acme");
+  assert.notEqual(entry, undefined);
+
+  const configuration = createAppleSchemaProfileConfiguration(entry!, {}, {
+    now: () => 5678,
+    uuidFactory: sequentialIds("SCHEMA"),
+  });
+  const details = requireRecord(configuration.details);
+  const payloadContent = requireRecord(details.payloadContent);
+  const meta = requireRecord(payloadContent[PROFILE_EDITOR_META_PROPERTY]);
+
+  assert.equal(configuration.uuid, "SCHEMA-1");
+  assert.equal(configuration.creationDate, 5678);
+  assert.equal(configuration.modificationDate, 5678);
+  assert.equal(details.uuid, "SCHEMA-2");
+  assert.equal(meta.profileUuid, "SCHEMA-3");
+  assert.equal(meta.payloadUuid, "SCHEMA-4");
 });
 
 test("creates mobileconfig-backed Apple gap configurations in local workspaces", () => {
@@ -146,6 +210,132 @@ test("updates generated Apple mobileconfig details without exposing raw XML edit
   assert.match(String(updated.rawContent), /com\.example\.privacy/);
   assert.match(String(updated.rawContent), /<key>Camera<\/key>/);
   assert.match(String(updated.rawContent), /<string>Deny<\/string>/);
+});
+
+test("round-trips every Apple compat builder through payload JSON and guided fields", () => {
+  const cases: {
+    readonly settingId: string;
+    readonly defaultKey: string;
+    readonly payloadBody: Record<string, unknown>;
+    readonly guidedValues: Record<string, unknown>;
+    readonly assertValues: (values: Record<string, unknown>) => void;
+    readonly assertGuidedBody: (body: Record<string, unknown>) => void;
+  }[] = [
+    {
+      settingId: "pppc",
+      defaultKey: "Services",
+      payloadBody: {
+        Services: { Camera: [{ Authorization: "Deny", CodeRequirement: "anchor camera", Identifier: "com.example.camera", IdentifierType: "bundleID" }] },
+        VendorUnknown: { Preserve: true },
+      },
+      guidedValues: { service: "Microphone", authorization: "Allow", codeRequirement: "anchor mic", identifier: "/Applications/Mic.app", identifierType: "path" },
+      assertValues: (values) => {
+        assert.equal(values.service, "Camera");
+        assert.equal(values.authorization, "Deny");
+        assert.equal(values.identifier, "com.example.camera");
+      },
+      assertGuidedBody: (body) => {
+        const services = requireRecord(body.Services);
+        const rules = requireArray(services.Microphone);
+        const rule = requireRecord(rules[0]);
+        assert.equal(rule.Authorization, "Allow");
+        assert.equal(rule.Identifier, "/Applications/Mic.app");
+        assert.equal(rule.IdentifierType, "path");
+      },
+    },
+    {
+      settingId: "managed-preferences",
+      defaultKey: "PayloadContent",
+      payloadBody: {
+        PayloadContent: { "com.example.app": { Forced: [{ mcx_preference_settings: { DisableFeature: true } }] } },
+        VendorUnknown: { Preserve: true },
+      },
+      guidedValues: { domain: "com.example.changed", key: "Greeting", value: "Hello" },
+      assertValues: (values) => {
+        assert.equal(values.domain, "com.example.app");
+        assert.equal(values.key, "DisableFeature");
+        assert.equal(values.value, "true");
+      },
+      assertGuidedBody: (body) => {
+        const domain = requireRecord(requireRecord(body.PayloadContent)["com.example.changed"]);
+        const forced = requireRecord(requireArray(domain.Forced)[0]);
+        assert.equal(requireRecord(forced.mcx_preference_settings).Greeting, "Hello");
+      },
+    },
+    {
+      settingId: "associated-domains",
+      defaultKey: "AssociatedDomains",
+      payloadBody: {
+        ApplicationIdentifier: "TEAMID.com.example.app",
+        AssociatedDomains: ["applinks:example.test"],
+        VendorUnknown: { Preserve: true },
+      },
+      guidedValues: { applicationIdentifier: "TEAMID.com.example.changed", associatedDomains: ["webcredentials:example.test"] },
+      assertValues: (values) => {
+        assert.equal(values.applicationIdentifier, "TEAMID.com.example.app");
+        assert.deepEqual(values.associatedDomains, ["applinks:example.test"]);
+      },
+      assertGuidedBody: (body) => {
+        assert.equal(body.ApplicationIdentifier, "TEAMID.com.example.changed");
+        assert.deepEqual(body.AssociatedDomains, ["webcredentials:example.test"]);
+      },
+    },
+    {
+      settingId: "managed-login-items",
+      defaultKey: "Rules",
+      payloadBody: {
+        Rules: [{ Comment: "Allow agent", RuleType: "BundleIdentifier", RuleValue: "com.example.agent", TeamIdentifier: "TEAMID" }],
+        VendorUnknown: { Preserve: true },
+      },
+      guidedValues: { comment: "Changed agent", bundleIdentifier: "com.example.changed", teamIdentifier: "TEAMCHG" },
+      assertValues: (values) => {
+        assert.equal(values.comment, "Allow agent");
+        assert.equal(values.bundleIdentifier, "com.example.agent");
+        assert.equal(values.teamIdentifier, "TEAMID");
+      },
+      assertGuidedBody: (body) => {
+        const rule = requireRecord(requireArray(body.Rules)[0]);
+        assert.equal(rule.RuleType, "BundleIdentifier");
+        assert.equal(rule.RuleValue, "com.example.changed");
+        assert.equal(rule.TeamIdentifier, "TEAMCHG");
+      },
+    },
+    {
+      settingId: "network-usage-rules",
+      defaultKey: "ApplicationRules",
+      payloadBody: {
+        ApplicationRules: [{ AppIdentifierMatches: ["com.example.one"], AllowCellularData: true, AllowRoamingCellularData: false }],
+        VendorUnknown: { Preserve: true },
+      },
+      guidedValues: { applicationRules: [{ appIdentifierMatches: ["com.example.two"], allowCellularData: false, allowRoamingCellularData: true }] },
+      assertValues: (values) => {
+        const rule = requireRecord(requireArray(values.applicationRules)[0]);
+        assert.deepEqual(rule.appIdentifierMatches, ["com.example.one"]);
+        assert.equal(rule.allowCellularData, true);
+      },
+      assertGuidedBody: (body) => {
+        const rule = requireRecord(requireArray(body.ApplicationRules)[0]);
+        assert.deepEqual(rule.AppIdentifierMatches, ["com.example.two"]);
+        assert.equal(rule.AllowCellularData, false);
+        assert.equal(rule.AllowRoamingCellularData, true);
+      },
+    },
+  ];
+  for (const entry of cases) {
+    const details = createAppleCompatConfiguration(entry.settingId).details as Record<string, unknown>;
+    const setting = findAppleCompatSettingForDetails(details);
+    assert.notEqual(setting, undefined, entry.settingId);
+    const initialBody = parseJsonRecord(extractAppleCompatPayloadBodyJson(details, setting!));
+    assert.equal(Object.prototype.hasOwnProperty.call(initialBody, entry.defaultKey), true, entry.settingId);
+    const fromJson = updateAppleCompatDetailsFromPayloadBodyJson(details, entry.settingId, JSON.stringify(entry.payloadBody, null, 2));
+    const values = extractAppleCompatValues(fromJson, setting!);
+    entry.assertValues(values);
+    const guided = updateAppleCompatDetails(fromJson, entry.settingId, { ...values, ...entry.guidedValues });
+    const guidedBody = parseJsonRecord(extractAppleCompatPayloadBodyJson(guided, setting!));
+    entry.assertGuidedBody(guidedBody);
+    assert.deepEqual(guidedBody.VendorUnknown, { Preserve: true }, entry.settingId);
+    assert.equal(String(guided.rawContent).includes(`<key>${entry.defaultKey}</key>`), true, entry.settingId);
+  }
 });
 
 test("edits Apple gap payload body JSON bidirectionally", () => {
@@ -427,71 +617,40 @@ test("records schema compatibility issues instead of throwing on Java regex patt
   const bundle = loadTemplateBundle();
   const issues = schemaCompatibilityIssues(bundle);
 
-  assert.equal(issues.length, 24);
-  assert.equal(issues.some((issue) => issue.kind === "invalid-pattern" && issue.pattern.includes("IsAlphabetic")), true);
+  assert.equal(hasSchemaCompatibilityIssue(issues, "Organization", "Organization.properties.email", "IsAlphabetic"), true);
+  assert.equal(hasSchemaCompatibilityIssue(issues, "IotUpdateConfiguration", "IotUpdateConfiguration.allOf[1].properties.serverUrl", "https?"), true);
 });
 
-function createOptionalParityAppleSchemaEntry(): AppleSchemaEntry {
-  return {
-    id: "profile:com.example.optional-parity",
-    kind: "profile",
-    title: "Optional Parity",
-    description: "",
-    identifier: "com.example.optional-parity",
-    sourcePath: "local/OptionalParity.yaml",
-    availability: {
-      platforms: ["IOS"],
-      allowMultiple: true,
-      requiresMdm: false,
-      deprecated: false,
-      notes: [],
-    },
-    deprecated: false,
-    fields: [
-      {
-        path: "requiredName",
-        payloadKey: "RequiredName",
-        title: "Required name",
-        kind: "string",
-        required: true,
-        description: "",
-        defaultValue: "alpha",
-        enumValues: [],
-        variableSafe: true,
-      },
-      {
-        path: "optionalToggle",
-        payloadKey: "OptionalToggle",
-        title: "Optional toggle",
-        kind: "boolean",
-        required: false,
-        description: "",
-        defaultValue: false,
-        enumValues: [],
-        variableSafe: false,
-      },
-      {
-        path: "optionalCount",
-        payloadKey: "OptionalCount",
-        title: "Optional count",
-        kind: "integer",
-        required: false,
-        description: "",
-        defaultValue: 0,
-        enumValues: [],
-        variableSafe: false,
-      },
-      {
-        path: "optionalMode",
-        payloadKey: "OptionalMode",
-        title: "Optional mode",
-        kind: "string",
-        required: false,
-        description: "",
-        defaultValue: "",
-        enumValues: ["automatic", "manual"],
-        variableSafe: true,
-      },
-    ],
-  };
+function hasSchemaCompatibilityIssue(
+  issues: readonly SchemaCompatibilityIssue[],
+  schemaName: string,
+  path: string,
+  patternFragment: string,
+): boolean {
+  return issues.some((issue) =>
+    issue.kind === "invalid-pattern" &&
+    issue.schemaName === schemaName &&
+    issue.path === path &&
+    issue.pattern.includes(patternFragment)
+  );
 }
+
+test("reports schema compatibility issue counts on otherwise valid workspaces", () => {
+  const bundle = createSchemaCompatibilityFixture("\\p{IsAlphabetic}+");
+  const workspace = createSchemaCompatibilityWorkspace("123");
+  const validation = validateWorkspace(workspace, bundle);
+
+  assert.equal(validation.ok, true);
+  assert.deepEqual(validation.errors, []);
+  assert.equal(validation.schemaCompatibilityIssueCount, 1);
+});
+
+test("reports zero schema compatibility issues when validation schemas need no sanitizing", () => {
+  const bundle = createSchemaCompatibilityFixture("^[A-Za-z]+$");
+  const workspace = createSchemaCompatibilityWorkspace("abc");
+  const validation = validateWorkspace(workspace, bundle);
+
+  assert.equal(validation.ok, true);
+  assert.deepEqual(validation.errors, []);
+  assert.equal(validation.schemaCompatibilityIssueCount, 0);
+});

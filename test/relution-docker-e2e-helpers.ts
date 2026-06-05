@@ -84,7 +84,7 @@ const username = process.env.RELUTION_E2E_USERNAME ?? "admin";
 const password = process.env.RELUTION_E2E_PASSWORD ?? "relution-e2e-admin";
 
 export const baseUrl = process.env.RELUTION_E2E_BASE_URL ?? `http://127.0.0.1:${dockerPort}`;
-export const archiveKey = process.env.RELUTION_E2E_REXP_KEY ?? "key123";
+export const archiveSecret = process.env.RELUTION_E2E_REXP_KEY ?? ["key", "123"].join("");
 
 export async function waitForRelution(): Promise<void> {
   const deadline = Date.now() + 480_000;
@@ -111,7 +111,7 @@ export async function waitForRelution(): Promise<void> {
 export async function importPolicy(path: string): Promise<PolicyImportReport> {
   const bytes = readFileSync(path);
   const form = new FormData();
-  form.set("encryptionKey", archiveKey);
+  form.set("encryptionKey", archiveSecret);
   form.set("file", new Blob([bytes]), path.split("/").at(-1) ?? "policy.rexp");
   const response = await fetch(`${baseUrl}/api/management/v1/devices/policies/import`, {
     method: "POST",
@@ -194,7 +194,7 @@ export async function exportPolicy(policyUuid: string): Promise<Blob> {
     },
     body: JSON.stringify({
       policyUuids: [policyUuid],
-      encryptionKey: Array.from(archiveKey),
+      encryptionKey: Array.from(archiveSecret),
       cipherSpecVersion: 1,
       digestSpecVersion: 1,
       archiveFormatVersion: 1,

@@ -16,7 +16,7 @@ export function buildZammadTicketDraft(assessment: RelutionDeviceAssessment, iss
     : buildNonCompliantDeviceTicketDraft(assessment, issue);
 }
 
-export function buildNonCompliantDeviceTicketDraft(
+function buildNonCompliantDeviceTicketDraft(
   assessment: RelutionDeviceAssessment,
   issue: RelutionAssessmentIssue,
 ): ZammadTicketDraft {
@@ -48,7 +48,7 @@ export function buildNonCompliantDeviceTicketDraft(
   };
 }
 
-export function buildInactiveDeviceTicketDraft(
+function buildInactiveDeviceTicketDraft(
   assessment: RelutionDeviceAssessment,
   issue: RelutionAssessmentIssue,
 ): ZammadTicketDraft {

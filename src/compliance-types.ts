@@ -9,8 +9,9 @@ import type {
 } from "./recommendation-types.js";
 import type { RelutionTemplateBundle } from "./templates.js";
 import type { PolicyWorkspace } from "./workspace.js";
+import type { JsonRecord } from "./utils/json-guards.js";
 
-export type JsonRecord = Record<string, unknown>;
+export type { JsonRecord };
 
 export type ComplianceStatus = "compliant" | "exact-gap" | "choice-required" | "parameter-required" | "not-checkable";
 export type ComplianceMappingStatus = "compliant" | "missing" | "mismatch" | "ambiguous" | "unsupported";
@@ -24,6 +25,16 @@ export interface ComplianceSourceCatalogs {
   recommendationCatalog: RecommendationCatalogResponse;
   /** Optional source-specific setting bundles used when remediation can import a concrete Relution setting. */
   settingBundleCatalog?: RecommendationSettingBundleCatalog;
+  settingBundleCatalogError?: string;
+}
+
+export type ComplianceArtifactState = "loaded" | "degraded" | "unavailable";
+
+export interface ComplianceSourceStatus {
+  source: RecommendationSource;
+  recommendationCatalog: ComplianceArtifactState;
+  settingBundleCatalog: ComplianceArtifactState;
+  warnings: string[];
 }
 
 export interface ComplianceConfigurationReference {
@@ -49,6 +60,8 @@ export interface ComplianceRemediationOption {
   label: string;
   surfaces: RecommendationImplementationSurface[];
   coveredRecommendationIds: string[];
+  available?: boolean;
+  unavailableReason?: string;
   bundleId?: string;
   targetType?: string;
   schemaId?: string;
@@ -74,6 +87,8 @@ export interface ComplianceReport {
   policyPlatform: string;
   versionIndex: number;
   sources: RecommendationSource[];
+  sourceStatuses?: ComplianceSourceStatus[];
+  warnings?: string[];
   results: ComplianceRecommendationResult[];
   summary: {
     totalRecommendations: number;

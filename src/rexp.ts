@@ -1,7 +1,23 @@
 import { createCipheriv, createDecipheriv, createHash, pbkdf2Sync, randomBytes } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  constants as fsConstants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  mkdirSync,
+  opendirSync,
+  openSync,
+  readSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve, sep } from "node:path";
+import { asRecord } from "./utils/json-guards.js";
 import { readZip, writeZip, type ZipEntry, type ZipEntryInput } from "./zip.js";
+
+export type ArchiveHashStatus = "match" | "mismatch" | "absent";
 
 export interface PolicySummary {
   path: string;
@@ -13,7 +29,7 @@ export interface PolicySummary {
   plaintextBytes?: number;
   sha256?: string;
   expectedSha256?: string;
-  hashMatches?: boolean;
+  hashStatus: ArchiveHashStatus;
 }
 
 export interface InspectResult {
@@ -61,11 +77,15 @@ const POLICY_FILE_PATTERN = /^policies\/policy_[^/]+\.json$/u;
 
 export function inspectRexp(filePath: string, password?: string): InspectResult {
   const entries = readRexpEntries(filePath);
+  return inspectRexpEntries(filePath, entries, password);
+}
+
+function inspectRexpEntries(filePath: string, entries: ZipEntry[], password?: string): InspectResult {
   const metadata = parseJson(getRequiredEntry(entries, METADATA_JSON).data, METADATA_JSON);
   const report = parseJson(getRequiredEntry(entries, REPORT_JSON).data, REPORT_JSON);
   const policyEntries = entries.filter((entry) => isPolicyEntry(entry.name)).map((entry) => entry.name);
 
-  if (password === undefined) {
+  if (typeof password === "undefined") {
     return { file: filePath, metadata, report, policyEntries };
   }
 
@@ -81,8 +101,8 @@ export function inspectRexp(filePath: string, password?: string): InspectResult 
 }
 
 export function verifyRexp(filePath: string, password: string): VerificationResult {
-  const inspected = inspectRexp(filePath, password);
   const entries = readRexpEntries(filePath);
+  const inspected = inspectRexpEntries(filePath, entries, password);
   const hashes = inspected.hashes ?? decryptHashMap(getRequiredEntry(entries, METADATA_BIN).data, password);
   const checkedEntries = [
     summarizeArchiveEntry(getRequiredEntry(entries, METADATA_JSON), hashes[METADATA_JSON]),
@@ -90,7 +110,7 @@ export function verifyRexp(filePath: string, password: string): VerificationResu
     ...(inspected.policies ?? []),
   ];
   return {
-    ok: checkedEntries.every((entry) => entry.hashMatches === true),
+    ok: checkedEntries.every((entry) => entry.hashStatus === "match"),
     checkedEntries,
   };
 }
@@ -180,7 +200,7 @@ export function decryptRelutionPayload(payload: Buffer, password: string): Buffe
   const ciphertext = encrypted.subarray(0, encrypted.length - GCM_TAG_LENGTH);
   const tag = encrypted.subarray(encrypted.length - GCM_TAG_LENGTH);
   const key = deriveKey(password, salt);
-  const decipher = createDecipheriv("aes-128-gcm", key, iv);
+  const decipher = createDecipheriv("aes-128-gcm", key, iv, { authTagLength: GCM_TAG_LENGTH });
   decipher.setAuthTag(tag);
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]);
@@ -198,7 +218,7 @@ export function encryptRelutionPayload(
   }
 
   const key = deriveKey(password, salt);
-  const cipher = createCipheriv("aes-128-gcm", key, iv);
+  const cipher = createCipheriv("aes-128-gcm", key, iv, { authTagLength: GCM_TAG_LENGTH });
   const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
   const tag = cipher.getAuthTag();
 
@@ -206,11 +226,26 @@ export function encryptRelutionPayload(
 }
 
 function readRexpEntries(filePath: string): ZipEntry[] {
-  return readZip(readFileSync(filePath), {
+  const entries = readZip(readRegularFile(filePath, "REXP archive"), {
     maxEntries: MAX_REXP_ENTRIES,
     maxTotalCompressedBytes: MAX_REXP_TOTAL_COMPRESSED_BYTES,
     maxTotalUncompressedBytes: MAX_REXP_TOTAL_UNCOMPRESSED_BYTES,
   });
+  assertNoDuplicateManagedArchiveEntries(entries);
+  return entries;
+}
+
+function assertNoDuplicateManagedArchiveEntries(entries: ZipEntry[]): void {
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (!isManagedArchiveEntry(entry.name)) {
+      continue;
+    }
+    if (seen.has(entry.name)) {
+      throw new Error(`Duplicate managed archive entry: ${entry.name}`);
+    }
+    seen.add(entry.name);
+  }
 }
 
 function decryptHashMap(encryptedMetadata: Buffer, password: string): Record<string, string> {
@@ -273,7 +308,7 @@ function summarizePolicy(
     configurationCount,
     plaintextBytes,
     sha256,
-    hashMatches: expectedSha256 === sha256,
+    hashStatus: archiveHashStatus(expectedSha256, sha256),
   };
 
   const uuid = stringField(record, "uuid");
@@ -302,8 +337,15 @@ function summarizeArchiveEntry(entry: ZipEntry, expectedSha256: string | undefin
     plaintextBytes: entry.data.length,
     sha256,
     ...(expectedSha256 === undefined ? {} : { expectedSha256 }),
-    hashMatches: expectedSha256 === sha256,
+    hashStatus: archiveHashStatus(expectedSha256, sha256),
   };
+}
+
+function archiveHashStatus(expectedSha256: string | undefined, sha256: string): ArchiveHashStatus {
+  if (expectedSha256 === undefined) {
+    return "absent";
+  }
+  return expectedSha256 === sha256 ? "match" : "mismatch";
 }
 
 function prepareOutputPath(outputDir: string, force: boolean): void {
@@ -311,7 +353,7 @@ function prepareOutputPath(outputDir: string, force: boolean): void {
     if (!statSync(outputDir).isDirectory()) {
       throw new Error(`Output path exists and is not a directory: ${outputDir}`);
     }
-    if (readdirSync(outputDir).length > 0) {
+    if (listDirectoryNames(outputDir).length > 0) {
       if (!force) {
         throw new Error(`Output directory is not empty: ${outputDir}`);
       }
@@ -329,7 +371,7 @@ function listPolicyFiles(inputDir: string): string[] {
     return [];
   }
   assertProjectPathUsesNoSymlink(inputDir, "policies");
-  const policyFiles = readdirSync(policiesDir)
+  const policyFiles = listDirectoryNames(policiesDir)
     .filter((name) => name.startsWith("policy_") && name.endsWith(POLICY_SUFFIX))
     .sort()
     .map((name) => `policies/${name}`);
@@ -347,7 +389,7 @@ function writeProjectFile(outputDir: string, relativePath: string, data: Buffer)
 
 function readProjectFile(inputDir: string, relativePath: string): Buffer {
   assertProjectPathUsesNoSymlink(inputDir, relativePath);
-  return readFileSync(resolveManagedProjectPath(inputDir, relativePath));
+  return readRegularFile(resolveManagedProjectPath(inputDir, relativePath), relativePath);
 }
 
 function getRequiredEntry(entries: ZipEntry[], name: string): ZipEntry {
@@ -360,6 +402,10 @@ function getRequiredEntry(entries: ZipEntry[], name: string): ZipEntry {
 
 function isPolicyEntry(name: string): boolean {
   return POLICY_FILE_PATTERN.test(name);
+}
+
+function isManagedArchiveEntry(name: string): boolean {
+  return name === METADATA_JSON || name === REPORT_JSON || name === METADATA_BIN || name === HASHES_JSON || isPolicyEntry(name);
 }
 
 function resolveManagedProjectPath(rootDir: string, relativePath: string): string {
@@ -390,6 +436,50 @@ function assertProjectPathUsesNoSymlink(rootDir: string, relativePath: string): 
       throw new Error(`Project path must not use symlinks: ${relativePath}`);
     }
   }
+}
+
+function readRegularFile(path: string, label: string): Buffer {
+  const resolved = resolve(path);
+  const fd = openSync(resolved, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) {
+      throw new Error(`${label} is not a regular file: ${path}`);
+    }
+    if (stat.size > MAX_REXP_TOTAL_UNCOMPRESSED_BYTES) {
+      throw new Error(`${label} is too large: ${path}`);
+    }
+    const data = Buffer.alloc(stat.size);
+    let offset = 0;
+    while (offset < data.length) {
+      const bytesRead = readSync(fd, data, offset, data.length - offset, offset);
+      if (bytesRead === 0) {
+        break;
+      }
+      offset += bytesRead;
+    }
+    if (offset !== data.length) {
+      throw new Error(`${label} changed while reading: ${path}`);
+    }
+    return data;
+  } finally {
+    closeSync(fd);
+  }
+}
+
+function listDirectoryNames(path: string): string[] {
+  const dir = opendirSync(path);
+  const names: string[] = [];
+  try {
+    let entry = dir.readSync();
+    while (entry !== null) {
+      names.push(entry.name);
+      entry = dir.readSync();
+    }
+  } finally {
+    dir.closeSync();
+  }
+  return names;
 }
 
 function isManagedProjectPath(relativePath: string): boolean {
@@ -442,12 +532,6 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   return record !== undefined && Object.values(record).every((entry) => typeof entry === "string");
 }
 
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return undefined;
-  }
-  return value as Record<string, unknown>;
-}
 
 function stringField(record: Record<string, unknown> | undefined, field: string): string | undefined {
   const value = record?.[field];

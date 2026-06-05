@@ -2,6 +2,7 @@ import { type AppleSchemaCatalog } from "./apple-schema.js";
 import { type RecommendationSource } from "./recommendation-types.js";
 import { type PolicyWorkspace } from "./workspace.js";
 import { type RelutionTemplateBundle } from "./templates.js";
+import { loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
 import {
   applyNativeBundle,
   applyRecommendationMappings,
@@ -17,6 +18,7 @@ import type {
   ComplianceRecommendationResult,
   ComplianceReport,
   ComplianceSourceCatalogs,
+  ComplianceSourceStatus,
 } from "./compliance-types.js";
 
 export type {
@@ -31,6 +33,7 @@ export type {
   ComplianceReport,
   ComplianceSelection,
   ComplianceSourceCatalogs,
+  ComplianceSourceStatus,
   ComplianceStatus,
 } from "./compliance-types.js";
 
@@ -38,12 +41,14 @@ export function buildComplianceReport(input: BuildComplianceReportInput): Compli
   // Compliance is evaluated against the selected local policy version only.
   // The recommendation corpus can contain display platforms that map to a
   // different Relution import platform, so applicability is checked per source.
-  const selectedSources = input.sources.filter((source) => input.catalogs[source] !== undefined);
+  const selectedSources = input.sources;
+  const sourceStatuses = selectedSources.map((source) => sourceStatus(source, input.catalogs[source]));
+  const warnings = sourceStatuses.flatMap((status) => status.warnings);
   const target = selectedPolicyTarget(input.workspace, input.selection);
   const results: ComplianceRecommendationResult[] = [];
   for (const source of selectedSources) {
     const artifacts = input.catalogs[source];
-    if (artifacts === undefined) {
+    if (artifacts === undefined || !artifacts.recommendationCatalog.available) {
       continue;
     }
     for (const recommendation of artifacts.recommendationCatalog.recommendations) {
@@ -74,8 +79,69 @@ export function buildComplianceReport(input: BuildComplianceReportInput): Compli
     policyPlatform: target.policyPlatform,
     versionIndex: input.selection.versionIndex,
     sources: selectedSources,
+    sourceStatuses,
+    warnings,
     results,
     summary,
+  };
+}
+
+export function loadComplianceArtifacts(
+  sources: RecommendationSource[],
+): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
+  const artifacts: Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> = {};
+  for (const source of sources) {
+    const recommendationCatalog = loadRecommendationCatalog(source);
+    if (!recommendationCatalog.available) {
+      artifacts[source] = { recommendationCatalog };
+      continue;
+    }
+    let settingBundleCatalog: ReturnType<typeof loadRecommendationSettingBundleCatalog> | undefined;
+    try {
+      settingBundleCatalog = loadRecommendationSettingBundleCatalog(source);
+    } catch (error) {
+      const settingBundleCatalogError = error instanceof Error ? error.message : String(error);
+      settingBundleCatalog = undefined;
+      artifacts[source] = { recommendationCatalog, settingBundleCatalogError };
+      continue;
+    }
+    artifacts[source] = settingBundleCatalog === undefined
+      ? { recommendationCatalog }
+      : { recommendationCatalog, settingBundleCatalog };
+  }
+  return artifacts;
+}
+
+function sourceStatus(source: RecommendationSource, artifacts: ComplianceSourceCatalogs | undefined): ComplianceSourceStatus {
+  if (artifacts === undefined) {
+    return {
+      source,
+      recommendationCatalog: "unavailable",
+      settingBundleCatalog: "unavailable",
+      warnings: [`${source} compliance artifacts were not loaded.`],
+    };
+  }
+  if (!artifacts.recommendationCatalog.available) {
+    return {
+      source,
+      recommendationCatalog: "unavailable",
+      settingBundleCatalog: "unavailable",
+      warnings: [`${source} recommendation catalog unavailable: ${artifacts.recommendationCatalog.error ?? "unknown error"}`],
+    };
+  }
+  if (artifacts.settingBundleCatalog === undefined) {
+    return {
+      source,
+      recommendationCatalog: "loaded",
+      settingBundleCatalog: "degraded",
+      warnings: [`${source} setting-bundle catalog unavailable: ${artifacts.settingBundleCatalogError ?? "unknown error"}`],
+    };
+  }
+  return {
+    source,
+    recommendationCatalog: "loaded",
+    settingBundleCatalog: "loaded",
+    warnings: [],
   };
 }
 
@@ -91,6 +157,9 @@ export function applyComplianceRemediationToWorkspace(input: ApplyComplianceReme
   const remediation = result.remediationOptions.find((candidate) => candidate.id === input.remediationId);
   if (remediation === undefined) {
     throw new Error(`Compliance remediation not available: ${input.remediationId}`);
+  }
+  if (remediation.available === false) {
+    throw new Error(`Compliance remediation unavailable: ${remediation.unavailableReason ?? input.remediationId}`);
   }
 
   const nextWorkspace = structuredClone(input.workspace) as PolicyWorkspace;

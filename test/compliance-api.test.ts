@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startEditorServer } from "../src/editor-server.js";
 import { loadTemplateBundle } from "../src/templates.js";
-import { createNewWorkspace, type PolicyWorkspace } from "../src/workspace.js";
+import { createNewWorkspace, loadWorkspace, type PolicyWorkspace } from "../src/workspace.js";
 
 test("compliance APIs report and apply an exact native BSI recommendation", async () => {
   const root = mkdtempSync(join(tmpdir(), "relution-compliance-native-"));
@@ -182,6 +182,51 @@ test("compliance APIs report and apply an exact Apple schema CIS recommendation"
       ),
       true,
     );
+  } finally {
+    await handle.close();
+  }
+});
+
+test("compliance apply rejects malformed selected configurations without persisting them", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-compliance-invalid-target-"));
+  const workspacePath = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  const workspace = createNewWorkspace({
+    workspace: workspacePath,
+    platform: "ANDROID_ENTERPRISE",
+    name: "Compliance Invalid Target",
+    serverVersion: bundle.serverVersion,
+  });
+  const malformedWorkspace = structuredClone(workspace) as PolicyWorkspace;
+  const configurations = selectedConfigurations(malformedWorkspace) as unknown[];
+  configurations.push("not-a-configuration");
+
+  const handle = await startEditorServer({
+    workspace: workspacePath,
+    key: "",
+    out,
+    host: "127.0.0.1",
+    port: 0,
+  });
+
+  try {
+    const applyResponse = await fetch(new URL("api/compliance/apply", handle.url), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        workspace: malformedWorkspace,
+        selection: { policyIndex: 0, versionIndex: 0 },
+        sources: ["bsi"],
+        source: "bsi",
+        recommendationId: "android-enterprise-sys-3-2-4-a2",
+        remediationId: "native-bundle:bsi-android-enterprise-android-enterprise-advanced-security-overrides",
+      }),
+    });
+    assert.equal(applyResponse.status, 400);
+    const errorBody = await applyResponse.json() as { error?: string };
+    assert.match(String(errorBody.error), /Selected policy version configuration is invalid/u);
+    assert.deepEqual(loadWorkspace(workspacePath), workspace);
   } finally {
     await handle.close();
   }

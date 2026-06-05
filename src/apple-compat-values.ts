@@ -1,9 +1,15 @@
 import type { AppleCompatField, AppleCompatObjectField, AppleCompatSetting, JsonRecord } from "./apple-compat-types.js";
-import { PROFILE_EDITOR_META_KEY, PROFILE_IDENTIFIER_PREFIX } from "./apple-compat-types.js";
+import { asRecord } from "./utils/json-guards.js";
+import { PROFILE_EDITOR_META_PROPERTY, PROFILE_IDENTIFIER_PREFIX } from "./apple-compat-types.js";
 import { APPLE_COMPAT_SETTINGS } from "./apple-compat-settings.js";
 import { buildMobileConfig, jsonPayloadKeys, plistValueFromUnknown, type PlistValue } from "./plist.js";
 
 const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "PayloadType", "PayloadUUID", "PayloadVersion"]);
+
+export interface AppleCompatCreateOptions {
+  uuidFactory?: () => string;
+  now?: () => number;
+}
 
 export function appleCompatSettingsForPlatform(platform: string): AppleCompatSetting[] {
   return APPLE_COMPAT_SETTINGS.filter(
@@ -28,22 +34,27 @@ export function findAppleCompatSettingForDetails(details: JsonRecord | undefined
   );
 }
 
-export function createAppleCompatConfiguration(settingId: string, values: JsonRecord = {}): JsonRecord {
+export function createAppleCompatConfiguration(settingId: string, values: JsonRecord = {}, options: AppleCompatCreateOptions = {}): JsonRecord {
   const setting = requireAppleCompatSetting(settingId);
-  const now = Date.now();
+  const now = options.now?.() ?? Date.now();
   return {
-    uuid: newUuid(),
+    uuid: newUuid(options.uuidFactory),
     createdBy: "local",
     creationDate: now,
     modifiedBy: "local",
     modificationDate: now,
-    details: createAppleCompatDetails(setting, values),
+    details: createAppleCompatDetails(setting, values, undefined, undefined, options),
   };
 }
 
-export function updateAppleCompatDetails(details: JsonRecord, settingId: string, values: JsonRecord): JsonRecord {
+export function updateAppleCompatDetails(
+  details: JsonRecord,
+  settingId: string,
+  values: JsonRecord,
+  options: Pick<AppleCompatCreateOptions, "uuidFactory"> = {},
+): JsonRecord {
   const setting = requireAppleCompatSetting(settingId);
-  return createAppleCompatDetails(setting, values, details);
+  return createAppleCompatDetails(setting, values, details, undefined, options);
 }
 
 export function extractAppleCompatPayloadBodyJson(details: JsonRecord | undefined, setting: AppleCompatSetting): string {
@@ -87,14 +98,15 @@ function createAppleCompatDetails(
   values: JsonRecord,
   previousDetails?: JsonRecord,
   nextPayloadOverrides?: JsonRecord,
+  options: Pick<AppleCompatCreateOptions, "uuidFactory"> = {},
 ): JsonRecord {
   const previousMeta = appleCompatMetadata(previousDetails);
-  const detailUuid = stringValue(previousDetails?.uuid) ?? newUuid();
+  const detailUuid = stringValue(previousDetails?.uuid) ?? newUuid(options.uuidFactory);
   const enabled = typeof previousDetails?.enabled === "boolean" ? previousDetails.enabled : true;
   const normalizedValues = normalizeValues(setting, values, previousDetails);
   const payloadOverrides = nextPayloadOverrides ?? asRecord(previousMeta?.payloadOverrides) ?? {};
-  const profileUuid = stringValue(previousMeta?.profileUuid) ?? newUuid();
-  const payloadUuid = stringValue(previousMeta?.payloadUuid) ?? newUuid();
+  const profileUuid = stringValue(previousMeta?.profileUuid) ?? newUuid(options.uuidFactory);
+  const payloadUuid = stringValue(previousMeta?.payloadUuid) ?? newUuid(options.uuidFactory);
   const payloadIdentifier = `${PROFILE_IDENTIFIER_PREFIX}.payload.${setting.id}.${payloadUuid.toLowerCase()}`;
   const profileIdentifier = `${PROFILE_IDENTIFIER_PREFIX}.profile.${setting.id}.${profileUuid.toLowerCase()}`;
   const payload = createPayload(setting, normalizedValues, { payloadUuid, payloadIdentifier }, payloadOverrides);
@@ -115,7 +127,7 @@ function createAppleCompatDetails(
     displayName: setting.label,
     rawContent: buildMobileConfig(profile),
     payloadContent: {
-      [PROFILE_EDITOR_META_KEY]: {
+      [PROFILE_EDITOR_META_PROPERTY]: {
         settingId: setting.id,
         values: normalizedValues,
         payloadOverrides,
@@ -143,58 +155,70 @@ function createPayload(
     PayloadVersion: 1,
   };
   const overridden = { ...common, ...jsonPayloadKeys(payloadOverrides) };
-
   switch (setting.builder) {
     case "pppc":
-      return {
-        ...overridden,
-        Services: {
-          [stringValue(values.service) ?? "Accessibility"]: [
-            {
-              Authorization: stringValue(values.authorization) ?? "Allow",
-              CodeRequirement: stringValue(values.codeRequirement) ?? "",
-              Identifier: stringValue(values.identifier) ?? "",
-              IdentifierType: stringValue(values.identifierType) ?? "bundleID",
-            },
-          ],
-        },
-      };
+      return createPppcPayload(values, overridden);
     case "managed-preferences":
-      return {
-        ...overridden,
-        PayloadContent: {
-          [stringValue(values.domain) ?? "com.example.app"]: {
-            Forced: [
-              {
-                mcx_preference_settings: {
-                  [stringValue(values.key) ?? "ExampleKey"]: plistValueFromUnknown(values.value ?? ""),
-                },
-              },
-            ],
-          },
-        },
-      };
+      return createManagedPreferencesPayload(values, overridden);
     case "associated-domains":
-      return {
-        ...overridden,
-        ApplicationIdentifier: stringValue(values.applicationIdentifier) ?? "",
-        AssociatedDomains: listValue(values.associatedDomains),
-      };
+      return createAssociatedDomainsPayload(values, overridden);
     case "managed-login-items":
-      return {
-        ...overridden,
-        Rules: [
-          {
-            Comment: stringValue(values.comment) ?? "",
-            RuleType: "BundleIdentifier",
-            RuleValue: stringValue(values.bundleIdentifier) ?? "",
-            TeamIdentifier: stringValue(values.teamIdentifier) ?? "",
-          },
-        ],
-      };
+      return createManagedLoginItemsPayload(values, overridden);
     case "generic-json":
-      return { ...common, ...jsonPayloadKeys(parsePayloadKeysJson(values.payloadKeysJson, `setting ${setting.id} payload keys`)) };
+      return createGenericJsonPayload(setting, values, common);
   }
+}
+
+function createPppcPayload(values: JsonRecord, overridden: Record<string, PlistValue>): Record<string, PlistValue> {
+  return {
+    ...overridden,
+    Services: {
+      [stringValue(values.service) ?? "Accessibility"]: [{
+        Authorization: stringValue(values.authorization) ?? "Allow",
+        CodeRequirement: stringValue(values.codeRequirement) ?? "",
+        Identifier: stringValue(values.identifier) ?? "",
+        IdentifierType: stringValue(values.identifierType) ?? "bundleID",
+      }],
+    },
+  };
+}
+
+function createManagedPreferencesPayload(values: JsonRecord, overridden: Record<string, PlistValue>): Record<string, PlistValue> {
+  return {
+    ...overridden,
+    PayloadContent: {
+      [stringValue(values.domain) ?? "com.example.app"]: {
+        Forced: [{ mcx_preference_settings: { [stringValue(values.key) ?? "ExampleKey"]: plistValueFromUnknown(values.value ?? "") } }],
+      },
+    },
+  };
+}
+
+function createAssociatedDomainsPayload(values: JsonRecord, overridden: Record<string, PlistValue>): Record<string, PlistValue> {
+  return {
+    ...overridden,
+    ApplicationIdentifier: stringValue(values.applicationIdentifier) ?? "",
+    AssociatedDomains: listValue(values.associatedDomains),
+  };
+}
+
+function createManagedLoginItemsPayload(values: JsonRecord, overridden: Record<string, PlistValue>): Record<string, PlistValue> {
+  return {
+    ...overridden,
+    Rules: [{
+      Comment: stringValue(values.comment) ?? "",
+      RuleType: "BundleIdentifier",
+      RuleValue: stringValue(values.bundleIdentifier) ?? "",
+      TeamIdentifier: stringValue(values.teamIdentifier) ?? "",
+    }],
+  };
+}
+
+function createGenericJsonPayload(setting: AppleCompatSetting, values: JsonRecord, common: Record<string, PlistValue>): Record<string, PlistValue> {
+  return {
+    ...common,
+    ...jsonPayloadKeys(parsePayloadKeysJson(values.payloadKeysJson, `setting ${setting.id} payload keys`)),
+  };
 }
 
 function extractAppleCompatPayloadBody(details: JsonRecord | undefined, setting: AppleCompatSetting): JsonRecord {
@@ -209,54 +233,62 @@ function extractAppleCompatPayloadBody(details: JsonRecord | undefined, setting:
 function valuesFromPayloadBody(setting: AppleCompatSetting, payloadBody: JsonRecord): JsonRecord {
   const values = extractAppleCompatValues(undefined, setting);
   switch (setting.builder) {
-    case "pppc": {
-      const services = asRecord(payloadBody.Services);
-      const [service, serviceRules] = firstEntry(services);
-      const firstRule = Array.isArray(serviceRules) ? asRecord(serviceRules[0]) : undefined;
-      return {
-        ...values,
-        service: service ?? values.service,
-        authorization: stringValue(firstRule?.Authorization) ?? values.authorization,
-        codeRequirement: stringValue(firstRule?.CodeRequirement) ?? values.codeRequirement,
-        identifier: stringValue(firstRule?.Identifier) ?? values.identifier,
-        identifierType: stringValue(firstRule?.IdentifierType) ?? values.identifierType,
-      };
-    }
-    case "managed-preferences": {
-      const payloadContent = asRecord(payloadBody.PayloadContent);
-      const [domain, domainPayload] = firstEntry(payloadContent);
-      const forced = asRecord(domainPayload)?.Forced;
-      const firstForced = Array.isArray(forced) ? asRecord(forced[0]) : undefined;
-      const settings = asRecord(firstForced?.mcx_preference_settings);
-      const [key, value] = firstEntry(settings);
-      return {
-        ...values,
-        domain: domain ?? values.domain,
-        key: key ?? values.key,
-        value: value === undefined ? values.value : JSON.stringify(value, null, 2),
-      };
-    }
+    case "pppc":
+      return readPppcPayloadBody(values, payloadBody);
+    case "managed-preferences":
+      return readManagedPreferencesPayloadBody(values, payloadBody);
     case "associated-domains":
-      return {
-        ...values,
-        applicationIdentifier: stringValue(payloadBody.ApplicationIdentifier) ?? values.applicationIdentifier,
-        associatedDomains: Array.isArray(payloadBody.AssociatedDomains)
-          ? payloadBody.AssociatedDomains.filter((entry): entry is string => typeof entry === "string")
-          : values.associatedDomains,
-      };
-    case "managed-login-items": {
-      const rules = Array.isArray(payloadBody.Rules) ? payloadBody.Rules : [];
-      const firstRule = asRecord(rules[0]);
-      return {
-        ...values,
-        comment: stringValue(firstRule?.Comment) ?? values.comment,
-        bundleIdentifier: stringValue(firstRule?.RuleValue) ?? values.bundleIdentifier,
-        teamIdentifier: stringValue(firstRule?.TeamIdentifier) ?? values.teamIdentifier,
-      };
-    }
+      return readAssociatedDomainsPayloadBody(values, payloadBody);
+    case "managed-login-items":
+      return readManagedLoginItemsPayloadBody(values, payloadBody);
     case "generic-json":
       return { ...values, payloadKeysJson: JSON.stringify(payloadBody, null, 2) };
   }
+}
+
+function readPppcPayloadBody(values: JsonRecord, payloadBody: JsonRecord): JsonRecord {
+  const services = asRecord(payloadBody.Services);
+  const [service, serviceRules] = firstEntry(services);
+  const firstRule = Array.isArray(serviceRules) ? asRecord(serviceRules[0]) : undefined;
+  return {
+    ...values,
+    service: service ?? values.service,
+    authorization: stringValue(firstRule?.Authorization) ?? values.authorization,
+    codeRequirement: stringValue(firstRule?.CodeRequirement) ?? values.codeRequirement,
+    identifier: stringValue(firstRule?.Identifier) ?? values.identifier,
+    identifierType: stringValue(firstRule?.IdentifierType) ?? values.identifierType,
+  };
+}
+
+function readManagedPreferencesPayloadBody(values: JsonRecord, payloadBody: JsonRecord): JsonRecord {
+  const payloadContent = asRecord(payloadBody.PayloadContent);
+  const [domain, domainPayload] = firstEntry(payloadContent);
+  const forced = asRecord(domainPayload)?.Forced;
+  const firstForced = Array.isArray(forced) ? asRecord(forced[0]) : undefined;
+  const settings = asRecord(firstForced?.mcx_preference_settings);
+  const [key, value] = firstEntry(settings);
+  return { ...values, domain: domain ?? values.domain, key: key ?? values.key, value: value === undefined ? values.value : JSON.stringify(value, null, 2) };
+}
+
+function readAssociatedDomainsPayloadBody(values: JsonRecord, payloadBody: JsonRecord): JsonRecord {
+  return {
+    ...values,
+    applicationIdentifier: stringValue(payloadBody.ApplicationIdentifier) ?? values.applicationIdentifier,
+    associatedDomains: Array.isArray(payloadBody.AssociatedDomains)
+      ? payloadBody.AssociatedDomains.filter((entry): entry is string => typeof entry === "string")
+      : values.associatedDomains,
+  };
+}
+
+function readManagedLoginItemsPayloadBody(values: JsonRecord, payloadBody: JsonRecord): JsonRecord {
+  const rules = Array.isArray(payloadBody.Rules) ? payloadBody.Rules : [];
+  const firstRule = asRecord(rules[0]);
+  return {
+    ...values,
+    comment: stringValue(firstRule?.Comment) ?? values.comment,
+    bundleIdentifier: stringValue(firstRule?.RuleValue) ?? values.bundleIdentifier,
+    teamIdentifier: stringValue(firstRule?.TeamIdentifier) ?? values.teamIdentifier,
+  };
 }
 
 function firstEntry(record: JsonRecord | undefined): readonly [string | undefined, unknown] {
@@ -281,7 +313,7 @@ function knownPayloadKeysForSetting(setting: AppleCompatSetting): Set<string> {
 function normalizeValues(setting: AppleCompatSetting, values: JsonRecord, previousDetails?: JsonRecord): JsonRecord {
   const normalized: JsonRecord = {};
   for (const fieldEntry of setting.fields) {
-    const value = values[fieldEntry.id] ?? fieldEntry.defaultValue;
+    const value = hasOwn(values, fieldEntry.id) ? values[fieldEntry.id] : fieldEntry.defaultValue;
     normalized[fieldEntry.id] = normalizeFieldValue(fieldEntry, value);
   }
   if (setting.builder === "generic-json") {
@@ -291,30 +323,30 @@ function normalizeValues(setting: AppleCompatSetting, values: JsonRecord, previo
 }
 
 function normalizeFieldValue(fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown): unknown {
-  if (fieldEntry.kind === "boolean") {
-    return value === true;
-  }
-  if (fieldEntry.kind === "integer") {
-    const parsed = parseIntegerValue(value);
-    return parsed ?? 0;
-  }
-  if (fieldEntry.kind === "number") {
-    const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? "0"));
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  if (fieldEntry.kind === "list") {
-    return listValue(value);
-  }
-  if (fieldEntry.kind === "key-value-list") {
-    return keyValueRecord(value);
-  }
-  if (fieldEntry.kind === "object-list") {
-    return objectListValue(fieldEntry, value);
-  }
-  if (fieldEntry.kind === "json") {
-    return typeof value === "string" ? value : JSON.stringify(value ?? fieldEntry.defaultValue, null, 2);
-  }
+  return (APPLE_COMPAT_VALUE_NORMALIZERS[fieldEntry.kind] ?? normalizeCompatStringValue)(fieldEntry, value);
+}
+
+const APPLE_COMPAT_VALUE_NORMALIZERS: Partial<Record<AppleCompatField["kind"], (fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown) => unknown>> = {
+  boolean: (_fieldEntry, value) => value === true,
+  integer: (_fieldEntry, value) => isBlankSubmittedValue(value) ? undefined : parseIntegerValue(value),
+  number: (_fieldEntry, value) => isBlankSubmittedValue(value) ? undefined : finiteNumberValue(value),
+  list: (_fieldEntry, value) => listValue(value),
+  "key-value-list": (_fieldEntry, value) => keyValueRecord(value),
+  "object-list": (fieldEntry, value) => objectListValue(fieldEntry, value),
+  json: (fieldEntry, value) => typeof value === "string" ? value : JSON.stringify(value ?? fieldEntry.defaultValue, null, 2),
+};
+
+function normalizeCompatStringValue(_fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown): string {
   return typeof value === "string" ? value : String(value ?? "");
+}
+
+function isBlankSubmittedValue(value: unknown): boolean {
+  return value === undefined || (typeof value === "string" && value.trim().length === 0);
+}
+
+function finiteNumberValue(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : Number.parseFloat(String(value ?? "0"));
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 function parseIntegerValue(value: unknown): number | undefined {
@@ -361,7 +393,12 @@ function mergeGuidedValuesIntoPayloadKeys(setting: AppleCompatSetting, values: J
     if (fieldEntry.id === "payloadKeysJson" || fieldEntry.payloadKey === undefined) {
       continue;
     }
-    output[fieldEntry.payloadKey] = payloadValueFromField(fieldEntry, values[fieldEntry.id]);
+    const nextValue = payloadValueFromField(fieldEntry, values[fieldEntry.id]);
+    if (nextValue === undefined) {
+      delete output[fieldEntry.payloadKey];
+    } else {
+      output[fieldEntry.payloadKey] = nextValue;
+    }
   }
   return output;
 }
@@ -405,13 +442,19 @@ function hydrateSystemMigrationValues(values: JsonRecord, payloadKeys: JsonRecor
   const firstBehavior = asRecord(customBehavior[0]);
   const paths = Array.isArray(firstBehavior?.Paths) ? firstBehavior.Paths : [];
   const firstPath = asRecord(paths[0]);
-  values.migrationContext = stringValue(firstBehavior?.Context) ?? values.migrationContext ?? "Windows";
-  values.sourcePath = stringValue(firstPath?.SourcePath) ?? values.sourcePath ?? "";
-  values.sourcePathInUserHome =
-    typeof firstPath?.SourcePathInUserHome === "boolean" ? firstPath.SourcePathInUserHome : values.sourcePathInUserHome === true;
-  values.targetPath = stringValue(firstPath?.TargetPath) ?? values.targetPath ?? "";
-  values.targetPathInUserHome =
-    typeof firstPath?.TargetPathInUserHome === "boolean" ? firstPath.TargetPathInUserHome : values.targetPathInUserHome === true;
+  values.migrationContext = fallbackString(firstBehavior?.Context, values.migrationContext, "Windows");
+  values.sourcePath = fallbackString(firstPath?.SourcePath, values.sourcePath, "");
+  values.sourcePathInUserHome = fallbackBoolean(firstPath?.SourcePathInUserHome, values.sourcePathInUserHome);
+  values.targetPath = fallbackString(firstPath?.TargetPath, values.targetPath, "");
+  values.targetPathInUserHome = fallbackBoolean(firstPath?.TargetPathInUserHome, values.targetPathInUserHome);
+}
+
+function fallbackString(value: unknown, previous: unknown, fallback: string): string {
+  return stringValue(value) ?? stringValue(previous) ?? fallback;
+}
+
+function fallbackBoolean(value: unknown, previous: unknown): boolean {
+  return typeof value === "boolean" ? value : previous === true;
 }
 
 function payloadValueFromField(fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown): unknown {
@@ -429,29 +472,18 @@ function payloadValueFromField(fieldEntry: AppleCompatField | AppleCompatObjectF
 }
 
 function fieldValueFromPayload(fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown): unknown {
-  if (fieldEntry.kind === "boolean") {
-    return typeof value === "boolean" ? value : fieldEntry.defaultValue;
-  }
-  if (fieldEntry.kind === "integer") {
-    return typeof value === "number" && Number.isInteger(value) ? value : fieldEntry.defaultValue;
-  }
-  if (fieldEntry.kind === "number") {
-    return typeof value === "number" && Number.isFinite(value) ? value : fieldEntry.defaultValue;
-  }
-  if (fieldEntry.kind === "list") {
-    return listValue(value);
-  }
-  if (fieldEntry.kind === "json") {
-    return JSON.stringify(value ?? fieldEntry.defaultValue, null, 2);
-  }
-  if (fieldEntry.kind === "key-value-list") {
-    return keyValueRecord(value);
-  }
-  if (fieldEntry.kind === "object-list") {
-    return objectListFieldValueFromPayload(fieldEntry, value);
-  }
-  return typeof value === "string" ? value : String(value ?? "");
+  return (APPLE_COMPAT_PAYLOAD_READERS[fieldEntry.kind] ?? normalizeCompatStringValue)(fieldEntry, value);
 }
+
+const APPLE_COMPAT_PAYLOAD_READERS: Partial<Record<AppleCompatField["kind"], (fieldEntry: AppleCompatField | AppleCompatObjectField, value: unknown) => unknown>> = {
+  boolean: (fieldEntry, value) => typeof value === "boolean" ? value : fieldEntry.defaultValue,
+  integer: (fieldEntry, value) => typeof value === "number" && Number.isInteger(value) ? value : fieldEntry.defaultValue,
+  number: (fieldEntry, value) => typeof value === "number" && Number.isFinite(value) ? value : fieldEntry.defaultValue,
+  list: (_fieldEntry, value) => listValue(value),
+  json: (fieldEntry, value) => JSON.stringify(value ?? fieldEntry.defaultValue, null, 2),
+  "key-value-list": (_fieldEntry, value) => keyValueRecord(value),
+  "object-list": (fieldEntry, value) => objectListFieldValueFromPayload(fieldEntry, value),
+};
 
 function objectListPayloadValue(fieldEntry: AppleCompatField, value: unknown): JsonRecord[] {
   const rows = objectListValue(fieldEntry, value);
@@ -459,7 +491,10 @@ function objectListPayloadValue(fieldEntry: AppleCompatField, value: unknown): J
     const output: JsonRecord = {};
     for (const itemField of fieldEntry.itemFields ?? []) {
       if (itemField.payloadKey !== undefined) {
-        output[itemField.payloadKey] = payloadValueFromField(itemField, row[itemField.id]);
+        const nextValue = payloadValueFromField(itemField, row[itemField.id]);
+        if (nextValue !== undefined) {
+          output[itemField.payloadKey] = nextValue;
+        }
       }
     }
     return output;
@@ -590,7 +625,7 @@ function listValue(value: unknown): string[] {
 
 function appleCompatMetadata(details: JsonRecord | undefined): JsonRecord | undefined {
   const payloadContent = asRecord(details?.payloadContent);
-  return asRecord(payloadContent?.[PROFILE_EDITOR_META_KEY]);
+  return asRecord(payloadContent?.[PROFILE_EDITOR_META_PROPERTY]);
 }
 
 function requireAppleCompatSetting(settingId: string): AppleCompatSetting {
@@ -601,10 +636,6 @@ function requireAppleCompatSetting(settingId: string): AppleCompatSetting {
   return setting;
 }
 
-function asRecord(value: unknown): JsonRecord | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as JsonRecord) : undefined;
-}
-
 function hasOwn(record: JsonRecord, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, key);
 }
@@ -613,6 +644,6 @@ function stringValue(value: unknown): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function newUuid(): string {
-  return globalThis.crypto.randomUUID().toUpperCase();
+function newUuid(uuidFactory?: () => string): string {
+  return uuidFactory?.() ?? globalThis.crypto.randomUUID().toUpperCase();
 }

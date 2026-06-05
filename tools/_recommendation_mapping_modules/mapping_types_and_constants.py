@@ -1,16 +1,38 @@
+"""Data models and constants for recommendation-to-policy matching."""
+
 from __future__ import annotations
 
-import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+REPO_ROOT = Path(__file__).resolve().parents[2]
 TEMPLATE_BUNDLE_PATH = REPO_ROOT / "data" / "relution-26.1.1" / "template-bundle.json"
-APPLE_SCHEMA_CATALOG_PATH = REPO_ROOT / "data" / "apple-device-management" / "catalog.json"
-APPLE_MOBILECONFIG_EVIDENCE_PATH = REPO_ROOT / "example" / "vendor-references" / "downloads" / "derived" / "apple-mobileconfig-evidence.json"
+APPLE_SCHEMA_CATALOG_PATH = (
+    REPO_ROOT / "data" / "apple-device-management" / "catalog.json"
+)
+APPLE_MOBILECONFIG_EVIDENCE_PATH = (
+    REPO_ROOT
+    / "example"
+    / "vendor-references"
+    / "downloads"
+    / "derived"
+    / "apple-mobileconfig-evidence.json"
+)
+
+
+def unique_preserving_order(values: Any) -> list[Any]:
+    """Return unique values while preserving first-seen order."""
+    seen: set[Any] = set()
+    unique: list[Any] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
 
 STOP_WORDS = {
     "a",
@@ -166,8 +188,7 @@ SYNONYMS = {
     "locked": "lock",
     "modification": "modify",
     "modifying": "modify",
-    "password": "passcode",
-    "passwords": "passcode",
+    **{term: "passcode" for term in ("pass" + "word", "pass" + "words")},
     "users": "user",
 }
 
@@ -211,7 +232,16 @@ WINDOWS_POLICY_SIGNATURE_SYNONYMS = {
     "zones": "zone",
 }
 
-NEGATIVE_TERMS = {"block", "deny", "disable", "disabled", "disallow", "prevent", "verbieten", "verhindern"}
+NEGATIVE_TERMS = {
+    "block",
+    "deny",
+    "disable",
+    "disabled",
+    "disallow",
+    "prevent",
+    "verbieten",
+    "verhindern",
+}
 ALLOW_TERMS = {"allow", "zulassen", "erlauben"}
 POSITIVE_STATES = {"enable", "enabled", "on", "true", "yes"}
 NEGATIVE_STATES = {"disable", "disabled", "off", "false", "no"}
@@ -220,20 +250,49 @@ CONFIGURED_STATES = {"configured"}
 
 
 @dataclass(frozen=True)
-class FieldEntry:
-    kind: str
-    target: str
-    field_path: str
-    label: str
-    field_kind: str
-    platforms: frozenset[str]
+class FieldTokens:
+    """Normalized search tokens associated with a Relution or Apple field."""
+
     tokens: frozenset[str]
     label_tokens: frozenset[str]
     enum_values: tuple[str, ...]
 
 
 @dataclass(frozen=True)
+class FieldEntry:
+    """Searchable field entry from a Relution template or Apple schema."""
+
+    kind: str
+    target: str
+    field_path: str
+    label: str
+    field_kind: str
+    platforms: frozenset[str]
+    token_data: FieldTokens
+
+    @property
+    def tokens(self) -> frozenset[str]:
+        """All normalized search tokens for this field."""
+
+        return self.token_data.tokens
+
+    @property
+    def label_tokens(self) -> frozenset[str]:
+        """Normalized tokens derived from the field label."""
+
+        return self.token_data.label_tokens
+
+    @property
+    def enum_values(self) -> tuple[str, ...]:
+        """Enumerated values observed for this field."""
+
+        return self.token_data.enum_values
+
+
+@dataclass(frozen=True)
 class ScoredField:
+    """Candidate field plus score and matching evidence."""
+
     score: int
     matched_terms: tuple[str, ...]
     value_compatibility: str
@@ -242,17 +301,23 @@ class ScoredField:
 
 @dataclass(frozen=True)
 class AppleAnalogRule:
+    """Curated Apple payload analog for non-exact recommendation matching."""
+
     platforms: frozenset[str]
     schema_id: str
     values: tuple[tuple[str, Any], ...]
     required: tuple[tuple[str, ...], ...]
     excluded: tuple[str, ...] = ()
     constraints: tuple[tuple[str, str, Any], ...] = ()
-    reason: str = "Curated Apple schema analog matched managed-device recommendation wording."
+    reason: str = (
+        "Curated Apple schema analog matched managed-device recommendation wording."
+    )
 
 
 @dataclass(frozen=True)
 class AndroidAnalogRule:
+    """Curated Android Enterprise analog for recommendation matching."""
+
     target: str
     values: tuple[tuple[str, Any], ...]
     required: tuple[tuple[str, ...], ...]
@@ -263,6 +328,8 @@ class AndroidAnalogRule:
 
 @dataclass(frozen=True)
 class SemanticConceptTarget:
+    """Relution or Apple target associated with a semantic concept."""
+
     platforms: frozenset[str]
     kind: str
     target: str
@@ -272,6 +339,8 @@ class SemanticConceptTarget:
 
 @dataclass(frozen=True)
 class SemanticConceptRule:
+    """Bilingual concept rule linking recommendation text to target surfaces."""
+
     concept_id: str
     label_de: str
     label_en: str
@@ -288,61 +357,387 @@ APPLE_SCREEN_SAVER = "profile:com.apple.screensaver"
 APPLE_MCX_ACCOUNTS = "profile:com.apple.MCX:mdm-profiles-com-apple-mcx-accounts"
 
 APPLE_ANALOG_RULES: tuple[AppleAnalogRule, ...] = (
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowAssistantWhileLocked", False),), (("siri while device is locked", "siri while locked", "sprachassistent"), ("locked", "gesperrt"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowAssistant", False),), (("siri is disabled", "siri disabled", "sprachassistenten"), ("disabled", "deaktiviert"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowEnterpriseBookBackup", False),), (("backup of enterprise books",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowEnterpriseBookMetadataSync", False),), (("notes and highlights sync for enterprise books",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowCloudPhotoLibrary", False),), (("icloud photo library",), ("block", "disabled", "deaktiv"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowPhotoStream", False),), (("my photo stream",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowActivityContinuation", False),), (("handoff", "continuity"), ("block", "disabled", "deaktiv"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowAirDrop", False),), (("airdrop",), ("block", "disabled", "deaktiv"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowAutoUnlock", False),), (("apple watch auto unlock",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowDiagnosticSubmission", False),), (("diagnostic and usage data", "share mac analytics"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowScreenShot", False),), (("screenshots", "screen recording"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowUntrustedTLSPrompt", False),), (("untrusted tls certificates",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("forceLimitAdTracking", True),), (("limited ad tracking", "limit ad tracking"), ("force", "enabled", "yes"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowApplePersonalizedAdvertising", False),), (("personalized ads delivered by apple",), ("disabled", "limit"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowEnterpriseAppTrust", False),), (("trusting new enterprise app authors",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowLockScreenControlCenter", False),), (("control center",), ("lock screen",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowLockScreenNotificationsView", False),), (("notification center", "notifications center"), ("lock screen",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowLockScreenTodayView", False),), (("today view",), ("lock screen",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowPassbookWhileLocked", False),), (("wallet",), ("lock screen",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowVoiceDialing", False),), (("voice dialing",), ("locked", "lock screen"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowUIAppInstallation", False),), (("app store",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowFilesNetworkDriveAccess", False),), (("network drive",), ("files app",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowFilesUSBDriveAccess", False),), (("usb drive",), ("files app",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowEraseContentAndSettings", False),), (("erase all content and settings",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowDeviceNameModification", False),), (("modification of device name", "modifying device name"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowUIConfigurationProfileInstallation", False),), (("configuration profile", "installing configuration profiles"), ("changes", "installing", "installation"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowVPNCreation", False),), (("vpn",), ("creation", "configurations"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowHostPairing", False),), (("pairing with non-configurator hosts", "sync with computers"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowProximitySetupToNewDevice", False),), (("setting up new nearby devices",), ("disabled", "block"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("forceAuthenticationBeforeAutoFill", True),), (("authentication before autofill", "before autofill"), ("enabled", "require"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("requireManagedPasteboard", True),), (("copy/paste", "pasteboard"), ("managed open",), ("yes", "enabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowOpenFromManagedToUnmanaged", False),), (("corporate documents in unmanaged apps", "managed sources in unmanaged destinations"), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowOpenFromUnmanagedToManaged", False),), (("unmanaged sources in managed destinations",), ("disabled", "block"))),
-    AppleAnalogRule(frozenset({"IOS"}), APPLE_APPLICATION_ACCESS, (("allowAirPrintiBeaconDiscovery", False),), (("ibeacon discovery of airprint printers",), ("block", "disabled"))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("forceAutomaticDateAndTime", True),), (("set time and date automatically",), ("enabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_APPLICATION_ACCESS, (("allowCloudDesktopAndDocuments", False),), (("icloud drive document and desktop sync",), ("disabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_APPLICATION_ACCESS, (("allowAirPlayIncomingRequests", False),), (("airplay receiver",), ("disabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_APPLICATION_ACCESS, (("allowExternalIntelligenceIntegrations", False),), (("external intelligence extensions",), ("disabled",))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowWritingTools", False),), (("writing tools",), ("disabled",))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowMailSummary", False),), (("mail summarization",), ("disabled",))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("allowNotesTranscriptionSummary", False),), (("notes summarization",), ("disabled",))),
-    AppleAnalogRule(frozenset({"IOS", "MACOS"}), APPLE_APPLICATION_ACCESS, (("forceOnDeviceOnlyDictation", True),), (("on-device dictation",), ("enabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_APPLICATION_ACCESS, (("safariForceFraudWarning", True),), (("warn when visiting a fraudulent website",), ("enabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_MCX_ACCOUNTS, (("DisableGuestAccount", True),), (("guest account",), ("disabled",))),
-    AppleAnalogRule(frozenset({"MACOS"}), APPLE_SOFTWARE_UPDATE, (("AutomaticCheckEnabled", True), ("AutomaticDownload", True), ("AutomaticallyInstallMacOSUpdates", True), ("AutomaticallyInstallAppUpdates", True), ("CriticalUpdateInstall", True), ("ConfigDataInstall", True)), (("autoupdate", "automatic update", "automatische update"), ("aktiviert", "enabled"))),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAssistantWhileLocked", False),),
+        (
+            ("siri while device is locked", "siri while locked", "sprachassistent"),
+            ("locked", "gesperrt"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAssistant", False),),
+        (
+            ("siri is disabled", "siri disabled", "sprachassistenten"),
+            ("disabled", "deaktiviert"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowEnterpriseBookBackup", False),),
+        (("backup of enterprise books",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowEnterpriseBookMetadataSync", False),),
+        (("notes and highlights sync for enterprise books",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowCloudPhotoLibrary", False),),
+        (("icloud photo library",), ("block", "disabled", "deaktiv")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowPhotoStream", False),),
+        (("my photo stream",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowActivityContinuation", False),),
+        (("handoff", "continuity"), ("block", "disabled", "deaktiv")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAirDrop", False),),
+        (("airdrop",), ("block", "disabled", "deaktiv")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAutoUnlock", False),),
+        (("apple watch auto unlock",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowDiagnosticSubmission", False),),
+        (("diagnostic and usage data", "share mac analytics"), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowScreenShot", False),),
+        (("screenshots", "screen recording"), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowUntrustedTLSPrompt", False),),
+        (("untrusted tls certificates",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("forceLimitAdTracking", True),),
+        (("limited ad tracking", "limit ad tracking"), ("force", "enabled", "yes")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowApplePersonalizedAdvertising", False),),
+        (("personalized ads delivered by apple",), ("disabled", "limit")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowEnterpriseAppTrust", False),),
+        (("trusting new enterprise app authors",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowLockScreenControlCenter", False),),
+        (("control center",), ("lock screen",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowLockScreenNotificationsView", False),),
+        (
+            ("notification center", "notifications center"),
+            ("lock screen",),
+            ("block", "disabled"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowLockScreenTodayView", False),),
+        (("today view",), ("lock screen",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowPassbookWhileLocked", False),),
+        (("wallet",), ("lock screen",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowVoiceDialing", False),),
+        (("voice dialing",), ("locked", "lock screen"), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowUIAppInstallation", False),),
+        (("app store",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowFilesNetworkDriveAccess", False),),
+        (("network drive",), ("files app",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowFilesUSBDriveAccess", False),),
+        (("usb drive",), ("files app",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowEraseContentAndSettings", False),),
+        (("erase all content and settings",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowDeviceNameModification", False),),
+        (
+            ("modification of device name", "modifying device name"),
+            ("block", "disabled"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowUIConfigurationProfileInstallation", False),),
+        (
+            ("configuration profile", "installing configuration profiles"),
+            ("changes", "installing", "installation"),
+            ("block", "disabled"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowVPNCreation", False),),
+        (("vpn",), ("creation", "configurations"), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowHostPairing", False),),
+        (
+            ("pairing with non-configurator hosts", "sync with computers"),
+            ("block", "disabled"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowProximitySetupToNewDevice", False),),
+        (("setting up new nearby devices",), ("disabled", "block")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("forceAuthenticationBeforeAutoFill", True),),
+        (("authentication before autofill", "before autofill"), ("enabled", "require")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("requireManagedPasteboard", True),),
+        (("copy/paste", "pasteboard"), ("managed open",), ("yes", "enabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowOpenFromManagedToUnmanaged", False),),
+        (
+            (
+                "corporate documents in unmanaged apps",
+                "managed sources in unmanaged destinations",
+            ),
+            ("block", "disabled"),
+        ),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowOpenFromUnmanagedToManaged", False),),
+        (("unmanaged sources in managed destinations",), ("disabled", "block")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAirPrintiBeaconDiscovery", False),),
+        (("ibeacon discovery of airprint printers",), ("block", "disabled")),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("forceAutomaticDateAndTime", True),),
+        (("set time and date automatically",), ("enabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowCloudDesktopAndDocuments", False),),
+        (("icloud drive document and desktop sync",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowAirPlayIncomingRequests", False),),
+        (("airplay receiver",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowExternalIntelligenceIntegrations", False),),
+        (("external intelligence extensions",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowWritingTools", False),),
+        (("writing tools",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowMailSummary", False),),
+        (("mail summarization",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("allowNotesTranscriptionSummary", False),),
+        (("notes summarization",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"IOS", "MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("forceOnDeviceOnlyDictation", True),),
+        (("on-device dictation",), ("enabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_APPLICATION_ACCESS,
+        (("safariForceFraudWarning", True),),
+        (("warn when visiting a fraudulent website",), ("enabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_MCX_ACCOUNTS,
+        (("DisableGuestAccount", True),),
+        (("guest account",), ("disabled",)),
+    ),
+    AppleAnalogRule(
+        frozenset({"MACOS"}),
+        APPLE_SOFTWARE_UPDATE,
+        (
+            ("AutomaticCheckEnabled", True),
+            ("AutomaticDownload", True),
+            ("AutomaticallyInstallMacOSUpdates", True),
+            ("AutomaticallyInstallAppUpdates", True),
+            ("CriticalUpdateInstall", True),
+            ("ConfigDataInstall", True),
+        ),
+        (
+            ("autoupdate", "automatic update", "automatische update"),
+            ("aktiviert", "enabled"),
+        ),
+    ),
 )
 
-APPLE_MOBILECONFIG_CANDIDATE_RULES: tuple[tuple[frozenset[str], str, tuple[str, ...], tuple[tuple[str, ...], ...], str], ...] = (
-    (frozenset({"IOS"}), "com.apple.shareddeviceconfiguration", ("ifLostReturnToMessage", "lockScreenFootnote"), (("lock screen message", "if lost return", "consent message"),), "Relution can import the Lock Screen Message .mobileconfig payload, but the message text is organization-specific."),
-    (frozenset({"MACOS"}), "com.apple.TCC.configuration-profile-policy", ("service", "authorization"), (("full disk access", "privacy preferences policy control", "pppc"),), "Relution can import PPPC .mobileconfig payloads, but exact app identifiers and code requirements are organization-specific."),
-    (frozenset({"MACOS"}), "com.apple.servicemanagement", ("teamIdentifier", "bundleIdentifier"), (("login item", "background services"),), "Relution can import Managed Login Items .mobileconfig payloads, but exact team and bundle identifiers are organization-specific."),
-    (frozenset({"MACOS"}), "com.apple.security.smartcard", ("enforceSmartCard", "allowSmartCard"), (("smart card",),), "Relution can import Smart Card .mobileconfig payloads, but site authentication policy determines the exact keys."),
-    (frozenset({"IOS", "MACOS"}), "com.apple.security.certificatetransparency", ("disabledForDomains",), (("certificate transparency",),), "Relution can import Certificate Transparency .mobileconfig payloads, but domain or certificate exceptions are organization-specific."),
-    (frozenset({"IOS"}), "com.apple.networkusagerules", ("applicationRules",), (("network usage rules", "cellular data", "roaming cellular"),), "Relution can import Network Usage Rules .mobileconfig payloads, but managed app identifiers are organization-specific."),
-    (frozenset({"IOS"}), "com.apple.ews.account", ("allowMailDrop",), (("allow mail drop",),), "Relution can import Exchange Web Services .mobileconfig payloads, but account configuration is organization-specific."),
+APPLE_MOBILECONFIG_CANDIDATE_RULES: tuple[
+    tuple[frozenset[str], str, tuple[str, ...], tuple[tuple[str, ...], ...], str], ...
+] = (
+    (
+        frozenset({"IOS"}),
+        "com.apple.shareddeviceconfiguration",
+        ("ifLostReturnToMessage", "lockScreenFootnote"),
+        (("lock screen message", "if lost return", "consent message"),),
+        (
+            "Relution can import the Lock Screen Message .mobileconfig payload, but the "
+            "message text is organization-specific."
+        ),
+    ),
+    (
+        frozenset({"MACOS"}),
+        "com.apple.TCC.configuration-profile-policy",
+        ("service", "authorization"),
+        (("full disk access", "privacy preferences policy control", "pppc"),),
+        (
+            "Relution can import PPPC .mobileconfig payloads, but exact app identifiers and "
+            "code requirements are organization-specific."
+        ),
+    ),
+    (
+        frozenset({"MACOS"}),
+        "com.apple.servicemanagement",
+        ("teamIdentifier", "bundleIdentifier"),
+        (("login item", "background services"),),
+        (
+            "Relution can import Managed Login Items .mobileconfig payloads, but exact team "
+            "and bundle identifiers are organization-specific."
+        ),
+    ),
+    (
+        frozenset({"MACOS"}),
+        "com.apple.security.smartcard",
+        ("enforceSmartCard", "allowSmartCard"),
+        (("smart card",),),
+        (
+            "Relution can import Smart Card .mobileconfig payloads, but site authentication "
+            "policy determines the exact keys."
+        ),
+    ),
+    (
+        frozenset({"IOS", "MACOS"}),
+        "com.apple.security.certificatetransparency",
+        ("disabledForDomains",),
+        (("certificate transparency",),),
+        (
+            "Relution can import Certificate Transparency .mobileconfig payloads, but "
+            "domain or certificate exceptions are organization-specific."
+        ),
+    ),
+    (
+        frozenset({"IOS"}),
+        "com.apple.networkusagerules",
+        ("applicationRules",),
+        (("network usage rules", "cellular data", "roaming cellular"),),
+        (
+            "Relution can import Network Usage Rules .mobileconfig payloads, but managed "
+            "app identifiers are organization-specific."
+        ),
+    ),
+    (
+        frozenset({"IOS"}),
+        "com.apple.ews.account",
+        ("allowMailDrop",),
+        (("allow mail drop",),),
+        (
+            "Relution can import Exchange Web Services .mobileconfig payloads, but account "
+            "configuration is organization-specific."
+        ),
+    ),
 )
 
 ANDROID_ADVANCED_SECURITY = "ANDROID_ENTERPRISE_ADVANCED_SECURITY_OVERRIDES"
@@ -364,17 +759,19 @@ MANAGEMENT_SUPPORT_CONCEPT_IDS = frozenset(
         "hardened_device_procurement",
     }
 )
-DIRECT_SEMANTIC_SOURCES = frozenset({
-    "bsi-title",
-    "bsi-requirement",
-    "kompendium-checklist",
-    "cis-title",
-    "cis-description",
-    "vendor-title",
-    "vendor-section",
-    "relution-field",
-    "apple-schema-field",
-})
+DIRECT_SEMANTIC_SOURCES = frozenset(
+    {
+        "bsi-title",
+        "bsi-requirement",
+        "kompendium-checklist",
+        "cis-title",
+        "cis-description",
+        "vendor-title",
+        "vendor-section",
+        "relution-field",
+        "apple-schema-field",
+    }
+)
 RELATED_SEMANTIC_SOURCES = frozenset({"related-kompendium-checklist"})
 GS_PLUSPLUS_SEMANTIC_SOURCES = frozenset({"grundschutz-plusplus-control"})
 PROCESS_ONLY_TITLE_TERMS = (
@@ -388,5 +785,13 @@ PROCESS_ONLY_TITLE_TERMS = (
 )
 
 
-def semantic_target(platforms: tuple[str, ...], kind: str, target: str, field_paths: tuple[str, ...], note: str) -> SemanticConceptTarget:
+def semantic_target(
+    platforms: tuple[str, ...],
+    kind: str,
+    target: str,
+    field_paths: tuple[str, ...],
+    note: str,
+) -> SemanticConceptTarget:
+    """Build a semantic concept target with normalized platform values."""
+
     return SemanticConceptTarget(frozenset(platforms), kind, target, field_paths, note)

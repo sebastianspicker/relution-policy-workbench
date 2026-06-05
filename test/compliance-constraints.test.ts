@@ -42,6 +42,41 @@ test("buildComplianceReport treats array contains-all constraints as compliant f
   assert.equal(result.mappingResults[0]?.status, "compliant");
 });
 
+for (const scenario of [
+  { name: "rejects atMost(3) when 4 values are configured", actual: 4, limit: 3, expectedStatus: "exact-gap" },
+  { name: "accepts atMost(3) when 3 values are configured", actual: 3, limit: 3, expectedStatus: "compliant" },
+  { name: "accepts atMost(3) when 2 values are configured", actual: 2, limit: 3, expectedStatus: "compliant" },
+  { name: "accepts atMost(3) when 0 values are configured", actual: 0, limit: 3, expectedStatus: "compliant" },
+  { name: "rejects atMost(0) when 1 value is configured", actual: 1, limit: 0, expectedStatus: "exact-gap" },
+] as const) {
+  test(`buildComplianceReport ${scenario.name}`, () => {
+    const report = buildComplianceReport({
+      workspace: createWorkspace("ANDROID_ENTERPRISE", {
+        type: "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT",
+        maximumConfiguredValues: scenario.actual,
+      }),
+      selection: { policyIndex: 0, versionIndex: 0 },
+      sources: ["cis"],
+      catalogs: createArtifacts(
+        "cis",
+        [
+          createNativeRecommendation({
+            values: { maximumConfiguredValues: scenario.limit },
+            constraints: [{ path: "maximumConfiguredValues", operator: "atMost", value: scenario.limit }],
+          }),
+        ],
+      ),
+      bundle: createBundle(),
+      appleSchema: createAppleSchemaCatalog(),
+    });
+
+    const result = report.results.find((entry) => entry.recommendationId === "cis-android-keyguard-notifications");
+    assert.ok(result);
+    assert.equal(result.status, scenario.expectedStatus);
+    assert.equal(result.mappingResults[0]?.status, scenario.expectedStatus === "compliant" ? "compliant" : "mismatch");
+  });
+}
+
 function createArtifacts(
   source: RecommendationSource,
   recommendations: RecommendationRecord[],
@@ -99,7 +134,7 @@ function createNativeRecommendation(props: {
     defaultValue: false,
     references: [],
     recommendedValue: props.values,
-    helperFallbacks: [],
+    fallbackTranslations: [],
     relutionMapping: {
       status: "exact",
       mergeableInImportableRuleset: true,
@@ -124,7 +159,6 @@ function createNativeRecommendation(props: {
       importableVia: ["apply-json", "ruleset-import"],
       blockingReasons: [],
     },
-    fallbackTranslations: [],
     familySourceId: "cis-android-family",
     additionalInformation: "",
     assessmentStatus: "Automated",

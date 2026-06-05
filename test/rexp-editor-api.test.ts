@@ -34,6 +34,12 @@ import {
   type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
 
+// Relution Server 26.1.1 baseline: 201 harvested configuration types.
+const RELUTION_26_1_1_MIN_CONFIGURATION_TYPES = 200;
+// Relution Server 26.1.1 baseline: 22 mobileconfig-backed Apple gap settings.
+const RELUTION_26_1_1_MIN_MOBILECONFIG_BACKED_SETTINGS = 20;
+const CORE_POLICY_PLATFORMS = ["IOS", "ANDROID_ENTERPRISE", "MACOS", "WINDOWS"] as const;
+
 test("keeps static asset resolution inside the dist-web root", () => {
   const root = mkdtempSync(join(tmpdir(), "relution-static-root-"));
   const staticRoot = join(root, "dist-web");
@@ -105,44 +111,8 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
   });
 
   try {
-    const state = await getJson<EditorStateResponse>(
-      `${handle.url}api/state`,
-    );
-    assert.equal(state.bundle.configurationTypes.length, 201);
-    assert.equal(state.appleCompat.summary.mobileconfigBacked, 22);
-    const missingApiResponse = await fetch(`${handle.url}api/does-not-exist`);
-    assert.equal(missingApiResponse.status, 404);
-    const missingApi = await missingApiResponse.json() as { error?: string };
-    assert.match(missingApi.error ?? "", /Unknown API endpoint/);
-
-    const baselineIndexResponse = await fetch(`${handle.url}api/baseline-templates`);
-    assert.equal(baselineIndexResponse.ok, true);
-    const baselineIndex = await baselineIndexResponse.json() as {
-      options?: Array<{ platform?: string; tier?: number; shape?: string; actionableRuleCount?: number }>;
-    };
-    const iosTier3Modules = baselineIndex.options?.find((candidate) =>
-      candidate.platform === "IOS" && candidate.tier === 3 && candidate.shape === "modules",
-    );
-    assert.equal((iosTier3Modules?.actionableRuleCount ?? 0) > 0, true);
-
-    const baselineTemplateResponse = await fetch(`${handle.url}api/baseline-templates/template?platform=IOS&tier=3&shape=modules`);
-    assert.equal(baselineTemplateResponse.ok, true);
-    const baselineTemplate = await baselineTemplateResponse.json() as { policies?: unknown[] };
-    assert.equal((baselineTemplate.policies ?? []).length > 0, true);
-
-    const baselineExpertResponse = await fetch(`${handle.url}api/baseline-templates/expert?platform=IOS&shape=modules`);
-    assert.equal(baselineExpertResponse.ok, true);
-    const baselineExpert = await baselineExpertResponse.json() as {
-      settings?: Array<{ requiredInTiers?: number[]; recommendations?: unknown[] }>;
-      tierCoverage?: Array<{ tier?: number; totalSettings?: number }>;
-    };
-    assert.equal((baselineExpert.settings ?? []).length > 0, true);
-    assert.equal(baselineExpert.settings?.every((setting) => (setting.recommendations ?? []).length > 0), true);
-    assert.equal((baselineExpert.tierCoverage?.find((entry) => entry.tier === 3)?.totalSettings ?? 0) > 0, true);
-
-    const invalidBaselineTemplateResponse = await fetch(`${handle.url}api/baseline-templates/template?platform=../IOS&tier=3&shape=modules`);
-    assert.equal(invalidBaselineTemplateResponse.status, 400);
-
+    await assertEditorStateApi(handle.url);
+    await assertBaselineTemplateApis(handle.url);
     const addPolicyResponse = await postJson(`${handle.url}api/add-policy`, {
       platform: "WINDOWS",
       name: "API Windows Test",
@@ -180,27 +150,7 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
     assert.equal(addMobileconfigResponse.ok, true);
     const addMobileconfigResult = await addMobileconfigResponse.json() as WorkspaceValidationResponse;
     assert.equal(addMobileconfigResult.validation.ok, true);
-    const firstPolicy = addMobileconfigResult.workspace.policies.find((candidate) => candidate.path === requirePolicyPath(workspace));
-    const firstVersion = Array.isArray(firstPolicy?.document.versions) ? firstPolicy.document.versions[0] : undefined;
-    const firstVersionRecord =
-      typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)
-        ? (firstVersion as Record<string, unknown>)
-        : undefined;
-    const configurations = Array.isArray(firstVersionRecord?.configurations) ? firstVersionRecord.configurations : [];
-    assert.equal(
-      configurations.some((configuration) => {
-        const details = typeof configuration === "object" && configuration !== null && !Array.isArray(configuration)
-          ? (configuration as Record<string, unknown>).details
-          : undefined;
-        return (
-          typeof details === "object" &&
-          details !== null &&
-          !Array.isArray(details) &&
-          (details as Record<string, unknown>).type === "APPLE_MOBILECONFIG"
-        );
-      }),
-      true,
-    );
+    assert.equal(workspaceHasMobileconfig(addMobileconfigResult.workspace, requirePolicyPath(workspace)), true);
 
     const addNewConfigResponse = await postJson(`${handle.url}api/add-configuration`, {
       policyPath: addPolicyResult.policyPath,
@@ -241,6 +191,8 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
 
     const buildResponse = await postJson(`${handle.url}api/build`, {});
     assert.equal(buildResponse.ok, true);
+    const buildResult = await buildResponse.json() as { verification?: { ok?: boolean } };
+    assert.equal(buildResult.verification?.ok, true);
     assert.equal(verifyRexp(out, password).ok, true);
     assert.equal(inspectRexp(out, password).policyEntries.length, 2);
 
@@ -252,3 +204,66 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
     await handle.close();
   }
 });
+
+async function assertEditorStateApi(baseUrl: string): Promise<void> {
+  const state = await getJson<EditorStateResponse>(`${baseUrl}api/state`);
+  assert.equal(state.bundle.configurationTypes.length >= RELUTION_26_1_1_MIN_CONFIGURATION_TYPES, true);
+  assert.equal(CORE_POLICY_PLATFORMS.every((platform) => state.bundle.platforms.includes(platform)), true);
+  const mobileconfigBackedSettings = state.appleCompat.settings.filter((setting) => setting.status === "mobileconfig-backed");
+  assert.equal(mobileconfigBackedSettings.length >= RELUTION_26_1_1_MIN_MOBILECONFIG_BACKED_SETTINGS, true);
+  assert.equal(state.appleCompat.summary.mobileconfigBacked, mobileconfigBackedSettings.length);
+  assert.equal(mobileconfigBackedSettings.every((setting) => setting.relutionTransportType === "APPLE_MOBILECONFIG"), true);
+
+  const missingApiResponse = await fetch(`${baseUrl}api/does-not-exist`);
+  assert.equal(missingApiResponse.status, 404);
+  const missingApi = await missingApiResponse.json() as { error?: string };
+  assert.match(missingApi.error ?? "", /Unknown API endpoint/);
+}
+
+async function assertBaselineTemplateApis(baseUrl: string): Promise<void> {
+  const baselineIndexResponse = await fetch(`${baseUrl}api/baseline-templates`);
+  assert.equal(baselineIndexResponse.ok, true);
+  const baselineIndex = await baselineIndexResponse.json() as {
+    options?: Array<{ platform?: string; tier?: number; shape?: string; actionableRuleCount?: number }>;
+  };
+  const iosTier3Modules = baselineIndex.options?.find((candidate) => candidate.platform === "IOS" && candidate.tier === 3 && candidate.shape === "modules");
+  assert.equal((iosTier3Modules?.actionableRuleCount ?? 0) > 0, true);
+
+  const baselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=IOS&tier=3&shape=modules`);
+  assert.equal(baselineTemplateResponse.ok, true);
+  const baselineTemplate = await baselineTemplateResponse.json() as { policies?: unknown[] };
+  assert.equal((baselineTemplate.policies ?? []).length > 0, true);
+
+  const baselineExpertResponse = await fetch(`${baseUrl}api/baseline-templates/expert?platform=IOS&shape=modules`);
+  assert.equal(baselineExpertResponse.ok, true);
+  const baselineExpert = await baselineExpertResponse.json() as {
+    settings?: Array<{ recommendations?: unknown[] }>;
+    tierCoverage?: Array<{ tier?: number; totalSettings?: number }>;
+  };
+  assert.equal((baselineExpert.settings ?? []).length > 0, true);
+  assert.equal(baselineExpert.settings?.every((setting) => (setting.recommendations ?? []).length > 0), true);
+  assert.equal((baselineExpert.tierCoverage?.find((entry) => entry.tier === 3)?.totalSettings ?? 0) > 0, true);
+
+  const invalidBaselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=../IOS&tier=3&shape=modules`);
+  assert.equal(invalidBaselineTemplateResponse.status, 400);
+}
+
+function workspaceHasMobileconfig(workspace: WorkspaceValidationResponse["workspace"], policyPath: string): boolean {
+  const firstPolicy = workspace.policies.find((candidate) => candidate.path === policyPath);
+  const firstVersion = Array.isArray(firstPolicy?.document.versions) ? firstPolicy.document.versions[0] : undefined;
+  const firstVersionRecord = typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)
+    ? (firstVersion as Record<string, unknown>)
+    : undefined;
+  const configurations = Array.isArray(firstVersionRecord?.configurations) ? firstVersionRecord.configurations : [];
+  return configurations.some(configurationIsMobileconfig);
+}
+
+function configurationIsMobileconfig(configuration: unknown): boolean {
+  const details = typeof configuration === "object" && configuration !== null && !Array.isArray(configuration)
+    ? (configuration as Record<string, unknown>).details
+    : undefined;
+  return typeof details === "object"
+    && details !== null
+    && !Array.isArray(details)
+    && (details as Record<string, unknown>).type === "APPLE_MOBILECONFIG";
+}

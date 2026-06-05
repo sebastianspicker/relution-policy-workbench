@@ -33,62 +33,44 @@ interface ParsedArgs {
   options: Record<string, string | boolean>;
 }
 
+type CommandHandler = (args: ParsedArgs) => void | Promise<void>;
+
 async function main(argv: string[]): Promise<void> {
   const args = parseArgs(argv);
 
   try {
-    switch (args.command) {
-      case "inspect":
-        inspectCommand(args);
-        return;
-      case "verify":
-        verifyCommand(args);
-        return;
-      case "extract":
-        extractCommand(args);
-        return;
-      case "pack":
-        packCommand(args);
-        return;
-      case "templates":
-        templatesCommand(args);
-        return;
-      case "audit":
-        auditCommand(args);
-        return;
-      case "apple-compat":
-        appleCompatCommand(args);
-        return;
-      case "apple-schema":
-        await appleSchemaCommand(args);
-        return;
-      case "relution":
-        await runRelutionCliCommand(args);
-        return;
-      case "new":
-        newCommand(args);
-        return;
-      case "edit":
-        await editCommand(args);
-        return;
-      case "serve":
-        await serveCommand(args);
-        return;
-      case undefined:
-        await serveCommand(args);
-        return;
-      case "help":
-        printHelp();
-        return;
-      default:
-        cliError(`Unknown command: ${args.command}`);
+    const handler = commandHandler(args.command);
+    if (handler === undefined) {
+      cliError(`Unknown command: ${args.command}`);
+      return;
     }
+    await handler(args);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error(formatCliError(message));
     process.exitCode = 1;
   }
 }
+
+function commandHandler(command: string | undefined): CommandHandler | undefined {
+  return command === undefined ? serveCommand : COMMAND_HANDLERS[command];
+}
+
+const COMMAND_HANDLERS: Record<string, CommandHandler> = {
+  inspect: inspectCommand,
+  verify: verifyCommand,
+  extract: extractCommand,
+  pack: packCommand,
+  templates: templatesCommand,
+  audit: auditCommand,
+  "apple-compat": appleCompatCommand,
+  "apple-schema": appleSchemaCommand,
+  relution: runRelutionCliCommand,
+  new: newCommand,
+  edit: editCommand,
+  serve: serveCommand,
+  help: () => { printHelp(); },
+};
 
 async function appleSchemaCommand(args: ParsedArgs): Promise<void> {
   const action = requirePositional(args, 0, "apple-schema requires an action: refresh, list, or audit");
@@ -163,7 +145,7 @@ function inspectCommand(args: ParsedArgs): void {
   if (result.policies !== undefined) {
     console.log("Decrypted policies:");
     for (const policy of result.policies) {
-      const hashState = policy.hashMatches === true ? "hash ok" : "hash mismatch";
+      const hashState = policy.hashStatus === "match" ? "hash ok" : policy.hashStatus === "absent" ? "hash absent" : "hash mismatch";
       console.log(
         `- ${policy.path}: ${policy.name ?? "(unnamed)"} (${policy.uuid ?? "no uuid"}, ${policy.platform ?? "no platform"}, ${policy.configurationCount ?? 0} configurations, ${hashState})`,
       );
@@ -182,8 +164,8 @@ function verifyCommand(args: ParsedArgs): void {
   }
 
   for (const entry of result.checkedEntries) {
-    const state = entry.hashMatches === true ? "PASS" : "FAIL";
-    console.log(`${state} ${entry.path}`);
+    const state = entry.hashStatus === "match" ? "PASS" : "FAIL";
+    console.log(`${state} ${entry.path}${entry.hashStatus === "match" ? "" : ` (${entry.hashStatus})`}`);
   }
   console.log(result.ok ? "VERDICT: PASS" : "VERDICT: FAIL");
   if (!result.ok) {
@@ -237,7 +219,13 @@ function templatesCommand(args: ParsedArgs): void {
     if (args.options["allow-heuristic-runtime-metadata"] === true) {
       options.allowHeuristicRuntimeMetadata = true;
     }
-    refreshTemplates(options);
+    const bundle = refreshTemplates(options);
+    if (bundle.refreshDiagnostics.runtimeMetadata.source === "heuristic") {
+      console.warn("[templates refresh] Warning: runtime metadata built from heuristic fallback; reflection failed.");
+    }
+    if (bundle.sourceImageDigest === undefined) {
+      console.warn("[templates refresh] Warning: image digest unknown; Docker image digest was unavailable during build.");
+    }
     console.log(`Wrote ${resolve(out)}`);
     return;
   }
@@ -421,7 +409,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   for (let index = 0; index < rest.length; index += 1) {
     const token = rest[index];
-    if (token === undefined) {
+    if (typeof token === "undefined") {
       continue;
     }
 
@@ -559,7 +547,8 @@ function printHelp(): void {
   rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-network-editor] [--allow-local-service-hosts]
 
 With no arguments, rexp starts the local browser editor using ${DEFAULT_SERVE_WORKSPACE}.
-The password can also be supplied through RELUTION_REXP_KEY.`);
+The password can also be supplied through RELUTION_REXP_KEY.
+Relution read-only commands can also read --host from RELUTION_BASE_URL and --token from RELUTION_ACCESS_TOKEN.`);
 }
 
 void main(process.argv.slice(2));

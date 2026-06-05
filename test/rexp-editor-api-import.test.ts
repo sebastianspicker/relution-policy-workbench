@@ -1,6 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ServerResponse } from "node:http";
+import { setTimeout as delay } from "node:timers/promises";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
@@ -35,6 +37,7 @@ import {
 } from "./rexp-helpers.js";
 import { readZip, writeZip } from "../src/zip.js";
 
+type KeyUpdateResponse = { keySet: boolean; validated: boolean; reason?: string };
 
 test("updates the editor encryption key for rebuilt archives", async () => {
   const bundle = loadTemplateBundle();
@@ -63,10 +66,94 @@ test("updates the editor encryption key for rebuilt archives", async () => {
   try {
     const keyResponse = await postJson(`${handle.url}api/key`, { key: "new-key" });
     assert.equal(keyResponse.ok, true);
+    const keyResult = await keyResponse.json() as KeyUpdateResponse;
+    assert.deepEqual(keyResult, {
+      keySet: true,
+      validated: false,
+      reason: "No built .rexp output is available to validate this key.",
+    });
+    const stateAfterKey = await getJson<EditorStateResponse>(`${handle.url}api/state`);
+    assert.equal(stateAfterKey.keySet, true);
+    assert.equal(stateAfterKey.keyValidated, false);
+    assert.match(stateAfterKey.keyValidationReason ?? "", /No built \.rexp output/u);
     const buildResponse = await postJson(`${handle.url}api/build`, {});
     assert.equal(buildResponse.ok, true);
+    const stateAfterBuild = await getJson<EditorStateResponse>(`${handle.url}api/state`);
+    assert.equal(stateAfterBuild.keySet, true);
+    assert.equal(stateAfterBuild.keyValidated, true);
+    assert.equal(stateAfterBuild.keyValidationReason, undefined);
     assert.equal(verifyRexp(out, "new-key").ok, true);
     assert.throws(() => verifyRexp(out, "old-key"), /authenticate|Unsupported state|bad decrypt/i);
+  } finally {
+    await handle.close();
+  }
+});
+
+test("validates an editor encryption key against the current output archive", async () => {
+  const bundle = loadTemplateBundle();
+  const root = mkdtempSync(join(tmpdir(), "relution-editor-key-valid-"));
+  const out = join(root, "policy.rexp");
+  const workspaceDir = join(root, "workspace");
+  copyFileSync(fixture, out);
+  createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name: "Valid Key Output",
+    serverVersion: bundle.serverVersion,
+  });
+  const handle = await startEditorServer({
+    workspace: workspaceDir,
+    out,
+    key: "",
+    port: 0,
+    host: "127.0.0.1",
+  });
+
+  try {
+    const keyResponse = await postJson(`${handle.url}api/key`, { key: password });
+    assert.equal(keyResponse.ok, true);
+    const keyResult = await keyResponse.json() as KeyUpdateResponse;
+    assert.deepEqual(keyResult, { keySet: true, validated: true });
+    const state = await getJson<EditorStateResponse>(`${handle.url}api/state`);
+    assert.equal(state.keySet, true);
+    assert.equal(state.keyValidated, true);
+    assert.equal(state.keyValidationReason, undefined);
+  } finally {
+    await handle.close();
+  }
+});
+
+test("does not mark an editor encryption key validated when it cannot decrypt the current output archive", async () => {
+  const bundle = loadTemplateBundle();
+  const root = mkdtempSync(join(tmpdir(), "relution-editor-key-invalid-"));
+  const out = join(root, "policy.rexp");
+  const workspaceDir = join(root, "workspace");
+  copyFileSync(fixture, out);
+  createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name: "Invalid Key Output",
+    serverVersion: bundle.serverVersion,
+  });
+  const handle = await startEditorServer({
+    workspace: workspaceDir,
+    out,
+    key: "",
+    port: 0,
+    host: "127.0.0.1",
+  });
+
+  try {
+    const keyResponse = await postJson(`${handle.url}api/key`, { key: "wrong-key" });
+    assert.equal(keyResponse.ok, true);
+    const keyResult = await keyResponse.json() as KeyUpdateResponse;
+    assert.equal(keyResult.keySet, true);
+    assert.equal(keyResult.validated, false);
+    assert.match(keyResult.reason ?? "", /does not decrypt/i);
+    const state = await getJson<EditorStateResponse>(`${handle.url}api/state`);
+    assert.equal(state.keySet, true);
+    assert.equal(state.keyValidated, false);
+    assert.match(state.keyValidationReason ?? "", /does not decrypt/i);
   } finally {
     await handle.close();
   }
@@ -206,6 +293,58 @@ test("restores the previous workspace when import sidecar replacement fails", as
   }
 });
 
+test("restores the previous runtime key when import response sending fails", async () => {
+  const bundle = loadTemplateBundle();
+  const root = mkdtempSync(join(tmpdir(), "relution-editor-import-key-rollback-"));
+  const out = join(root, "policy.rexp");
+  const workspaceDir = join(root, "workspace");
+  createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name: "Import Key Rollback Test",
+    serverVersion: bundle.serverVersion,
+  });
+  const handle = await startEditorServer({
+    workspace: workspaceDir,
+    out,
+    key: "old-key",
+    port: 0,
+    host: "127.0.0.1",
+  });
+  const originalWriteHead = ServerResponse.prototype.writeHead;
+  let failedWrite = false;
+
+  try {
+    ServerResponse.prototype.writeHead = function patchedWriteHead(this: ServerResponse, ...args: unknown[]) {
+      if (!failedWrite) {
+        failedWrite = true;
+        throw new Error("simulated import response failure");
+      }
+      return originalWriteHead.apply(this, args as never);
+    } as typeof ServerResponse.prototype.writeHead;
+
+    const importResponse = await postJson(`${handle.url}api/import`, {
+      fileName: "fixture.rexp",
+      key: password,
+      dataBase64: readFileSync(fixture).toString("base64"),
+    });
+    assert.equal(importResponse.status, 500);
+    const result = await importResponse.json() as { error?: string };
+    assert.match(result.error ?? "", /simulated import response failure/u);
+  } finally {
+    ServerResponse.prototype.writeHead = originalWriteHead;
+  }
+
+  try {
+    const buildResponse = await postJson(`${handle.url}api/build`, {});
+    assert.equal(buildResponse.ok, true);
+    assert.equal(verifyRexp(out, "old-key").ok, true);
+    assert.throws(() => verifyRexp(out, password), /authenticate|Unsupported state|bad decrypt/i);
+  } finally {
+    await handle.close();
+  }
+});
+
 test("rejects tampered rexp imports before replacing the editor workspace", async () => {
   const bundle = loadTemplateBundle();
   const root = mkdtempSync(join(tmpdir(), "relution-editor-import-tampered-"));
@@ -276,7 +415,7 @@ test("import cleans up temporary extraction directories on success and failure",
       dataBase64: readFileSync(fixture).toString("base64"),
     });
     assert.equal(successResponse.ok, true);
-    assert.deepEqual(listImportTempDirectories(), beforeSuccess);
+    await assertNoNewImportTempDirectories(beforeSuccess);
 
     const beforeFailure = listImportTempDirectories();
     const failureResponse = await postJson(`${handle.url}api/import`, {
@@ -285,14 +424,29 @@ test("import cleans up temporary extraction directories on success and failure",
       dataBase64: readFileSync(fixture).toString("base64"),
     });
     assert.equal(failureResponse.status, 500);
-    assert.deepEqual(listImportTempDirectories(), beforeFailure);
+    await assertNoNewImportTempDirectories(beforeFailure);
   } finally {
     await handle.close();
   }
 });
 
-function listImportTempDirectories(): string[] {
-  return readdirSync(tmpdir())
-    .filter((name) => name.startsWith("relution-rexp-import-"))
+function listImportTempDirectories(): Set<string> {
+  return new Set(readdirSync(tmpdir()).filter((name) => name.startsWith("relution-rexp-import-")));
+}
+
+async function assertNoNewImportTempDirectories(before: Set<string>): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const leaked = newImportTempDirectories(before);
+    if (leaked.length === 0) {
+      return;
+    }
+    await delay(25);
+  }
+  assert.deepEqual(newImportTempDirectories(before), []);
+}
+
+function newImportTempDirectories(before: Set<string>): string[] {
+  return [...listImportTempDirectories()]
+    .filter((name) => !before.has(name))
     .sort();
 }

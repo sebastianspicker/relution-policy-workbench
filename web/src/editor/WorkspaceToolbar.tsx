@@ -60,7 +60,7 @@ export function WorkspaceToolbar(props: {
             Build .rexp
           </button>
           {c.hasFreshBuild ? (
-            <button type="button" className="button-link" onClick={() => void downloadOutputArchive().catch(reportDownloadError)}>
+            <button type="button" className="button-link" onClick={() => void downloadOutputArchive().catch((error) => reportDownloadError(error, c.setStatus))}>
               Download
             </button>
           ) : (
@@ -90,14 +90,14 @@ export function WorkspaceToolbar(props: {
   );
 }
 
-function reportDownloadError(error: unknown): void {
-  console.error(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
+function reportDownloadError(error: unknown, setStatus: (status: string) => void): void {
+  setStatus(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
 }
 
 async function downloadOutputArchive(): Promise<void> {
   const response = await fetch("/api/output", { headers: networkEditorAuthHeaders() });
   if (!response.ok) {
-    throw new Error(`Failed to download output archive: ${response.statusText}`);
+    throw new Error(`Failed to download output archive (${response.status}${response.statusText.length > 0 ? ` ${response.statusText}` : ""})`);
   }
   const blobUrl = URL.createObjectURL(await response.blob());
   const link = document.createElement("a");

@@ -1,3 +1,5 @@
+import type { JsonRecord } from "./utils/json-guards.js";
+
 export type AppleCompatStatus = "mobileconfig-backed" | "not-mobileconfig-wireable";
 export type AppleCompatScalarFieldKind = "string" | "textarea" | "boolean" | "integer" | "number" | "list" | "json" | "key-value-list";
 export type AppleCompatFieldKind = AppleCompatScalarFieldKind | "object-list";
@@ -63,9 +65,9 @@ export interface AppleCompatReportEntry {
 }
 
 export type AppleCompatBuilder = "pppc" | "managed-preferences" | "associated-domains" | "managed-login-items" | "generic-json";
-export type JsonRecord = Record<string, unknown>;
+export type { JsonRecord };
 
-export { PROFILE_EDITOR_META_KEY } from "./profile-editor-meta.js";
+export { PROFILE_EDITOR_META_PROPERTY } from "./profile-editor-meta.js";
 export const PROFILE_IDENTIFIER_PREFIX = "io.relution-policy-workbench.apple-gap";
 export const APPLE_COMMON_PLATFORMS = ["IOS", "MACOS", "TVOS", "WATCHOS", "VISIONOS"];
 export const APPLE_PROFILE_SOURCE = "https://developer.apple.com/documentation/devicemanagement/profile-specific-payload-keys";

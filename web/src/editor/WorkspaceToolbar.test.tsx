@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEditorControllerStub } from "./useEditorController.test-helpers.js";
 import { WorkspaceToolbar } from "./WorkspaceToolbar.js";
 
@@ -7,6 +7,10 @@ const defaultProps = {
   inspectorPinned: false,
   onToggleInspector: vi.fn(),
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("WorkspaceToolbar", () => {
   it("keeps download unavailable until a fresh build exists", () => {
@@ -26,38 +30,73 @@ describe("WorkspaceToolbar", () => {
     expect((downloadButton as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it("reports download failures instead of leaving an unhandled rejection", async () => {
+  it("reports rejected downloads through visible editor status", async () => {
+    const controller = createEditorControllerStub({ hasFreshBuild: true });
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network down"));
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    render(<WorkspaceToolbar controller={createEditorControllerStub({ hasFreshBuild: true })} {...defaultProps} />);
+    render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /download/i }));
+    fireEvent.click(screen.getByRole("button", { name: /download/i }));
+
+    await waitFor(() => expect(controller.setStatus).toHaveBeenCalledTimes(2));
+    expect(controller.setStatus).toHaveBeenLastCalledWith("Download failed: network down");
+  });
+
+  it("reports non-OK downloads through visible editor status", async () => {
+    const controller = createEditorControllerStub({ hasFreshBuild: true });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("missing", { status: 404, statusText: "Not Found" }));
+    render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
 
     fireEvent.click(screen.getByRole("button", { name: /download/i }));
 
-    await waitFor(() => expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("network down")));
+    await waitFor(() => expect(controller.setStatus).toHaveBeenCalledWith("Download failed: Failed to download output archive (404 Not Found)"));
   });
 
-  it("exposes redo action", () => {
-    const controller = createEditorControllerStub({ canRedo: true });
-    render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
+  it("redo toolbar action only replays when an undone workspace change exists", () => {
+    const unavailableController = createEditorControllerStub({ canRedo: false });
+    const { rerender } = render(<WorkspaceToolbar controller={unavailableController} {...defaultProps} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /redo/i }));
+    const unavailableRedoButton = screen.getByRole("button", { name: /redo/i }) as HTMLButtonElement;
+
+    expect(unavailableRedoButton.disabled).toBe(true);
+    fireEvent.click(unavailableRedoButton);
+    expect(unavailableController.redoWorkspace).not.toHaveBeenCalled();
+
+    const controller = createEditorControllerStub({ canRedo: true });
+    rerender(<WorkspaceToolbar controller={controller} {...defaultProps} />);
+
+    const redoButton = screen.getByRole("button", { name: /redo/i }) as HTMLButtonElement;
+
+    expect(redoButton.disabled).toBe(false);
+    fireEvent.click(redoButton);
 
     expect(controller.redoWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it("build action starts archive creation and blocks duplicate clicks while running", () => {
+    const controller = createEditorControllerStub({ isBuildLoading: false });
+    const { rerender } = render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
+
+    const buildButton = screen.getByRole("button", { name: /build .rexp/i }) as HTMLButtonElement;
+
+    expect(buildButton.disabled).toBe(false);
+    fireEvent.click(buildButton);
+    expect(controller.buildArchive).toHaveBeenCalledTimes(1);
+
+    const loadingController = createEditorControllerStub({ isBuildLoading: true });
+    rerender(<WorkspaceToolbar controller={loadingController} {...defaultProps} />);
+
+    const loadingBuildButton = screen.getByRole("button", { name: /build .rexp/i }) as HTMLButtonElement;
+
+    expect(loadingBuildButton.disabled).toBe(true);
+    fireEvent.click(loadingBuildButton);
+    expect(loadingController.buildArchive).not.toHaveBeenCalled();
   });
 
   it("does not contain a clear button (clear moved to Settings panel)", () => {
     render(<WorkspaceToolbar controller={createEditorControllerStub()} {...defaultProps} />);
 
     expect(screen.queryByRole("button", { name: /^clear/i })).toBeNull();
-  });
-
-  it("applies primary and build styling to the build button", () => {
-    render(<WorkspaceToolbar controller={createEditorControllerStub()} {...defaultProps} />);
-
-    const buildButton = screen.getByRole("button", { name: /build/i });
-
-    expect(buildButton.classList.contains("btn-primary")).toBe(true);
-    expect(buildButton.classList.contains("btn-build")).toBe(true);
   });
 
   it("shows a dirty dot indicator when the workspace is unsaved", () => {

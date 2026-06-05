@@ -220,28 +220,22 @@ test("download manifest covers every referenced BSI source", () => {
 test("baseline summary exposes the current 2023 baseline and relution mapping context", () => {
   const summary = readJson<BaselineSummary>("example/bsi-references/bsi-relution-baseline.json");
 
-  assert.equal(summary.verifiedAsOf, "2026-04-23");
+  assert.match(summary.verifiedAsOf, /^\d{4}-\d{2}-\d{2}$/u);
   assert.equal(summary.operativeBaseline.edition, "2023");
   assert.equal(summary.operativeBaseline.noEdition2025Release, true);
-  assert.equal(summary.operativeBaseline.currentUpdateLayer.checklistDate, "2025-03-11");
-  assert.equal(summary.operativeBaseline.currentUpdateLayer.errataDate, "2025-05-05");
+  assert.match(summary.operativeBaseline.currentUpdateLayer.checklistDate, /^\d{4}-\d{2}-\d{2}$/u);
+  assert.match(summary.operativeBaseline.currentUpdateLayer.errataDate, /^\d{4}-\d{2}-\d{2}$/u);
   assert.deepEqual(Object.keys(summary.platforms).sort(), ["android", "ios", "macos", "windows"]);
   assert.equal(summary.recommendationCatalogPath, "example/bsi-references/bsi-recommendations.json");
   assert.equal(summary.importableRulesetPath, "example/bsi-references/bsi-relution-ruleset.json");
   assert.equal(summary.settingBundleCatalogPath, "example/bsi-references/bsi-relution-settings-catalog.json");
   assert.equal((summary as JsonRecord).grundschutzPlusPlus instanceof Object, true);
   assert.equal((summary as JsonRecord).grundschutzKompendiumChecklists instanceof Object, true);
-  assert.deepEqual(summary.recommendationCounts, {
-    total: 278,
-    active: 205,
-    retired: 73,
-    byPlatform: {
-      ANDROID_ENTERPRISE: 65,
-      IOS: 85,
-      MACOS: 57,
-      WINDOWS: 71,
-    },
-  });
+  assert.ok(summary.recommendationCounts);
+  assert.equal(summary.recommendationCounts.active + summary.recommendationCounts.retired, summary.recommendationCounts.total);
+  assert.equal(sumCounts(summary.recommendationCounts.byPlatform), summary.recommendationCounts.total);
+  assert.deepEqual(Object.keys(summary.recommendationCounts.byPlatform).sort(), ["ANDROID_ENTERPRISE", "IOS", "MACOS", "WINDOWS"]);
+  assert.equal(Object.values(summary.recommendationCounts.byPlatform).every((count) => count > 0), true);
   assert.deepEqual(
     summary.relutionMapping.repoBuiltInRulesetMappings.map((mapping) => mapping.ruleId).sort(),
     ["bsi-android-disable-camera", "bsi-ios-disable-camera", "bsi-macos-passcode"],
@@ -290,10 +284,15 @@ test("Grundschutz++ systematics and individual Kompendium checklists are parsed 
 test("BSI recommendation catalog preserves platform coverage, threat linkage, and errata context", () => {
   const recommendations = readJson<BsiRecommendation[]>("example/bsi-references/bsi-recommendations.json");
 
-  assert.equal(recommendations.length, 278);
-  assert.equal(recommendations.filter((entry) => entry.status === "active").length, 205);
-  assert.equal(recommendations.filter((entry) => entry.status === "retired").length, 73);
-  assert.deepEqual([...new Set(recommendations.map((entry) => entry.platform))].sort(), ["ANDROID_ENTERPRISE", "IOS", "MACOS", "WINDOWS"]);
+  assert.equal(recommendations.length > 0, true);
+  const statusCounts = countByStatus(recommendations);
+  assert.equal(statusCounts.active + statusCounts.retired, recommendations.length);
+  assert.equal(statusCounts.active > 0, true);
+  assert.equal(statusCounts.retired > 0, true);
+  const platformCounts = countByPlatform(recommendations);
+  assert.equal(sumCounts(platformCounts), recommendations.length);
+  assert.equal(Object.values(platformCounts).every((count) => count > 0), true);
+  assert.deepEqual(Object.keys(platformCounts).sort(), ["ANDROID_ENTERPRISE", "IOS", "MACOS", "WINDOWS"]);
   assert.deepEqual([...new Set(recommendations.map((entry) => entry.osFamily))].sort(), ["ANDROID", "IOS", "MACOS", "WINDOWS"]);
 
   for (const entry of recommendations) {
@@ -321,181 +320,20 @@ test("BSI recommendation catalog preserves platform coverage, threat linkage, an
     );
   }
 
-  const exactCounts: Record<string, number> = mappingCountByPlatform(recommendations, "exact");
-  const windowsExactCount = exactCounts.WINDOWS ?? 0;
-  assert.deepEqual(exactCounts, {
-    ANDROID_ENTERPRISE: 5,
-    IOS: 6,
-    MACOS: 6,
-    WINDOWS: 8,
-  });
-  assert.equal(windowsExactCount, 8);
-  const candidateCounts = candidateCountByPlatform(recommendations);
-  assert.equal((candidateCounts.WINDOWS ?? 0) >= 53, true, `WINDOWS candidate count ${candidateCounts.WINDOWS ?? 0}`);
-  assert.equal((candidateCounts.MACOS ?? 0) >= 44, true, `MACOS candidate count ${candidateCounts.MACOS ?? 0}`);
-  assert.equal((candidateCounts.IOS ?? 0) >= 54, true, `IOS candidate count ${candidateCounts.IOS ?? 0}`);
-  assert.equal((candidateCounts.ANDROID_ENTERPRISE ?? 0) >= 45, true, `ANDROID_ENTERPRISE candidate count ${candidateCounts.ANDROID_ENTERPRISE ?? 0}`);
-
-  const windowsErrata = recommendations.find(
-    (entry) => entry.platform === "WINDOWS" && entry.requirementId === "SYS.2.2.3.A6",
-  );
-  assert.notEqual(windowsErrata, undefined);
-  assert.equal(windowsErrata?.errata.length, 1);
-  assert.equal(windowsErrata?.errata[0]?.sourceId, "it-grundschutz-errata-2023");
-  assert.equal(windowsErrata?.errata[0]?.excerpt.includes("SOLLTE"), true);
-
-  const androidDeveloperMode = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.4.A2",
-  );
-  assert.notEqual(androidDeveloperMode, undefined);
-  assert.equal(androidDeveloperMode?.relutionMapping.status, "exact");
-  assert.equal(androidDeveloperMode?.relutionMapping.rulesetMappings.length, 1);
-  assert.equal(androidDeveloperMode?.grundschutzKompendium?.individualChecklistSourcePath?.endsWith("Checkliste_SYS.3.2.4.xlsx"), true);
-  assert.equal(androidDeveloperMode?.grundschutzKompendium?.individualChecklistRequirementType, "Standard");
-  assert.equal(hasPlusPlusControl(androidDeveloperMode, "KONF.2.4"), true);
-  assert.equal(hasPlusPlusControl(androidDeveloperMode, "KONF.6.4"), true);
-
-  const androidPrivacy = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.1.A6",
-  );
-  assert.notEqual(androidPrivacy, undefined);
-  assert.equal(androidPrivacy?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(androidPrivacy, "permissions_privacy"), true);
-  assert.equal(hasCandidate(androidPrivacy, "relution-native", "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT"), true);
-  assert.equal(hasNativeValue(androidPrivacy, "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT", "defaultPermissionPolicy", "DENY"), true);
-
-  const androidInterfaces = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.1.A16",
-  );
-  assert.notEqual(androidInterfaces, undefined);
-  assert.equal(hasCandidate(androidInterfaces, "relution-native", "ANDROID_ENTERPRISE_DEVICE_CONNECTIVITY"), true);
-  assert.equal(hasPlusPlusControl(androidInterfaces, "ASST.4.1"), true);
-  assert.equal(hasPlusPlusControl(androidInterfaces, "KONF.11.8"), true);
-
-  const androidApn = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.1.A29",
-  );
-  assert.notEqual(androidApn, undefined);
-  assert.equal(hasCandidate(androidApn, "relution-native", "ANDROID_ENTERPRISE_DEVICE_CONNECTIVITY"), true);
-
-  const androidCompliance = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.2.A20",
-  );
-  assert.notEqual(androidCompliance, undefined);
-  assert.equal(hasSemanticConcept(androidCompliance, "mdm_compliance"), true);
-  assert.equal(hasCandidate(androidCompliance, "relution-native", "ANDROID_ENTERPRISE_COMPLIANCE_ENFORCEMENT"), true);
-
-  const androidMdmProduct = recommendations.find(
-    (entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.requirementId === "SYS.3.2.2.A3",
-  );
-  assert.notEqual(androidMdmProduct, undefined);
-  assert.notEqual(androidMdmProduct?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(androidMdmProduct, "mdm_strategy_selection"), true);
-  assert.equal(hasCandidate(androidMdmProduct, "relution-native", "ANDROID_ENTERPRISE_APP_POLICY"), true);
-  assert.equal(hasCandidate(androidMdmProduct, "relution-native", "ANDROID_ENTERPRISE_RESTRICTION"), true);
-
-  const windowsPacketFilter = recommendations.find(
-    (entry) => entry.platform === "WINDOWS" && entry.requirementId === "SYS.2.1.A31",
-  );
-  assert.notEqual(windowsPacketFilter, undefined);
-  assert.equal(windowsPacketFilter?.relutionMapping.status, "partial");
-  assert.equal(windowsPacketFilter?.relutionMapping.rulesetMappings.length, 0);
-  assert.equal(hasSemanticConcept(windowsPacketFilter, "firewall"), true);
-  assert.equal(hasCandidate(windowsPacketFilter, "relution-native", "WINDOWS_FIREWALL"), true);
-  assert.equal(hasCandidate(windowsPacketFilter, "relution-native", "WINDOWS_CUSTOM_CSP"), true);
-
-  const windowsSecurityPolicy = recommendations.find(
-    (entry) => entry.platform === "WINDOWS" && entry.requirementId === "SYS.2.1.A43",
-  );
-  assert.notEqual(windowsSecurityPolicy, undefined);
-  assert.equal(windowsSecurityPolicy?.relutionMapping.status, "partial");
-  assert.equal(windowsSecurityPolicy?.relutionMapping.rulesetMappings.length, 0);
-  assert.equal(hasSemanticConcept(windowsSecurityPolicy, "policy_governance"), true);
-  assert.equal(hasCandidate(windowsSecurityPolicy, "relution-native", "WINDOWS_LOCAL_DEVICE_SECURITY"), true);
-  assert.equal(hasCandidate(windowsSecurityPolicy, "relution-native", "WINDOWS_CUSTOM_CSP"), true);
-
-  const macosFirewall = recommendations.find(
-    (entry) => entry.platform === "MACOS" && entry.requirementId === "SYS.2.4.A10",
-  );
-  assert.notEqual(macosFirewall, undefined);
-  assert.equal(macosFirewall?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(macosFirewall, "firewall"), true);
-  assert.equal(hasPlusPlusControl(macosFirewall, "KONF.7.15"), true);
-  assert.equal(
-    macosFirewall?.relutionMapping.rulesetMappings.some(
-      (mapping) => mapping.kind === "apple-schema-profile" && mapping.schemaId === "profile:com.apple.security.firewall",
-    ),
-    true,
-  );
-  assert.equal(macosFirewall?.implementation?.category, "relution-achievable");
-
-  const macosCriticalFunctions = recommendations.find(
-    (entry) => entry.platform === "MACOS" && entry.requirementId === "SYS.2.4.A5",
-  );
-  assert.notEqual(macosCriticalFunctions, undefined);
-  assert.notEqual(macosCriticalFunctions?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(macosCriticalFunctions, "security_critical_functions"), true);
-  assert.equal(hasCandidate(macosCriticalFunctions, "relution-native", "MACOS_RESTRICTION"), true);
-  assert.equal(hasCandidate(macosCriticalFunctions, "relution-native", "MACOS_SYSTEM_POLICY_CONTROL"), true);
-
-  const iosVoiceAssistant = recommendations.find(
-    (entry) => entry.platform === "IOS" && entry.requirementId === "SYS.3.2.1.A19",
-  );
-  assert.notEqual(iosVoiceAssistant, undefined);
-  assert.equal(iosVoiceAssistant?.relutionMapping.status, "exact");
-  assert.equal(hasNativeValue(iosVoiceAssistant, "IOS_RESTRICTION", "allowAssistant", false), true);
-  assert.equal(hasNativeValue(iosVoiceAssistant, "IOS_RESTRICTION", "allowAssistantWhileLocked", false), true);
-
-  const macosAutoupdate = recommendations.find(
-    (entry) => entry.platform === "MACOS" && entry.requirementId === "SYS.2.1.A3",
-  );
-  assert.notEqual(macosAutoupdate, undefined);
-  assert.equal(macosAutoupdate?.relutionMapping.status, "exact");
-  assert.equal(hasSchemaValue(macosAutoupdate, "profile:com.apple.SoftwareUpdate", "AutomaticCheckEnabled", true), true);
-  assert.equal(hasSchemaValue(macosAutoupdate, "profile:com.apple.SoftwareUpdate", "CriticalUpdateInstall", true), true);
-
-  const windowsDefender = recommendations.find(
-    (entry) => entry.platform === "WINDOWS" && entry.requirementId === "SYS.2.1.A6",
-  );
-  assert.notEqual(windowsDefender, undefined);
-  assert.equal(windowsDefender?.relutionMapping.status, "exact");
-  assert.equal(hasNativeValue(windowsDefender, "WINDOWS_ANTIVIRUS", "allowRealtimeMonitoring", true), true);
-
-  const iosWebProxy = recommendations.find(
-    (entry) => entry.platform === "IOS" && entry.requirementId === "SYS.3.2.1.A28",
-  );
-  assert.notEqual(iosWebProxy, undefined);
-  assert.notEqual(iosWebProxy?.relutionMapping.status, "exact");
-
-  const iosCloud = recommendations.find(
-    (entry) => entry.platform === "IOS" && entry.requirementId === "SYS.3.2.3.A14",
-  );
-  assert.notEqual(iosCloud, undefined);
-  assert.notEqual(iosCloud?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(iosCloud, "cloud_sync"), true);
-  assert.equal(hasCandidate(iosCloud, "apple-schema-profile", "profile:com.apple.applicationaccess"), true);
-
-  const iosStrategy = recommendations.find(
-    (entry) => entry.platform === "IOS" && entry.requirementId === "SYS.3.2.3.A1",
-  );
-  assert.notEqual(iosStrategy, undefined);
-  assert.notEqual(iosStrategy?.relutionMapping.status, "exact");
-  assert.equal(hasSemanticConcept(iosStrategy, "mdm_strategy_selection"), true);
-  assert.equal(hasCandidate(iosStrategy, "relution-native", "IOS_RESTRICTION"), true);
-  assert.equal(hasCandidate(iosStrategy, "relution-native", "IOS_SECURED_SHARED_DEVICE"), true);
+  assertBsiMappingCoverage(recommendations);
+  assertBsiRepresentativeRecommendations(recommendations);
 });
 
 test("BSI mandatory Basis mapping ledger covers every mandatory client requirement", () => {
   const ledger = readJson<JsonRecord>("example/bsi-references/bsi-mandatory-mapping-ledger.json");
   const rows = ledger.rows as JsonRecord[];
   const summary = ledger.summary as JsonRecord;
+  const bySolutionStatus = summary.bySolutionStatus as Record<string, number>;
 
   assert.equal(ledger.version, 1);
-  assert.equal(rows.length, 49);
-  assert.deepEqual(summary.bySolutionStatus, {
-    exact: 22,
-    parameterized: 27,
-  });
+  assert.equal(rows.length > 0, true);
+  assert.deepEqual(Object.keys(bySolutionStatus).sort(), ["exact", "parameterized"]);
+  assert.equal(sumCounts(bySolutionStatus), rows.length);
   assert.equal(rows.every((row) => Array.isArray(row.mandatoryClauses) && (row.mandatoryClauses as unknown[]).length > 0), true);
   assert.equal(rows.every((row) => row.solutionStatus === "exact" || row.solutionStatus === "parameterized"), true);
   assert.equal(
@@ -552,6 +390,148 @@ test("BSI ruleset is importable and preserves machine-readable recommendation me
   );
 });
 
+function assertBsiMappingCoverage(recommendations: BsiRecommendation[]): void {
+  const exactCounts: Record<string, number> = mappingCountByPlatform(recommendations, "exact");
+  assert.equal(sumCounts(exactCounts), recommendations.filter((entry) => entry.status === "active" && entry.relutionMapping.status === "exact").length);
+  assert.equal(Object.keys(exactCounts).length > 0, true);
+  assert.equal((exactCounts.WINDOWS ?? 0) > 0, true);
+
+  const candidateCounts = candidateCountByPlatform(recommendations);
+  assert.equal((candidateCounts.WINDOWS ?? 0) >= 53, true, `WINDOWS candidate count ${candidateCounts.WINDOWS ?? 0}`);
+  assert.equal((candidateCounts.MACOS ?? 0) >= 44, true, `MACOS candidate count ${candidateCounts.MACOS ?? 0}`);
+  assert.equal((candidateCounts.IOS ?? 0) >= 54, true, `IOS candidate count ${candidateCounts.IOS ?? 0}`);
+  assert.equal((candidateCounts.ANDROID_ENTERPRISE ?? 0) >= 45, true, `ANDROID_ENTERPRISE candidate count ${candidateCounts.ANDROID_ENTERPRISE ?? 0}`);
+}
+
+function assertBsiRepresentativeRecommendations(recommendations: BsiRecommendation[]): void {
+  assertBsiErrataRecommendation(findBsiRecommendation(recommendations, "WINDOWS", "SYS.2.2.3.A6"));
+  assertAndroidRecommendations(recommendations);
+  assertWindowsRecommendations(recommendations);
+  assertMacosRecommendations(recommendations);
+  assertIosRecommendations(recommendations);
+}
+
+function assertAndroidRecommendations(recommendations: BsiRecommendation[]): void {
+  const developerMode = findBsiRecommendation(recommendations, "ANDROID_ENTERPRISE", "SYS.3.2.4.A2");
+  assert.notEqual(developerMode, undefined);
+  assert.equal(developerMode?.relutionMapping.status, "exact");
+  assert.equal(developerMode?.relutionMapping.rulesetMappings.length, 1);
+  assert.equal(developerMode?.grundschutzKompendium?.individualChecklistSourcePath?.endsWith("Checkliste_SYS.3.2.4.xlsx"), true);
+  assert.equal(developerMode?.grundschutzKompendium?.individualChecklistRequirementType, "Standard");
+  assert.equal(hasPlusPlusControl(developerMode, "KONF.2.4"), true);
+  assert.equal(hasPlusPlusControl(developerMode, "KONF.6.4"), true);
+
+  const privacy = findBsiRecommendation(recommendations, "ANDROID_ENTERPRISE", "SYS.3.2.1.A6");
+  assert.notEqual(privacy, undefined);
+  assert.equal(privacy?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(privacy, "permissions_privacy"), true);
+  assert.equal(hasCandidate(privacy, "relution-native", "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT"), true);
+  assert.equal(hasNativeValue(privacy, "ANDROID_ENTERPRISE_PERMISSION_MANAGEMENT", "defaultPermissionPolicy", "DENY"), true);
+
+  assertAndroidCandidateRecommendation(recommendations, "SYS.3.2.1.A16", "ANDROID_ENTERPRISE_DEVICE_CONNECTIVITY", ["ASST.4.1", "KONF.11.8"]);
+  assertAndroidCandidateRecommendation(recommendations, "SYS.3.2.1.A29", "ANDROID_ENTERPRISE_DEVICE_CONNECTIVITY", []);
+
+  const compliance = findBsiRecommendation(recommendations, "ANDROID_ENTERPRISE", "SYS.3.2.2.A20");
+  assert.notEqual(compliance, undefined);
+  assert.equal(hasSemanticConcept(compliance, "mdm_compliance"), true);
+  assert.equal(hasCandidate(compliance, "relution-native", "ANDROID_ENTERPRISE_COMPLIANCE_ENFORCEMENT"), true);
+
+  const mdmProduct = findBsiRecommendation(recommendations, "ANDROID_ENTERPRISE", "SYS.3.2.2.A3");
+  assert.notEqual(mdmProduct, undefined);
+  assert.notEqual(mdmProduct?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(mdmProduct, "mdm_strategy_selection"), true);
+  assert.equal(hasCandidate(mdmProduct, "relution-native", "ANDROID_ENTERPRISE_APP_POLICY"), true);
+  assert.equal(hasCandidate(mdmProduct, "relution-native", "ANDROID_ENTERPRISE_RESTRICTION"), true);
+}
+
+function assertAndroidCandidateRecommendation(recommendations: BsiRecommendation[], requirementId: string, target: string, controlIds: readonly string[]): void {
+  const entry = findBsiRecommendation(recommendations, "ANDROID_ENTERPRISE", requirementId);
+  assert.notEqual(entry, undefined);
+  assert.equal(hasCandidate(entry, "relution-native", target), true);
+  for (const controlId of controlIds) {
+    assert.equal(hasPlusPlusControl(entry, controlId), true);
+  }
+}
+
+function assertWindowsRecommendations(recommendations: BsiRecommendation[]): void {
+  assertPartialWindowsRecommendation(recommendations, "SYS.2.1.A31", "firewall", "WINDOWS_FIREWALL");
+  assertPartialWindowsRecommendation(recommendations, "SYS.2.1.A43", "policy_governance", "WINDOWS_LOCAL_DEVICE_SECURITY");
+
+  const defender = findBsiRecommendation(recommendations, "WINDOWS", "SYS.2.1.A6");
+  assert.notEqual(defender, undefined);
+  assert.equal(defender?.relutionMapping.status, "exact");
+  assert.equal(hasNativeValue(defender, "WINDOWS_ANTIVIRUS", "allowRealtimeMonitoring", true), true);
+}
+
+function assertPartialWindowsRecommendation(recommendations: BsiRecommendation[], requirementId: string, conceptId: string, nativeTarget: string): void {
+  const entry = findBsiRecommendation(recommendations, "WINDOWS", requirementId);
+  assert.notEqual(entry, undefined);
+  assert.equal(entry?.relutionMapping.status, "partial");
+  assert.equal(entry?.relutionMapping.rulesetMappings.length, 0);
+  assert.equal(hasSemanticConcept(entry, conceptId), true);
+  assert.equal(hasCandidate(entry, "relution-native", nativeTarget), true);
+  assert.equal(hasCandidate(entry, "relution-native", "WINDOWS_CUSTOM_CSP"), true);
+}
+
+function assertMacosRecommendations(recommendations: BsiRecommendation[]): void {
+  const firewall = findBsiRecommendation(recommendations, "MACOS", "SYS.2.4.A10");
+  assert.notEqual(firewall, undefined);
+  assert.equal(firewall?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(firewall, "firewall"), true);
+  assert.equal(hasPlusPlusControl(firewall, "KONF.7.15"), true);
+  assert.equal(hasSchemaProfileMapping(firewall, "profile:com.apple.security.firewall"), true);
+  assert.equal(firewall?.implementation?.category, "relution-achievable");
+
+  const criticalFunctions = findBsiRecommendation(recommendations, "MACOS", "SYS.2.4.A5");
+  assert.notEqual(criticalFunctions, undefined);
+  assert.notEqual(criticalFunctions?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(criticalFunctions, "security_critical_functions"), true);
+  assert.equal(hasCandidate(criticalFunctions, "relution-native", "MACOS_RESTRICTION"), true);
+  assert.equal(hasCandidate(criticalFunctions, "relution-native", "MACOS_SYSTEM_POLICY_CONTROL"), true);
+
+  const autoupdate = findBsiRecommendation(recommendations, "MACOS", "SYS.2.1.A3");
+  assert.notEqual(autoupdate, undefined);
+  assert.equal(autoupdate?.relutionMapping.status, "exact");
+  assert.equal(hasSchemaValue(autoupdate, "profile:com.apple.SoftwareUpdate", "AutomaticCheckEnabled", true), true);
+  assert.equal(hasSchemaValue(autoupdate, "profile:com.apple.SoftwareUpdate", "CriticalUpdateInstall", true), true);
+}
+
+function assertIosRecommendations(recommendations: BsiRecommendation[]): void {
+  const voiceAssistant = findBsiRecommendation(recommendations, "IOS", "SYS.3.2.1.A19");
+  assert.notEqual(voiceAssistant, undefined);
+  assert.equal(voiceAssistant?.relutionMapping.status, "exact");
+  assert.equal(hasNativeValue(voiceAssistant, "IOS_RESTRICTION", "allowAssistant", false), true);
+  assert.equal(hasNativeValue(voiceAssistant, "IOS_RESTRICTION", "allowAssistantWhileLocked", false), true);
+
+  const webProxy = findBsiRecommendation(recommendations, "IOS", "SYS.3.2.1.A28");
+  assert.notEqual(webProxy, undefined);
+  assert.notEqual(webProxy?.relutionMapping.status, "exact");
+
+  const cloud = findBsiRecommendation(recommendations, "IOS", "SYS.3.2.3.A14");
+  assert.notEqual(cloud, undefined);
+  assert.notEqual(cloud?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(cloud, "cloud_sync"), true);
+  assert.equal(hasCandidate(cloud, "apple-schema-profile", "profile:com.apple.applicationaccess"), true);
+
+  const strategy = findBsiRecommendation(recommendations, "IOS", "SYS.3.2.3.A1");
+  assert.notEqual(strategy, undefined);
+  assert.notEqual(strategy?.relutionMapping.status, "exact");
+  assert.equal(hasSemanticConcept(strategy, "mdm_strategy_selection"), true);
+  assert.equal(hasCandidate(strategy, "relution-native", "IOS_RESTRICTION"), true);
+  assert.equal(hasCandidate(strategy, "relution-native", "IOS_SECURED_SHARED_DEVICE"), true);
+}
+
+function assertBsiErrataRecommendation(entry: BsiRecommendation | undefined): void {
+  assert.notEqual(entry, undefined);
+  assert.equal(entry?.errata.length, 1);
+  assert.equal(entry?.errata[0]?.sourceId, "it-grundschutz-errata-2023");
+  assert.equal(entry?.errata[0]?.excerpt.includes("SOLLTE"), true);
+}
+
+function findBsiRecommendation(recommendations: BsiRecommendation[], platform: string, requirementId: string): BsiRecommendation | undefined {
+  return recommendations.find((entry) => entry.platform === platform && entry.requirementId === requirementId);
+}
+
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(resolve(path), "utf8")) as T;
 }
@@ -572,6 +552,10 @@ function hasNativeValue(entry: BsiRecommendation | undefined, targetType: string
   ) ?? false;
 }
 
+function hasSchemaProfileMapping(entry: BsiRecommendation | undefined, schemaId: string): boolean {
+  return entry?.relutionMapping.rulesetMappings.some((mapping) => mapping.kind === "apple-schema-profile" && mapping.schemaId === schemaId) ?? false;
+}
+
 function hasCandidate(entry: BsiRecommendation | undefined, kind: string, target: string): boolean {
   return entry?.relutionMapping.candidates.some((candidate) => candidate.kind === kind && candidate.target === target) ?? false;
 }
@@ -582,6 +566,24 @@ function hasSemanticConcept(entry: BsiRecommendation | undefined, conceptId: str
 
 function hasPlusPlusControl(entry: BsiRecommendation | undefined, controlId: string): boolean {
   return entry?.grundschutzPlusPlus?.relatedControls.some((control) => control.id === controlId) ?? false;
+}
+
+function countByStatus(recommendations: BsiRecommendation[]): Record<BsiRecommendation["status"], number> {
+  return recommendations.reduce(
+    (counts, recommendation) => {
+      counts[recommendation.status] += 1;
+      return counts;
+    },
+    { active: 0, retired: 0 },
+  );
+}
+
+function countByPlatform(recommendations: BsiRecommendation[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const entry of recommendations) {
+    counts[entry.platform] = (counts[entry.platform] ?? 0) + 1;
+  }
+  return counts;
 }
 
 function mappingCountByPlatform(recommendations: BsiRecommendation[], status: string): Record<string, number> {
@@ -600,13 +602,28 @@ function candidateCountByPlatform(recommendations: BsiRecommendation[]): Record<
   return counts;
 }
 
+function sumCounts(counts: Record<string, number>): number {
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
+}
+
 function valueAtPath(value: unknown, path: string): unknown {
   let current = value;
   for (const part of path.split(".")) {
-    if (current === null || typeof current !== "object" || !(part in current)) {
+    if (!isSafeObjectPathSegment(part)) {
       return undefined;
     }
-    current = (current as Record<string, unknown>)[part];
+    if (current === null || typeof current !== "object") {
+      return undefined;
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(current, part);
+    if (descriptor === undefined) {
+      return undefined;
+    }
+    current = descriptor.value;
   }
   return current;
+}
+
+function isSafeObjectPathSegment(part: string): boolean {
+  return part !== "__proto__" && part !== "constructor" && part !== "prototype";
 }

@@ -407,6 +407,16 @@ pnpm rexp templates refresh \
 
 The refresh command reads `BOOT-INF/classes/openapi.json`, bundled iOS system app metadata, and Relution runtime configuration-type metadata. Runtime configuration-type reflection is required by default. If you intentionally need to regenerate heuristic metadata without reflection, pass `--allow-heuristic-runtime-metadata`.
 
+## Documentation Status
+
+The public documentation surface is intentionally small: this README,
+`SECURITY.md`, the active evidence summaries in `docs/`, and README
+screenshots.
+
+Internal remediation, audit, plan, ledger, and status packets are local-only
+artifacts. They are ignored by git, superseded once archived under
+`docs/archive/`, and are not active project documentation.
+
 ## Audit and Evidence Artifacts
 
 Run a deep local audit of the harvested Relution configuration surface and mock `.rexp` roundtrips:
@@ -433,7 +443,7 @@ Companion evidence docs:
 - `docs/JAMF_RELUTION_APPLE_GAP.md`: Apple/Jamf gap matrix for `APPLE_MOBILECONFIG` transport
 - `docs/LLM_RELUTION_MAPPING.md`: offline mapping review summary for BSI, CIS, and vendor recommendations
 - `docs/MAPPING_CANDIDATE_REVIEW.md`: review queues for non-exact mapping candidates
-- `example/recommendation-coverage/unified-recommendation-analysis.md`: semantic grouping and BSI-precedence analysis
+- `example/recommendation-coverage/unified-recommendation-analysis.json`: semantic grouping and BSI-precedence analysis
 
 The machine-readable recommendation artifacts live under `example/recommendation-coverage/`. They are generated from committed evidence; no online source refresh or external LLM API call is part of those checked-in artifacts.
 
@@ -442,11 +452,9 @@ The machine-readable recommendation artifacts live under `example/recommendation
 Core local checks:
 
 ```sh
-pnpm typecheck
-pnpm test
+pnpm verify:pre-pr
+pnpm verify:ci
 pnpm test:e2e:web
-ruff check .
-uv run pytest
 docker compose -f docker-compose.relution-e2e.yml config --quiet
 ```
 
@@ -463,9 +471,42 @@ Documentation screenshot refresh:
 pnpm screenshots:readme
 ```
 
-`pnpm test` is the default local/CI gate. It rebuilds `dist/` and `dist-web/` from source, runs the Node integration suite, and runs the browser-layer Vitest/jsdom tests for editor field behavior.
+`pnpm verify:pre-pr` is the default local pre-PR gate. It runs the same
+functional checks as GitHub Actions through `pnpm verify:ci`, then refreshes
+and inspects the current Codacy Cloud configuration before running local Codacy
+Analysis CLI with that fetched remote configuration. The Codacy wrapper also
+syncs `.codacy/codacy.config.json` from the fetched Cloud config and verifies
+that the local default config matches it apart from timestamp metadata. Use
+this command before opening a pull request so behavior-test failures and Codacy
+findings can be debugged locally first.
 
-GitHub Actions runs `pnpm typecheck` and `pnpm test` on push and pull request.
+`pnpm verify:ci` is the default pre-PR behavior gate and matches the GitHub
+Actions `Verify` job. It runs `pnpm typecheck`, `pnpm test`, `pnpm test:meta`,
+`ruff check .`, and `pytest`. `pnpm test` rebuilds `dist/` and `dist-web/`
+from source, runs the Node integration suite, and runs the browser-layer
+Vitest/jsdom tests for editor field behavior. `pnpm test:meta` runs repository
+hygiene and code-budget meta-tests separately from behavior tests.
+
+GitHub Actions runs `pnpm verify:ci` on push and pull request. Codacy Cloud
+does static analysis rather than runtime behavior tests; the local
+`pnpm verify:pre-pr` command combines both gates and uses the fetched Cloud
+tool/pattern configuration for local analysis parity.
+
+For Codacy Cloud parity debugging without rerunning the full behavior gate, run:
+
+```sh
+pnpm codacy:cloud:inspect
+pnpm codacy:cloud
+```
+
+`pnpm codacy:cloud` fetches the current Codacy Cloud tool/pattern
+configuration into `.codacy/generated/remote.config.json`, mirrors it to
+`.codacy/codacy.config.json`, verifies the two configs match apart from
+timestamp metadata, normalizes repo-local tool config paths such as
+`pyproject.toml`, then runs the local Codacy Analysis CLI against the fetched
+configuration. This is the analyzer parity check for Cloud findings; it is
+separate from `pnpm verify:ci` because Codacy performs static analysis, not
+runtime behavior tests.
 
 `pnpm test:e2e:relution` is an opt-in Docker E2E check, not part of the default CI gate. It starts the local Docker Compose stack in `docker-compose.relution-e2e.yml`, imports a generated `.rexp`, publishes the policy, checks Relution's API for the mobileconfig-backed configuration, exports the policy again, and verifies the exported archive. The repo also exposes this Docker E2E as a separate scheduled/manual GitHub Actions workflow with Docker log capture.
 

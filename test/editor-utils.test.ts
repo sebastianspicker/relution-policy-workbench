@@ -80,11 +80,36 @@ test("parses and merges selected setting JSON imports", () => {
   });
   assert.deepEqual(
     mergeSettingDetails(
-      { uuid: "KEEP", type: "IOS_RESTRICTION", nested: { uuid: "NESTED", enabled: true }, allowCamera: true },
-      { uuid: "DROP", nested: { uuid: "DROP2", extra: 1 }, allowCamera: false },
+      {
+        uuid: "KEEP",
+        type: "IOS_RESTRICTION",
+        nested: { uuid: "NESTED", enabled: true },
+        missingUuid: { enabled: true },
+        retained: { child: { keep: true } },
+        list: ["old"],
+        allowCamera: true,
+      },
+      {
+        uuid: "DROP",
+        nested: { uuid: "DROP2", extra: 1 },
+        missingUuid: { uuid: "IMPORTED", extra: 2 },
+        list: ["new"],
+        allowCamera: false,
+      },
     ),
-    { uuid: "KEEP", type: "IOS_RESTRICTION", nested: { uuid: "NESTED", enabled: true, extra: 1 }, allowCamera: false },
+    {
+      uuid: "KEEP",
+      type: "IOS_RESTRICTION",
+      nested: { uuid: "NESTED", enabled: true, extra: 1 },
+      missingUuid: { enabled: true, uuid: "IMPORTED", extra: 2 },
+      retained: { child: { keep: true } },
+      list: ["new"],
+      allowCamera: false,
+    },
   );
+  const existing = { type: "IOS_RESTRICTION", retained: { child: { keep: true } } };
+  const merged = mergeSettingDetails(existing, { allowCamera: false });
+  assert.notEqual(merged.retained, existing.retained);
   assert.throws(() => parseSettingDetailsJson("[]"), /one object/u);
   assert.throws(() => parseSettingDetailsJson('{"displayName":"Missing type"}'), /details\.type or top-level type/u);
   assert.throws(
@@ -117,6 +142,7 @@ test("imports built-in and explicit ruleset mappings into a workspace", () => {
   assert.equal(result.report.conflicts.length, 0);
   assert.equal(result.report.unresolved.length, 0);
   assert.equal(result.report.applied.length, 2);
+  assert.equal(result.report.applied[0]?.ruleId, "bsi-ios-disable-camera");
   assert.equal(result.workspace?.policies[0]?.document.name, "iOS Baseline");
   assert.equal(details?.[0]?.type, "IOS_RESTRICTION");
   assert.equal(details?.[0]?.allowCamera, false);

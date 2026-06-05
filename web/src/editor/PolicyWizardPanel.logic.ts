@@ -17,6 +17,11 @@ export interface TierCoverage {
   readonly percent: number;
 }
 
+type ExpertPolicyGroup = {
+  description?: string;
+  rules: BaselineExpertApplyRuleset["policies"][number]["rules"];
+};
+
 export function tierCoverage(settings: readonly BaselineExpertSetting[], selected: ReadonlySet<string>, sources: readonly string[]): TierCoverage[] {
   return ([1, 2, 3] as const).map((tier) => {
     const required = settings.filter((setting) => setting.requiredInTiers.includes(tier) && settingMatchesSources(setting, sources, tier));
@@ -46,30 +51,9 @@ export function tierWorkspaceCoverage(settings: readonly BaselineExpertSetting[]
 }
 
 export function buildExpertRuleset(options: BaselineExpertOptionsResponse, tier: BaselineTemplateTier, selected: ReadonlySet<string>, sources: readonly string[]): BaselineExpertApplyRuleset {
-  const grouped = new Map<string, { description?: string; rules: BaselineExpertApplyRuleset["policies"][number]["rules"] }>();
-  for (const setting of options.settings.filter((candidate) => selected.has(candidate.id))) {
-    if (!setting.requiredInTiers.includes(tier)) continue;
-    if (!settingMatchesSources(setting, sources, tier)) continue;
-    const mappings = effectiveMappings(setting, tier);
-    if (mappings.length === 0) continue;
-    const tierMapping = effectiveTierMapping(setting, tier);
-    const policyName = tierMapping?.policyName ?? setting.policyName;
-    const policyDescription = tierMapping?.policyDescription ?? setting.policyDescription;
-    const ruleId = tierMapping?.ruleId ?? setting.ruleId;
-    const ruleTitle = tierMapping?.ruleTitle ?? setting.ruleTitle;
-    const reason = tierMapping?.reason ?? setting.reason;
-    const recommendations = effectiveRecommendations(setting, tier).filter((recommendation) => sources.includes(recommendation.source));
-    if (recommendations.length === 0) continue;
-    const group = grouped.get(policyName) ?? { ...(policyDescription === undefined ? {} : { description: policyDescription }), rules: [] };
-    group.rules = [...group.rules, {
-      id: ruleId,
-      title: ruleTitle,
-      informational: false,
-      ...(reason === undefined ? {} : { reason }),
-      sourceRules: recommendations.map((recommendation) => ({ source: recommendation.source, ruleId: recommendation.ruleId, title: recommendation.title })),
-      mappings: mappings.map(({ target: _target, ...mapping }) => mapping),
-    }];
-    grouped.set(policyName, group);
+  const grouped = new Map<string, ExpertPolicyGroup>();
+  for (const setting of selectedExpertSettings(options.settings, tier, selected, sources)) {
+    addExpertSettingToRuleset(grouped, setting, tier, sources);
   }
   return {
     version: 1,
@@ -81,6 +65,52 @@ export function buildExpertRuleset(options: BaselineExpertOptionsResponse, tier:
       rules: group.rules,
     })),
   };
+}
+
+function selectedExpertSettings(
+  settings: readonly BaselineExpertSetting[],
+  tier: BaselineTemplateTier,
+  selected: ReadonlySet<string>,
+  sources: readonly string[],
+): readonly BaselineExpertSetting[] {
+  return settings.filter((setting) =>
+    selected.has(setting.id)
+    && setting.requiredInTiers.includes(tier)
+    && settingMatchesSources(setting, sources, tier),
+  );
+}
+
+function addExpertSettingToRuleset(
+  grouped: Map<string, ExpertPolicyGroup>,
+  setting: BaselineExpertSetting,
+  tier: BaselineTemplateTier,
+  sources: readonly string[],
+): void {
+  const mappings = effectiveMappings(setting, tier);
+  const recommendations = effectiveRecommendations(setting, tier).filter((recommendation) => sources.includes(recommendation.source));
+  if (mappings.length === 0 || recommendations.length === 0) {
+    return;
+  }
+  const tierMapping = effectiveTierMapping(setting, tier);
+  const policyName = tierMapping?.policyName ?? setting.policyName;
+  const group = expertPolicyGroup(grouped, policyName, tierMapping?.policyDescription ?? setting.policyDescription);
+  group.rules = [...group.rules, {
+    id: tierMapping?.ruleId ?? setting.ruleId,
+    title: tierMapping?.ruleTitle ?? setting.ruleTitle,
+    informational: false,
+    ...optionalReason(tierMapping?.reason ?? setting.reason),
+    sourceRules: recommendations.map((recommendation) => ({ source: recommendation.source, ruleId: recommendation.ruleId, title: recommendation.title })),
+    mappings: mappings.map(({ target: _target, ...mapping }) => mapping),
+  }];
+  grouped.set(policyName, group);
+}
+
+function expertPolicyGroup(grouped: Map<string, ExpertPolicyGroup>, policyName: string, description: string | undefined): ExpertPolicyGroup {
+  return grouped.get(policyName) ?? { ...(description === undefined ? {} : { description }), rules: [] };
+}
+
+function optionalReason(reason: string | undefined): { readonly reason?: string } {
+  return reason === undefined ? {} : { reason };
 }
 
 export function effectiveMappings(setting: BaselineExpertSetting, tier: BaselineTemplateTier): readonly BaselineExpertMapping[] {

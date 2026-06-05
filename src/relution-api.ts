@@ -1,4 +1,6 @@
 import { normalizeHttpConnectionInput } from "./connection-normalization.js";
+import { buildRelutionDeviceQueryResult } from "./relution-query-result.js";
+import { asRecord } from "./utils/json-guards.js";
 
 export type RelutionProtocol = "http" | "https";
 
@@ -51,6 +53,7 @@ export interface RelutionDeviceQueryResult {
   baseUrl: string;
   count: number;
   total?: number;
+  truncated: boolean;
   devices: RelutionDeviceSummary[];
 }
 
@@ -119,10 +122,14 @@ export interface RelutionAssessmentOptions {
 }
 
 interface RelutionQueryResponse {
-  results?: unknown[];
+  results: unknown[];
   total?: number;
   nonpagedCount?: number;
 }
+
+export type RelutionConnectionTestResult =
+  | { ok: true; baseUrl: string }
+  | { ok: false; baseUrl: string; reason: string };
 
 export function normalizeRelutionConnection(input: RelutionConnectionInput): RelutionConnection {
   const apiToken = input.apiToken.trim();
@@ -144,11 +151,20 @@ export function publicRelutionSession(connection: RelutionConnection | undefined
   return { configured: true, baseUrl: connection.baseUrl, tokenConfigured: connection.apiToken.length > 0, mode: "read-only" };
 }
 
-export async function testRelutionConnection(connection: RelutionConnection): Promise<{ ok: true; baseUrl: string }> {
-  await relutionFetch(connection, "/api/v2/devices/baseInfo/query", {
+export async function testRelutionConnection(connection: RelutionConnection): Promise<RelutionConnectionTestResult> {
+  const response = await relutionFetch(connection, "/api/v2/devices/baseInfo/query", {
     method: "POST",
     body: JSON.stringify(buildDeviceQueryBody({ limit: 1 })),
   });
+  try {
+    relutionQueryResponse(await response.json());
+  } catch {
+    return {
+      ok: false,
+      baseUrl: connection.baseUrl,
+      reason: "Relution connection test returned an unexpected device query response.",
+    };
+  }
   return { ok: true, baseUrl: connection.baseUrl };
 }
 
@@ -160,14 +176,24 @@ export async function queryRelutionDevices(
     method: "POST",
     body: JSON.stringify(buildDeviceQueryBody(input)),
   });
-  const body = await response.json() as RelutionQueryResponse;
-  const devices = (Array.isArray(body.results) ? body.results : []).map(normalizeDevice);
+  const body = relutionQueryResponse(await response.json());
+  const devices = body.results.map(normalizeDevice);
+  return buildRelutionDeviceQueryResult(connection.baseUrl, devices, relutionResultTotal(body));
+}
+
+function relutionResultTotal(body: RelutionQueryResponse): number | undefined {
+  return typeof body.total === "number" ? body.total : body.nonpagedCount;
+}
+
+function relutionQueryResponse(value: unknown): RelutionQueryResponse {
+  const body = asRecord(value);
+  if (body === undefined || !Array.isArray(body.results)) {
+    throw new Error("Malformed Relution device query response: expected results array.");
+  }
   return {
-    baseUrl: connection.baseUrl,
-    count: devices.length,
-    ...(typeof body.nonpagedCount === "number" ? { total: body.nonpagedCount } : {}),
+    results: body.results,
+    ...(typeof body.nonpagedCount === "number" ? { nonpagedCount: body.nonpagedCount } : {}),
     ...(typeof body.total === "number" ? { total: body.total } : {}),
-    devices,
   };
 }
 
@@ -206,19 +232,7 @@ export function createRelutionAssessmentReport(
 }
 
 function buildDeviceQueryBody(input: RelutionDeviceQueryInput): Record<string, unknown> {
-  const filters: Array<Record<string, unknown>> = [];
-  if (input.platforms !== undefined && input.platforms.length > 0) {
-    filters.push({ type: "stringEnum", fieldName: "platform", values: input.platforms });
-  }
-  if (input.statuses !== undefined && input.statuses.length > 0) {
-    filters.push({ type: "stringEnum", fieldName: "status", values: input.statuses });
-  }
-  if (input.ownerships !== undefined && input.ownerships.length > 0) {
-    filters.push({ type: "stringEnum", fieldName: "ownership", values: input.ownerships });
-  }
-  if (input.search !== undefined && input.search.trim().length > 0) {
-    filters.push({ type: "string", fieldName: "name", value: input.search.trim(), comparator: "CONTAINS" });
-  }
+  const filters = deviceQueryFilters(input);
   return {
     limit: input.limit ?? 100,
     offset: input.offset ?? 0,
@@ -228,11 +242,30 @@ function buildDeviceQueryBody(input: RelutionDeviceQueryInput): Record<string, u
   };
 }
 
+function deviceQueryFilters(input: RelutionDeviceQueryInput): Array<Record<string, unknown>> {
+  return [
+    ...stringEnumFilter("platform", input.platforms),
+    ...stringEnumFilter("status", input.statuses),
+    ...stringEnumFilter("ownership", input.ownerships),
+    ...searchFilter(input.search),
+  ];
+}
+
+function stringEnumFilter(fieldName: string, values: string[] | undefined): Array<Record<string, unknown>> {
+  return values === undefined || values.length === 0 ? [] : [{ type: "stringEnum", fieldName, values }];
+}
+
+function searchFilter(search: string | undefined): Array<Record<string, unknown>> {
+  const value = search?.trim();
+  return value === undefined || value.length === 0 ? [] : [{ type: "string", fieldName: "name", value, comparator: "CONTAINS" }];
+}
+
 async function relutionFetch(connection: RelutionConnection, path: string, init: RequestInit): Promise<Response> {
   assertRelutionReadOnlyRequest(init.method, path);
+  const url = relutionRequestUrl(connection, path);
   let response: Response;
   try {
-    response = await fetch(`${connection.baseUrl}${path}`, {
+    response = await fetchRelutionUrl(connection, url, {
       ...init,
       headers: {
         "accept": "application/json",
@@ -249,6 +282,39 @@ async function relutionFetch(connection: RelutionConnection, path: string, init:
     throw new Error(`Relution API request failed: ${String(response.status)} ${response.statusText}`);
   }
   return response;
+}
+
+function relutionRequestUrl(connection: RelutionConnection, path: string): URL {
+  const origin = `${connection.protocol}://${connection.port === undefined ? connection.host : `${connection.host}:${String(connection.port)}`}`;
+  const url = new URL(`${connection.basePath}${path}`, origin);
+  if (url.protocol !== `${connection.protocol}:` || url.hostname !== connection.host || url.pathname !== `${connection.basePath}${path}`) {
+    throw new Error(`Relution API path resolves outside the configured service root: ${path}`);
+  }
+  return url;
+}
+
+async function fetchRelutionUrl(connection: RelutionConnection, url: URL, init: RequestInit): Promise<Response> {
+  assertRelutionServiceUrl(connection, url);
+  const fetchImpl = globalThis.fetch;
+  return await fetchImpl(url, init);
+}
+
+function assertRelutionServiceUrl(connection: RelutionConnection, url: URL): void {
+  if (
+    url.protocol !== `${connection.protocol}:`
+    || url.hostname !== connection.host
+    || url.port !== expectedUrlPort(connection.protocol, connection.port)
+    || !url.pathname.startsWith(connection.basePath)
+  ) {
+    throw new Error(`Relution API URL resolves outside the configured service root: ${url.href}`);
+  }
+}
+
+function expectedUrlPort(protocol: RelutionProtocol, port: number | undefined): string {
+  if (port === undefined || (protocol === "https" && port === 443) || (protocol === "http" && port === 80)) {
+    return "";
+  }
+  return String(port);
 }
 
 export function assertRelutionReadOnlyRequest(method: string | undefined, path: string): void {
@@ -450,8 +516,4 @@ function stringList(value: unknown): string[] | undefined {
     return name === undefined ? [] : [name];
   });
   return names.length === 0 ? undefined : names;
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }

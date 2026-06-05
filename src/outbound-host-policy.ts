@@ -24,11 +24,19 @@ blockedServiceAddresses.addSubnet("fc00::", 7, "ipv6");
 blockedServiceAddresses.addSubnet("fe80::", 10, "ipv6");
 blockedServiceAddresses.addSubnet("ff00::", 8, "ipv6");
 
+export type OutboundHostPolicyResult =
+  | { kind: "blocked"; reason: string }
+  | { kind: "dns-failure"; error: string }
+  | undefined;
+
+type ServiceAddressResolver = (serviceName: string, hostname: string) => Promise<string[]>;
+
 export async function outboundHostPolicyError(
   serviceName: string,
   host: string,
   allowLocalServiceHosts: boolean,
-): Promise<string | undefined> {
+  resolveAddresses: ServiceAddressResolver = resolveServiceAddresses,
+): Promise<OutboundHostPolicyResult> {
   if (allowLocalServiceHosts) {
     return undefined;
   }
@@ -36,16 +44,19 @@ export async function outboundHostPolicyError(
   const hostname = normalizeHostname(host);
   let addresses: string[];
   try {
-    addresses = await resolveServiceAddresses(serviceName, hostname);
+    addresses = await resolveAddresses(serviceName, hostname);
   } catch (error) {
-    return error instanceof Error ? error.message : String(error);
+    return { kind: "dns-failure", error: error instanceof Error ? error.message : String(error) };
   }
   const blockedAddress = addresses.find((address) => isBlockedServiceAddress(address));
   if (blockedAddress === undefined) {
     return undefined;
   }
 
-  return `${serviceName} host resolves to a blocked local/private address (${blockedAddress}); use --allow-local-service-hosts only for local Docker or lab targets`;
+  return {
+    kind: "blocked",
+    reason: `${serviceName} host resolves to a blocked local/private address (${blockedAddress}); use --allow-local-service-hosts only for local Docker or lab targets`,
+  };
 }
 
 export async function assertOutboundHostAllowed(
@@ -55,7 +66,7 @@ export async function assertOutboundHostAllowed(
 ): Promise<void> {
   const policyError = await outboundHostPolicyError(serviceName, host, allowLocalServiceHosts);
   if (policyError !== undefined) {
-    throw new Error(policyError);
+    throw new Error(policyError.kind === "blocked" ? policyError.reason : policyError.error);
   }
 }
 

@@ -2,14 +2,16 @@ import { useEffect, useRef, useState, type JSX } from "react";
 import type {
   BsiRecommendationRecord,
   CisRecommendationRecord,
-  RecommendationFallbackTranslation,
   RecommendationImplementation,
   RecommendationRecord,
   RecommendationSource,
   RecommendationSourceSummary,
   VendorRecommendationRecord,
 } from "../../../src/recommendation-types.js";
-import { fallbackTranslationsOf, secondaryRecommendationId } from "./recommendation-record-utils.js";
+import { uniqueStrings } from "../../../src/utils/json-guards.js";
+import { secondaryRecommendationId } from "./recommendation-record-utils.js";
+import { FallbackTranslationsSection } from "./FallbackTranslationsSection.js";
+import { BsiDetail } from "./RecommendationsBsiDetail.js";
 import type { EditorController } from "./types.js";
 
 const ALL_RECOMMENDATION_PLATFORMS = "ALL";
@@ -28,107 +30,47 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
   const [achievabilityFilter, setAchievabilityFilter] = useState(ALL_ACHIEVABILITY);
   const [surfaceFilter, setSurfaceFilter] = useState(ALL_SURFACES);
   const [recommendationScope, setRecommendationScope] = useState<RecommendationScope>(RECOMMENDATION_SCOPE_ACTIONABLE);
-  const summary = c.recommendationIndex?.sources.find((candidate) => candidate.source === c.recommendationSource);
   const catalog = c.recommendationCatalog;
   useEffect(() => {
     setAchievabilityFilter(ALL_ACHIEVABILITY);
     setSurfaceFilter(ALL_SURFACES);
     setRecommendationScope(RECOMMENDATION_SCOPE_ACTIONABLE);
   }, [c.recommendationSource]);
-  const categoryCounts = countByCategory(catalog?.recommendations ?? []);
-  const availableCategories = Object.keys(categoryCounts).sort();
-  const availableSurfaces = uniqueStrings((catalog?.recommendations ?? []).flatMap((recommendation) => implementationOf(recommendation).surfaces));
-  const recommendations = catalog?.recommendations ?? [];
-  const actionableRecommendations = recommendations.filter(isActionableSettingRecommendation);
-  const recommendationsWithoutSettings = recommendations.filter((recommendation) => !isActionableSettingRecommendation(recommendation));
-  const effectiveRecommendationScope = recommendationScope === RECOMMENDATION_SCOPE_ACTIONABLE
-    && actionableRecommendations.length === 0
-    && recommendationsWithoutSettings.length > 0
-    ? RECOMMENDATION_SCOPE_WITHOUT_SETTINGS
-    : recommendationScope;
-  const scopedRecommendations = recommendations.filter((recommendation) => matchesScope(recommendation, effectiveRecommendationScope));
-  const filteredRecommendations = scopedRecommendations.filter((recommendation) =>
-    matchesFilters(c.recommendationSource, recommendation, c.recommendationPlatform, c.recommendationQuery, achievabilityFilter, surfaceFilter),
-  );
-  const selectedRecommendation = filteredRecommendations.find((recommendation) => recommendation.id === c.selectedRecommendationId);
+  const view = recommendationViewState(c, recommendationScope, achievabilityFilter, surfaceFilter);
   const importDisabled = !canImportRuleset(catalog, c.recommendationPlatform);
-  const sourceCoverage = summary?.coverageSummary ?? summarizeCoverage(catalog?.recommendations ?? []);
-  const filteredCoverage = summarizeCoverage(filteredRecommendations);
   useEffect(() => {
-    if (c.selectedRecommendationId !== undefined && selectedRecommendation === undefined) {
+    if (c.selectedRecommendationId !== undefined && view.selectedRecommendation === undefined) {
       c.setSelectedRecommendationId(undefined);
     }
-  }, [c, selectedRecommendation]);
-
-  const tablistRef = useRef<HTMLDivElement>(null);
-  const sources = c.recommendationIndex?.sources ?? [];
-
-  function handleSourceKeyDown(event: React.KeyboardEvent, currentSource: RecommendationSource): void {
-    const ids = sources.map((s) => s.source);
-    const currentIndex = ids.indexOf(currentSource);
-    let nextIndex: number | undefined;
-    if (event.key === "ArrowRight") {
-      nextIndex = (currentIndex + 1) % ids.length;
-    } else if (event.key === "ArrowLeft") {
-      nextIndex = (currentIndex - 1 + ids.length) % ids.length;
-    } else if (event.key === "Home") {
-      nextIndex = 0;
-    } else if (event.key === "End") {
-      nextIndex = ids.length - 1;
-    }
-    if (nextIndex !== undefined) {
-      event.preventDefault();
-      const nextId = ids[nextIndex]!;
-      c.setRecommendationSource(nextId);
-      const btn = tablistRef.current?.querySelector<HTMLElement>(`#${recommendationTabId(nextId)}`);
-      btn?.focus();
-    }
-  }
+  }, [c, view.selectedRecommendation]);
 
   return (
     <div className="inspector-content recommendations-panel">
       <h2>Recommendations</h2>
-      <div ref={tablistRef} className="recommendation-source-switcher" role="tablist" aria-label="Recommendation sources">
-        {sources.map((source) => (
-          <button
-            key={source.source}
-            type="button"
-            id={recommendationTabId(source.source)}
-            role="tab"
-            tabIndex={source.source === c.recommendationSource ? 0 : -1}
-            aria-selected={source.source === c.recommendationSource}
-            aria-controls={recommendationPanelId(source.source)}
-            className={source.source === c.recommendationSource ? "active" : ""}
-            onClick={() => c.setRecommendationSource(source.source)}
-            onKeyDown={(e) => handleSourceKeyDown(e, source.source)}
-          >
-            {source.label}
-          </button>
-        ))}
-      </div>
+      <RecommendationSourceTabs controller={c} sources={view.sources} />
       <section id={recommendationPanelId(c.recommendationSource)} role="tabpanel" aria-labelledby={recommendationTabId(c.recommendationSource)}>
-        {summary !== undefined ? (
+        {view.summary !== undefined ? (
           <>
             <p className="status recommendation-summary">
-              {summary.label} | {summary.recommendationCount} recommendations | verified {summary.verifiedAsOf ?? "unknown"}
+              {view.summary.label} | {view.summary.recommendationCount} recommendations | verified {view.summary.verifiedAsOf ?? "unknown"}
             </p>
             <p className="status recommendation-summary">
-              Exact {sourceCoverage.exactMappings} | Actionable {sourceCoverage.actionableRecommendations} | Partial {sourceCoverage.partialRecommendations} | Helper {sourceCoverage.helperOnlyRecommendations} | Gap {sourceCoverage.gapRecommendations}
+              Exact {view.sourceCoverage.exactMappings} | Actionable {view.sourceCoverage.actionableRecommendations} | Partial {view.sourceCoverage.partialRecommendations} | Helper {view.sourceCoverage.helperOnlyRecommendations} | Gap {view.sourceCoverage.gapRecommendations}
             </p>
             <p className="status recommendation-summary">
-              Showing {scopeLabel(effectiveRecommendationScope)}: {filteredRecommendations.length} of {scopedRecommendations.length} scoped recommendations
+              Showing {scopeLabel(view.effectiveRecommendationScope)}: {view.filteredRecommendations.length} of {view.scopedRecommendations.length} scoped recommendations
             </p>
-            <CoverageDisclosure coverage={filteredCoverage} total={filteredRecommendations.length} platform={c.recommendationPlatform} />
+            <CoverageDisclosure coverage={view.filteredCoverage} total={view.filteredRecommendations.length} platform={c.recommendationPlatform} />
           </>
         ) : null}
         {c.recommendationsError !== undefined ? <p className="error">{c.recommendationsError}</p> : null}
-        {summary === undefined || c.recommendationsLoading ? <p className="loading-inline" aria-live="polite">Loading recommendation catalog…</p> : null}
-        {summary !== undefined && !c.recommendationsLoading ? (
+        {view.summary === undefined || c.recommendationsLoading ? <p className="loading-inline" aria-live="polite">Loading recommendation catalog…</p> : null}
+        {view.summary !== undefined && !c.recommendationsLoading ? (
           <>
             <div className="recommendation-controls">
               <label>
                 Scope
-                <select value={effectiveRecommendationScope} onChange={(event) => setRecommendationScope(event.target.value as RecommendationScope)}>
+                <select value={view.effectiveRecommendationScope} onChange={(event) => setRecommendationScope(event.target.value as RecommendationScope)}>
                   <option value={RECOMMENDATION_SCOPE_ACTIONABLE}>Actionable settings</option>
                   <option value={RECOMMENDATION_SCOPE_WITHOUT_SETTINGS}>Recommendations without settings</option>
                   <option value={RECOMMENDATION_SCOPE_ALL}>All recommendations</option>
@@ -142,7 +84,7 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
                 Platform
                 <select value={c.recommendationPlatform} onChange={(event) => c.setRecommendationPlatform(event.target.value)}>
                   <option value={ALL_RECOMMENDATION_PLATFORMS}>All</option>
-                  {summary.displayPlatforms.map((platform) => (
+                  {view.summary.displayPlatforms.map((platform) => (
                     <option key={platform} value={platform}>
                       {platform}
                     </option>
@@ -153,7 +95,7 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
                 Achievability
                 <select value={achievabilityFilter} onChange={(event) => setAchievabilityFilter(event.target.value)}>
                   <option value={ALL_ACHIEVABILITY}>All</option>
-                  {availableCategories.map((category) => (
+                  {view.availableCategories.map((category) => (
                     <option key={category} value={category}>
                       {categoryLabel(category)}
                     </option>
@@ -164,7 +106,7 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
                 Surface
                 <select value={surfaceFilter} onChange={(event) => setSurfaceFilter(event.target.value)}>
                   <option value={ALL_SURFACES}>All</option>
-                  {availableSurfaces.map((surface) => (
+                  {view.availableSurfaces.map((surface) => (
                     <option key={surface} value={surface}>
                       {surfaceLabel(surface)}
                     </option>
@@ -177,17 +119,17 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
             </div>
             {catalog === undefined ? null : !catalog.available ? (
               <p className="warning">{catalog.error ?? `${catalog.label} recommendations are unavailable.`}</p>
-            ) : selectedRecommendation === undefined ? (
+            ) : view.selectedRecommendation === undefined ? (
               <RecommendationList
-                recommendations={filteredRecommendations}
+                recommendations={view.filteredRecommendations}
                 source={c.recommendationSource}
                 onSelect={(recommendationId) => c.setSelectedRecommendationId(recommendationId)}
               />
             ) : (
               <RecommendationDetail
-                summary={summary}
+                summary={view.summary}
                 source={c.recommendationSource}
-                recommendation={selectedRecommendation}
+                recommendation={view.selectedRecommendation}
                 onBack={() => c.setSelectedRecommendationId(undefined)}
               />
             )}
@@ -196,6 +138,110 @@ export function RecommendationsPanel({ controller: c }: { readonly controller: E
       </section>
     </div>
   );
+}
+
+interface RecommendationViewState {
+  readonly availableCategories: readonly string[];
+  readonly availableSurfaces: readonly string[];
+  readonly effectiveRecommendationScope: RecommendationScope;
+  readonly filteredCoverage: ReturnType<typeof summarizeCoverage>;
+  readonly filteredRecommendations: RecommendationRecord[];
+  readonly scopedRecommendations: RecommendationRecord[];
+  readonly selectedRecommendation: RecommendationRecord | undefined;
+  readonly sourceCoverage: ReturnType<typeof summarizeCoverage>;
+  readonly sources: readonly RecommendationSourceSummary[];
+  readonly summary: RecommendationSourceSummary | undefined;
+}
+
+function recommendationViewState(
+  controller: EditorController,
+  recommendationScope: RecommendationScope,
+  achievabilityFilter: string,
+  surfaceFilter: string,
+): RecommendationViewState {
+  const catalogRecommendations = controller.recommendationCatalog?.recommendations ?? [];
+  const effectiveRecommendationScope = effectiveScope(catalogRecommendations, recommendationScope);
+  const scopedRecommendations = catalogRecommendations.filter((recommendation) => matchesScope(recommendation, effectiveRecommendationScope));
+  const filteredRecommendations = scopedRecommendations.filter((recommendation) =>
+    matchesFilters(controller.recommendationSource, recommendation, controller.recommendationPlatform, controller.recommendationQuery, achievabilityFilter, surfaceFilter),
+  );
+  const summary = controller.recommendationIndex?.sources.find((candidate) => candidate.source === controller.recommendationSource);
+  return {
+    availableCategories: Object.keys(countByCategory(catalogRecommendations)).sort(),
+    availableSurfaces: uniqueStrings(catalogRecommendations.flatMap((recommendation) => implementationOf(recommendation).surfaces), { sort: true }),
+    effectiveRecommendationScope,
+    filteredCoverage: summarizeCoverage(filteredRecommendations),
+    filteredRecommendations,
+    scopedRecommendations,
+    selectedRecommendation: filteredRecommendations.find((recommendation) => recommendation.id === controller.selectedRecommendationId),
+    sourceCoverage: summary?.coverageSummary ?? summarizeCoverage(catalogRecommendations),
+    sources: controller.recommendationIndex?.sources ?? [],
+    summary,
+  };
+}
+
+function effectiveScope(recommendations: readonly RecommendationRecord[], recommendationScope: RecommendationScope): RecommendationScope {
+  const actionableRecommendations = recommendations.filter(isActionableSettingRecommendation);
+  const recommendationsWithoutSettings = recommendations.filter((recommendation) => !isActionableSettingRecommendation(recommendation));
+  return recommendationScope === RECOMMENDATION_SCOPE_ACTIONABLE
+    && actionableRecommendations.length === 0
+    && recommendationsWithoutSettings.length > 0
+    ? RECOMMENDATION_SCOPE_WITHOUT_SETTINGS
+    : recommendationScope;
+}
+
+function RecommendationSourceTabs(props: {
+  readonly controller: EditorController;
+  readonly sources: readonly RecommendationSourceSummary[];
+}): JSX.Element {
+  const tablistRef = useRef<HTMLDivElement>(null);
+
+  function handleSourceKeyDown(event: React.KeyboardEvent, currentSource: RecommendationSource): void {
+    const nextId = nextSourceId(event.key, currentSource, props.sources);
+    if (nextId === undefined) {
+      return;
+    }
+    event.preventDefault();
+    props.controller.setRecommendationSource(nextId);
+    const btn = tablistRef.current?.querySelector<HTMLElement>(`#${recommendationTabId(nextId)}`);
+    btn?.focus();
+  }
+
+  return (
+    <div ref={tablistRef} className="recommendation-source-switcher" role="tablist" aria-label="Recommendation sources">
+      {props.sources.map((source) => (
+        <button
+          key={source.source}
+          type="button"
+          id={recommendationTabId(source.source)}
+          role="tab"
+          tabIndex={source.source === props.controller.recommendationSource ? 0 : -1}
+          aria-selected={source.source === props.controller.recommendationSource}
+          aria-controls={recommendationPanelId(source.source)}
+          className={source.source === props.controller.recommendationSource ? "active" : ""}
+          onClick={() => props.controller.setRecommendationSource(source.source)}
+          onKeyDown={(event) => handleSourceKeyDown(event, source.source)}
+        >
+          {source.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function nextSourceId(key: string, currentSource: RecommendationSource, sources: readonly RecommendationSourceSummary[]): RecommendationSource | undefined {
+  const ids = sources.map((source) => source.source);
+  const currentIndex = ids.indexOf(currentSource);
+  if (key === "ArrowRight") {
+    return ids[(currentIndex + 1) % ids.length];
+  }
+  if (key === "ArrowLeft") {
+    return ids[(currentIndex - 1 + ids.length) % ids.length];
+  }
+  if (key === "Home") {
+    return ids[0];
+  }
+  return key === "End" ? ids[ids.length - 1] : undefined;
 }
 
 function recommendationTabId(source: RecommendationSource): string {
@@ -262,7 +308,7 @@ function RecommendationDetail(props: {
       {props.source === "bsi" ? <BsiDetail recommendation={props.recommendation} /> : null}
       {props.source === "cis" ? <CisDetail recommendation={props.recommendation} /> : null}
       {props.source === "vendor" ? <VendorDetail recommendation={props.recommendation} /> : null}
-      <FallbackTranslationsSection recommendation={props.recommendation} />
+      <FallbackTranslationsSection recommendation={props.recommendation} secondaryOnly={implementation.category === "relution-achievable"} open={implementation.category !== "relution-achievable"} />
       <section className="preview-block">
         <h4>Relution mapping</h4>
         <p>Achievability: {categoryLabel(implementation.category)}</p>
@@ -322,82 +368,6 @@ function CoverageDisclosure({
   );
 }
 
-function BsiDetail({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element {
-  const item = recommendation as BsiRecommendationRecord;
-  return (
-    <>
-      <p>{item.moduleId} | {item.moduleTitle}</p>
-      <p>{item.category} | {item.status} | {item.protectionLevel}</p>
-      <details className="preview-block" open>
-        <summary>Requirement</summary>
-        <p>{item.requirementText}</p>
-      </details>
-      <details className="preview-block">
-        <summary>Reason</summary>
-        <p>{item.reason}</p>
-      </details>
-      {item.moduleThreatContext.length > 0 ? (
-        <details className="preview-block">
-          <summary>Threat context</summary>
-          <pre>{item.moduleThreatContext.map((entry) => `${entry.title}\n${entry.text}`).join("\n\n")}</pre>
-        </details>
-      ) : null}
-      {item.errata.length > 0 ? (
-        <details className="preview-block">
-          <summary>Errata</summary>
-          <pre>{JSON.stringify(item.errata, null, 2)}</pre>
-        </details>
-      ) : null}
-      {item.grundschutzKompendium !== undefined ? (
-        <details className="preview-block">
-          <summary>Grundschutz Kompendium checklist comparison</summary>
-          <p>
-            Checklist: {item.grundschutzKompendium.individualChecklistSourcePath ?? "not found"} | Type: {item.grundschutzKompendium.individualChecklistRequirementType ?? "unknown"} | Matches DocBook: {String(item.grundschutzKompendium.individualChecklistMatchesDocBook)}
-          </p>
-          {item.grundschutzKompendium.differences.length > 0 ? <p>Differences: {item.grundschutzKompendium.differences.join(", ")}</p> : null}
-          {item.grundschutzKompendium.relatedChecklistItems.length > 0 ? (
-            <pre>{item.grundschutzKompendium.relatedChecklistItems.map((entry) => `${entry.requirementId} ${entry.title} [${entry.type}]\n${entry.text}`).join("\n\n")}</pre>
-          ) : null}
-        </details>
-      ) : null}
-      {item.grundschutzPlusPlus !== undefined ? (
-        <details className="preview-block">
-          <summary>Grundschutz++ systematics</summary>
-          <p>
-            {item.grundschutzPlusPlus.methodDocument} | {item.grundschutzPlusPlus.methodVersion} | {item.grundschutzPlusPlus.policyEditorRole}
-          </p>
-          <p>Target categories: {item.grundschutzPlusPlus.platformTargetObjectCategories.join(", ") || "none"}</p>
-          {item.grundschutzPlusPlus.relatedControls.length > 0 ? (
-            <pre>{item.grundschutzPlusPlus.relatedControls.map((control) => `${control.id} ${control.title} | ${control.practiceId}/${control.controlGroupId} | ${control.modalVerb ?? "?"} | ${control.securityLevel ?? "?"} | ${control.matchReason}\n${control.statement}`).join("\n\n")}</pre>
-          ) : (
-            <p>No directly related GS++ control was selected for this requirement.</p>
-          )}
-        </details>
-      ) : null}
-      <details className="preview-block" open={(item.semanticConcepts?.length ?? 0) > 0}>
-        <summary>Semantic concepts</summary>
-        {item.semanticConcepts !== undefined && item.semanticConcepts.length > 0 ? (
-          <pre>
-            {item.semanticConcepts.map((concept) => {
-              const targets = concept.candidateTargets.map((target) => `${target.kind}: ${target.target} (${target.fieldPaths.join(", ")})`).join("\n  ");
-              const evidence = concept.evidence.map((source) => `${source.source}${source.sourceId !== undefined ? `/${source.sourceId}` : ""} ${source.confidence}: ${source.matchedTerms.join(", ")}`).join("\n  ");
-              return `${concept.id} | ${concept.label.en} / ${concept.label.de} | confidence ${concept.confidence}
-terms: ${concept.matchedTerms.join(", ")}
-gs++: ${concept.relatedGrundschutzPlusPlusControlIds.join(", ") || "none"}
-targets:
-  ${targets || "none"}
-evidence:
-  ${evidence}`;
-            }).join("\n\n")}
-          </pre>
-        ) : (
-          <p>{item.semanticNoConceptReason ?? "No semantic concept evidence was emitted."}</p>
-        )}
-      </details>
-    </>
-  );
-}
-
 function CisDetail({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element {
   const item = recommendation as CisRecommendationRecord;
   return (
@@ -428,55 +398,6 @@ function CisDetail({ recommendation }: { readonly recommendation: Recommendation
         <pre>{item.remediation}</pre>
       </details>
     </>
-  );
-}
-
-function FallbackTranslationsSection({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element | null {
-  const fallbacks = fallbackTranslationsOf(recommendation);
-  if (fallbacks.length === 0) {
-    return null;
-  }
-  const exactMapped = implementationOf(recommendation).category === "relution-achievable";
-  return (
-    <details className="preview-block" open={!exactMapped}>
-      <summary>{exactMapped ? "Fallback methods (secondary only)" : "Fallback methods"}</summary>
-      {fallbacks.map((fallback) => <FallbackTranslationView key={fallback.id} fallback={fallback} />)}
-    </details>
-  );
-}
-
-function FallbackTranslationView({ fallback }: { readonly fallback: RecommendationFallbackTranslation }): JSX.Element {
-  return (
-    <section className="preview-block">
-      <h5>{fallback.title}</h5>
-      <p>{fallback.role} | {fallback.method}</p>
-      {fallback.commands.length > 0 ? <pre>{fallback.commands.join("\n")}</pre> : null}
-      {fallback.groupPolicyPaths !== undefined && fallback.groupPolicyPaths.length > 0 ? (
-        <>
-          <h6>Group Policy paths</h6>
-          <pre>{fallback.groupPolicyPaths.join("\n")}</pre>
-        </>
-      ) : null}
-      {fallback.registryPaths !== undefined && fallback.registryPaths.length > 0 ? (
-        <>
-          <h6>Registry references</h6>
-          <pre>{fallback.registryPaths.join("\n")}</pre>
-        </>
-      ) : null}
-      {fallback.profilePayloadType !== undefined ? <p>PayloadType: {fallback.profilePayloadType}</p> : null}
-      {fallback.profileKeys !== undefined && fallback.profileKeys.length > 0 ? (
-        <>
-          <h6>Profile keys</h6>
-          <pre>{fallback.profileKeys.map((entry) => `${entry.key}: ${entry.value}`).join("\n")}</pre>
-        </>
-      ) : null}
-      {fallback.rawText.length > 0 ? (
-        <details className="preview-block">
-          <summary>Source excerpt</summary>
-          <pre>{fallback.rawText}</pre>
-        </details>
-      ) : null}
-    </section>
   );
 }
 
@@ -567,12 +488,13 @@ function implementationOf(recommendation: RecommendationRecord): RecommendationI
   if (recommendation.implementation !== undefined) {
     return recommendation.implementation;
   }
+  const fallbackTranslations = recommendation.fallbackTranslations ?? [];
   const exact = recommendation.relutionMapping.status === "exact";
   const surfaces = uniqueStrings([
     ...recommendation.relutionMapping.candidates.map((candidate) => candidate.kind),
     ...recommendation.relutionMapping.rulesetMappings.map((mapping) => mapping.kind),
-    ...(fallbackTranslationsOf(recommendation).length > 0 ? ["helper"] : []),
-  ]) as RecommendationImplementation["surfaces"];
+    ...(fallbackTranslations.length > 0 ? ["helper"] : []),
+  ], { sort: true }) as RecommendationImplementation["surfaces"];
   if (exact) {
     return {
       category: "relution-achievable",
@@ -591,7 +513,7 @@ function implementationOf(recommendation: RecommendationRecord): RecommendationI
       blockingReasons: recommendation.relutionMapping.notes,
     };
   }
-  if (fallbackTranslationsOf(recommendation).length > 0) {
+  if (fallbackTranslations.length > 0) {
     return {
       category: "helper-only",
       surfaces,
@@ -663,10 +585,6 @@ function summarizeCoverage(recommendations: RecommendationRecord[]): {
     }
   }
   return { exactMappings, ...counts };
-}
-
-function uniqueStrings(values: string[]): string[] {
-  return [...new Set(values.filter((value) => value.length > 0))].sort();
 }
 
 function categoryLabel(category: string): string {
