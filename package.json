@@ -11,9 +11,18 @@
   "scripts": {
     "build": "rm -rf dist dist-web && tsc -p tsconfig.json && vite build",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "python:clean-cache": "find test tools -type d -name __pycache__ -prune -exec rm -rf {} +",
+    "python:lint": "ruff check .",
+    "python:test": "pytest",
     "test:node": "pnpm build && node --test dist/test/*.test.js",
+    "test:meta": "pnpm build && node --test dist/test/meta/*.test.js",
     "test:web": "vitest run",
     "test": "pnpm test:node && pnpm test:web",
+    "verify:ci": "pnpm python:clean-cache && pnpm typecheck && pnpm test && pnpm python:lint && pnpm python:test && pnpm test:meta && pnpm python:clean-cache",
+    "verify:pre-pr": "pnpm verify:ci && pnpm codacy:cloud:inspect && pnpm codacy:cloud",
+    "codacy:cloud-config": "node tools/run_codacy_cloud.mjs config",
+    "codacy:cloud:inspect": "node tools/run_codacy_cloud.mjs inspect",
+    "codacy:cloud": "node tools/run_codacy_cloud.mjs analyze",
     "test:e2e:web": "env -u FORCE_COLOR PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright playwright test",
     "screenshots:readme": "env -u FORCE_COLOR PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright playwright test -c playwright.readme.config.ts",
     "test:e2e:relution": "pnpm build && node --test dist/test/relution-docker.e2e.js",
@@ -43,5 +52,10 @@
     "js-yaml": "^4.1.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
+  },
+  "pnpm": {
+    "overrides": {
+      "fast-uri": "3.1.2"
+    }
   }
 }

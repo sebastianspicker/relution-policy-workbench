@@ -15,7 +15,6 @@ import {
 } from "./apple-schema.js";
 import {
   type RecommendationImplementation,
-  type RecommendationImplementationSurface,
   type RecommendationCatalogResponse,
   type RecommendationRecord,
   type RecommendationRulesetMapping,
@@ -25,6 +24,7 @@ import {
 } from "./recommendation-types.js";
 import { createConfiguration, type PolicyWorkspace } from "./workspace.js";
 import { findTemplate, type RelutionTemplateBundle } from "./templates.js";
+import { asRecord, uniqueStrings } from "./utils/json-guards.js";
 import type {
   ComplianceConfigurationReference,
   ComplianceMappingResult,
@@ -36,18 +36,11 @@ import type {
   JsonRecord,
 } from "./compliance-types.js";
 import {
-  asRecord,
   deepMergePreservingExistingUuids,
   deepSubsetMatch,
   mappingValuesMatch,
   uniqueConfigurationReferences,
-  uniqueStrings,
 } from "./compliance-values.js";
-
-// Most Relution native configuration types are single-instance per policy
-// version. Windows Custom CSP is different: each row is its own setting, and
-// the CSP name is the domain identity used for matching and updates.
-const MULTI_INSTANCE_NATIVE_TYPES = new Set(["WINDOWS_CUSTOM_CSP"]);
 
 export function evaluateRecommendation(
   source: RecommendationSource,
@@ -83,7 +76,7 @@ export function evaluateRecommendation(
   const ambiguous = mappingResults.some((entry) => entry.status === "ambiguous");
   const remediationOptions = allCompliant || unsupported
     ? []
-    : remediationOptionsForRecommendation(source, recommendation, artifacts.settingBundleCatalog, mappingResults);
+    : remediationOptionsForRecommendation(source, recommendation, artifacts.settingBundleCatalog, artifacts.settingBundleCatalogError, mappingResults);
 
   let status: ComplianceStatus;
   if (allCompliant) {
@@ -113,10 +106,17 @@ function remediationOptionsForRecommendation(
   source: RecommendationSource,
   recommendation: RecommendationRecord,
   settingsCatalog: RecommendationSettingBundleCatalog | undefined,
+  settingBundleCatalogError: string | undefined,
   mappingResults: ComplianceMappingResult[],
 ): ComplianceRemediationOption[] {
   if (mappingResults.some((entry) => entry.status === "ambiguous")) {
     return [];
+  }
+  if (settingsCatalog === undefined && mappingResults.some((entry) => entry.kind === "relution-native")) {
+    const reason = settingBundleCatalogError === undefined
+      ? "Setting bundle catalog failed to load"
+      : `Setting bundle catalog failed to load: ${settingBundleCatalogError}`;
+    return [{ ...recommendationOption(source, recommendation), available: false, unavailableReason: reason }];
   }
 
   const bundles = settingsCatalog?.bundles.filter((bundle) => bundle.derivedFromRecommendationIds.includes(recommendation.id)) ?? [];
@@ -158,7 +158,7 @@ function recommendationOption(
   source: RecommendationSource,
   recommendation: RecommendationRecord,
 ): ComplianceRemediationOption {
-  const implementation = implementationOf(recommendation);
+  const implementation = recommendationImplementationOf(recommendation);
   return {
     id: `recommendation:${source}:${recommendation.id}`,
     kind: "exact-recommendation",
@@ -345,13 +345,17 @@ function applyNativeValues(
   templateBundle: RelutionTemplateBundle,
 ): void {
   const candidates = configurationCandidates(configurations, (details) => details.type === targetType);
-  const matching = candidates.filter((entry) => deepSubsetMatch(values, entry.details));
-  if (matching.length > 0) {
-    return;
-  }
+  const matches = (entry: { details: JsonRecord }) => deepSubsetMatch(values, entry.details);
   const sameIdentity = candidatesWithSameNativeIdentity(targetType, values, candidates);
   if (sameIdentity.length > 1) {
     throw new Error(`Compliance apply is ambiguous for ${targetType}: multiple target settings share the same identity`);
+  }
+  const updateCandidate = (candidateRecord: JsonRecord) => {
+    const details = asRecord(candidateRecord.details) ?? {};
+    candidateRecord.details = deepMergePreservingExistingUuids(details, values);
+  };
+  if (candidates.some(matches)) {
+    return;
   }
   if (sameIdentity.length === 1) {
     const onlyCandidate = sameIdentity[0]!;
@@ -360,38 +364,31 @@ function applyNativeValues(
     if (candidateRecord === undefined) {
       throw new Error(`Target configuration is invalid for ${targetType}`);
     }
-    const details = asRecord(candidateRecord.details) ?? {};
-    candidateRecord.details = deepMergePreservingExistingUuids(details, values);
+    updateCandidate(candidateRecord);
     return;
   }
-  if (MULTI_INSTANCE_NATIVE_TYPES.has(targetType)) {
-    createNativeConfiguration(configurations, targetType, values, templateBundle);
-    return;
-  }
-  if (candidates.length > 1) {
-    throw new Error(`Compliance apply is ambiguous for ${targetType}: multiple target settings exist`);
-  }
-  if (candidates.length === 1) {
-    const onlyCandidate = candidates[0]!;
-    const candidate = configurations[onlyCandidate.reference.configurationIndex];
-    const candidateRecord = asRecord(candidate);
-    if (candidateRecord === undefined) {
-      throw new Error(`Target configuration is invalid for ${targetType}`);
-    }
-    const details = asRecord(candidateRecord.details) ?? {};
-    candidateRecord.details = deepMergePreservingExistingUuids(details, values);
+  if (targetType === "WINDOWS_CUSTOM_CSP") {
+    configurations.push(createNativeConfiguration(targetType, values, templateBundle));
     return;
   }
 
-  createNativeConfiguration(configurations, targetType, values, templateBundle);
+  applyOrCreateConfiguration({
+    configurations,
+    candidates,
+    target: targetType,
+    targetLabel: "native configuration",
+    ambiguityReason: "multiple target settings exist",
+    matches,
+    updateCandidate,
+    createCandidate: () => createNativeConfiguration(targetType, values, templateBundle),
+  });
 }
 
 function createNativeConfiguration(
-  configurations: JsonRecord[],
   targetType: string,
   values: JsonRecord,
   templateBundle: RelutionTemplateBundle,
-): void {
+): JsonRecord {
   const template = findTemplate(templateBundle, targetType);
   if (template === undefined) {
     throw new Error(`Relution template not found for ${targetType}`);
@@ -402,7 +399,7 @@ function createNativeConfiguration(
     throw new Error(`Failed to create configuration for ${targetType}`);
   }
   createdRecord.details = deepMergePreservingExistingUuids(asRecord(createdRecord.details) ?? {}, values);
-  configurations.push(createdRecord);
+  return createdRecord;
 }
 
 function nativeMappingStatus(
@@ -417,7 +414,7 @@ function nativeMappingStatus(
   if (candidates.length === 0) {
     return "missing";
   }
-  if (MULTI_INSTANCE_NATIVE_TYPES.has(type)) {
+  if (type === "WINDOWS_CUSTOM_CSP") {
     const sameIdentity = candidatesWithSameNativeIdentity(type, expectedValues, candidates);
     if (sameIdentity.length === 0) {
       return "missing";
@@ -449,18 +446,20 @@ function applyAppleSchemaValues(
     throw new Error(`Apple schema profile not found: ${schemaId}`);
   }
   const candidates = configurationCandidates(configurations, (details) => findAppleSchemaProfileForDetails(appleSchema, details)?.id === schemaId);
-  const matching = candidates.filter((candidate) => deepSubsetMatch(values, extractAppleSchemaValues(candidate.details, entry)));
-  if (matching.length > 0) {
-    return;
-  }
-  const candidateRecord = singleApplyCandidate(configurations, candidates, schemaId, "Apple schema configuration", "multiple matching Apple profiles exist");
-  if (candidateRecord !== undefined) {
-    const details = asRecord(candidateRecord.details) ?? {};
-    const mergedValues = deepMergePreservingExistingUuids(extractAppleSchemaValues(details, entry), values);
-    candidateRecord.details = updateAppleSchemaProfileDetails(details, entry, mergedValues);
-    return;
-  }
-  configurations.push(createAppleSchemaProfileConfiguration(entry, values));
+  applyOrCreateConfiguration({
+    configurations,
+    candidates,
+    target: schemaId,
+    targetLabel: "Apple schema configuration",
+    ambiguityReason: "multiple matching Apple profiles exist",
+    matches: (candidate) => deepSubsetMatch(values, extractAppleSchemaValues(candidate.details, entry)),
+    updateCandidate: (candidateRecord) => {
+      const details = asRecord(candidateRecord.details) ?? {};
+      const mergedValues = deepMergePreservingExistingUuids(extractAppleSchemaValues(details, entry), values);
+      candidateRecord.details = updateAppleSchemaProfileDetails(details, entry, mergedValues);
+    },
+    createCandidate: () => createAppleSchemaProfileConfiguration(entry, values),
+  });
 }
 
 function applyAppleCompatValues(configurations: JsonRecord[], payloadType: string, values: JsonRecord): void {
@@ -469,18 +468,47 @@ function applyAppleCompatValues(configurations: JsonRecord[], payloadType: strin
     throw new Error(`Apple mobileconfig payload type not found: ${payloadType}`);
   }
   const candidates = configurationCandidates(configurations, (details) => findAppleCompatSettingForDetails(details)?.id === setting.id);
-  const matching = candidates.filter((candidate) => deepSubsetMatch(values, extractAppleCompatValues(candidate.details, setting)));
-  if (matching.length > 0) {
+  applyOrCreateConfiguration({
+    configurations,
+    candidates,
+    target: payloadType,
+    targetLabel: "Apple mobileconfig configuration",
+    ambiguityReason: "multiple matching Apple settings exist",
+    matches: (candidate) => deepSubsetMatch(values, extractAppleCompatValues(candidate.details, setting)),
+    updateCandidate: (candidateRecord) => {
+      const details = asRecord(candidateRecord.details) ?? {};
+      const mergedValues = deepMergePreservingExistingUuids(extractAppleCompatValues(details, setting), values);
+      candidateRecord.details = updateAppleCompatDetails(details, setting.id, mergedValues);
+    },
+    createCandidate: () => createAppleCompatConfiguration(setting.id, values),
+  });
+}
+
+function applyOrCreateConfiguration(params: {
+  readonly configurations: JsonRecord[];
+  readonly candidates: Array<{ details: JsonRecord; reference: ComplianceConfigurationReference }>;
+  readonly target: string;
+  readonly targetLabel: string;
+  readonly ambiguityReason: string;
+  readonly matches: (candidate: { details: JsonRecord; reference: ComplianceConfigurationReference }) => boolean;
+  readonly updateCandidate: (candidateRecord: JsonRecord) => void;
+  readonly createCandidate: () => JsonRecord;
+}): void {
+  if (params.candidates.some(params.matches)) {
     return;
   }
-  const candidateRecord = singleApplyCandidate(configurations, candidates, payloadType, "Apple mobileconfig configuration", "multiple matching Apple settings exist");
+  const candidateRecord = singleApplyCandidate(
+    params.configurations,
+    params.candidates,
+    params.target,
+    params.targetLabel,
+    params.ambiguityReason,
+  );
   if (candidateRecord !== undefined) {
-    const details = asRecord(candidateRecord.details) ?? {};
-    const mergedValues = deepMergePreservingExistingUuids(extractAppleCompatValues(details, setting), values);
-    candidateRecord.details = updateAppleCompatDetails(details, setting.id, mergedValues);
+    params.updateCandidate(candidateRecord);
     return;
   }
-  configurations.push(createAppleCompatConfiguration(setting.id, values));
+  params.configurations.push(params.createCandidate());
 }
 
 function singleApplyCandidate(
@@ -517,7 +545,7 @@ export function appliesToPolicy(
   if (importPlatform === policyPlatform) {
     return true;
   }
-  return source === "vendor" && displayPlatform === "ANDROID" && policyPlatform === "ANDROID_ENTERPRISE";
+  return false;
 }
 
 function supportedComplianceMapping(mapping: RecommendationRulesetMapping): boolean {
@@ -535,7 +563,7 @@ function supportedComplianceMapping(mapping: RecommendationRulesetMapping): bool
 
 function fallbackBlockingReasons(recommendation: RecommendationRecord): string[] {
   const reasons = [
-    ...implementationOf(recommendation).blockingReasons,
+    ...recommendationImplementationOf(recommendation).blockingReasons,
     ...recommendation.relutionMapping.notes,
   ];
   for (const parameter of recommendation.relutionMapping.parameterRequirements ?? []) {
@@ -559,7 +587,7 @@ function blockingReasonsForResult(
   if (status === "compliant") {
     return [];
   }
-  const reasons = [...recommendation.relutionMapping.notes, ...implementationOf(recommendation).blockingReasons];
+  const reasons = [...recommendation.relutionMapping.notes, ...recommendationImplementationOf(recommendation).blockingReasons];
   for (const mappingResult of mappingResults) {
     if (mappingResult.status === "missing") {
       reasons.push(`Missing ${mappingResult.target}.`);
@@ -574,51 +602,19 @@ function blockingReasonsForResult(
   if (status === "choice-required" && remediationOptions.length > 1) {
     reasons.push("Multiple exact remediation variants are available; choose one explicit variant.");
   }
+  for (const option of remediationOptions) {
+    if (option.available === false && option.unavailableReason !== undefined) {
+      reasons.push(option.unavailableReason);
+    }
+  }
   return uniqueStrings(reasons);
 }
 
-function implementationOf(recommendation: RecommendationRecord): RecommendationImplementation {
-  if (recommendation.implementation !== undefined) {
-    return recommendation.implementation;
+export function recommendationImplementationOf(recommendation: RecommendationRecord): RecommendationImplementation {
+  if (recommendation.implementation === undefined) {
+    throw new Error(`Recommendation ${recommendation.id} is missing the 'implementation' field.`);
   }
-  const exact = recommendation.relutionMapping.status === "exact";
-  const surfaces = uniqueStrings([
-    ...recommendation.relutionMapping.candidates.map((candidate) => candidate.kind),
-    ...recommendation.relutionMapping.rulesetMappings.map((mapping) => mapping.kind),
-    ...(Array.isArray(recommendation.fallbackTranslations) && recommendation.fallbackTranslations.length > 0 ? ["helper"] : []),
-  ]) as RecommendationImplementationSurface[];
-  if (exact) {
-    return {
-      category: "relution-achievable",
-      surfaces,
-      importableVia: recommendation.relutionMapping.rulesetMappings.some((mapping) => mapping.kind === "relution-native")
-        ? ["apply-json", "ruleset-import"]
-        : ["ruleset-import"],
-      blockingReasons: recommendation.relutionMapping.notes,
-    };
-  }
-  if (recommendation.relutionMapping.candidates.length > 0) {
-    return {
-      category: "relution-partial",
-      surfaces,
-      importableVia: [],
-      blockingReasons: recommendation.relutionMapping.notes,
-    };
-  }
-  if (recommendation.relutionMapping.status === "parameterized") {
-    return {
-      category: "relution-partial",
-      surfaces,
-      importableVia: [],
-      blockingReasons: recommendation.relutionMapping.notes,
-    };
-  }
-  return {
-    category: "gap",
-    surfaces,
-    importableVia: [],
-    blockingReasons: recommendation.relutionMapping.notes,
-  };
+  return recommendation.implementation;
 }
 
 export function selectedPolicyTarget(
@@ -635,16 +631,17 @@ export function selectedPolicyTarget(
   if (version === undefined) {
     throw new Error(`Policy version selection is invalid: ${selection.versionIndex}`);
   }
-  let configurations: JsonRecord[];
-  if (Array.isArray(version.configurations)) {
-    configurations = version.configurations.filter((entry): entry is JsonRecord => asRecord(entry) !== undefined) as JsonRecord[];
-    if (configurations !== version.configurations) {
-      version.configurations = configurations;
-    }
-  } else {
-    configurations = [];
-    version.configurations = configurations;
+  if (!Array.isArray(version.configurations)) {
+    throw new Error(`Selected policy version configurations are invalid: expected array at versions[${String(selection.versionIndex)}].configurations`);
   }
+  for (const [configurationIndex, configuration] of version.configurations.entries()) {
+    if (asRecord(configuration) === undefined) {
+      throw new Error(
+        `Selected policy version configuration is invalid: versions[${String(selection.versionIndex)}].configurations[${String(configurationIndex)}]`,
+      );
+    }
+  }
+  const configurations = version.configurations as JsonRecord[];
   const policyName = typeof policyDocument.name === "string" ? policyDocument.name : policy.path;
   const policyPlatform = typeof policyDocument.platform === "string" ? policyDocument.platform : "";
   if (policyPlatform.length === 0) {

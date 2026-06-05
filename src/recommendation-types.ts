@@ -185,14 +185,7 @@ export interface BsiSemanticConceptEvidence {
   candidateTargets: BsiSemanticConceptCandidateTarget[];
 }
 
-/** Unified recommendation semantics reuse the BSI evidence vocabulary as the cross-source canonical shape. */
-export type RecommendationSemanticConceptEvidenceSource = BsiSemanticConceptEvidenceSource;
-/** Unified recommendation semantics reuse BSI candidate targets so source-specific records can be compared directly. */
-export type RecommendationSemanticConceptCandidateTarget = BsiSemanticConceptCandidateTarget;
-/** Cross-source semantic concept evidence is currently normalized to the BSI concept evidence schema. */
-export type RecommendationSemanticConceptEvidence = BsiSemanticConceptEvidence;
-
-export type CisRecommendationHelperFallbackMethod =
+export type RecommendationFallbackMethod =
   | "powershell"
   | "auditpol"
   | "terminal"
@@ -200,35 +193,22 @@ export type CisRecommendationHelperFallbackMethod =
   | "group-policy-path"
   | "registry-reference";
 
-export interface CisRecommendationHelperProfileKey {
+export interface RecommendationFallbackProfileKey {
   key: string;
   value: string;
-}
-
-export interface CisRecommendationHelperFallback {
-  id: string;
-  role: "audit" | "remediation";
-  method: CisRecommendationHelperFallbackMethod;
-  title: string;
-  rawText: string;
-  commands: string[];
-  groupPolicyPaths?: string[];
-  registryPaths?: string[];
-  profilePayloadType?: string;
-  profileKeys?: CisRecommendationHelperProfileKey[];
 }
 
 export interface RecommendationFallbackTranslation {
   id: string;
   role: "audit" | "remediation";
-  method: CisRecommendationHelperFallbackMethod;
+  method: RecommendationFallbackMethod;
   title: string;
   rawText: string;
   commands: string[];
   groupPolicyPaths?: string[];
   registryPaths?: string[];
   profilePayloadType?: string;
-  profileKeys?: CisRecommendationHelperProfileKey[];
+  profileKeys?: RecommendationFallbackProfileKey[];
 }
 
 export interface RecommendationRecordBase {
@@ -238,7 +218,7 @@ export interface RecommendationRecordBase {
   relutionMapping: RecommendationRelutionMapping;
   implementation?: RecommendationImplementation;
   fallbackTranslations?: RecommendationFallbackTranslation[];
-  semanticConcepts?: RecommendationSemanticConceptEvidence[];
+  semanticConcepts?: BsiSemanticConceptEvidence[];
   semanticNoConceptReason?: string;
 }
 
@@ -296,7 +276,6 @@ export interface CisRecommendationRecord extends RecommendationRecordBase, Recom
   additionalInformation?: string;
   references: string[];
   recommendedValue: unknown;
-  helperFallbacks: CisRecommendationHelperFallback[];
 }
 
 export interface VendorRecommendationRecord extends RecommendationRecordBase, RecommendationRecordSharedSourceFields {

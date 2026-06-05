@@ -1,5 +1,6 @@
 import type { RecommendationRuleset, RecommendationSourceSummary } from "../../../src/recommendation-types.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
+import { hasBuiltInRulesetMapping } from "./ruleset-import.js";
 
 export const ALL_RECOMMENDATION_PLATFORMS = "ALL";
 
@@ -45,7 +46,9 @@ export function filterActionableRecommendationRuleset(ruleset: RecommendationRul
     policies: platformFiltered.policies
       .map((policy) => ({
         ...policy,
-        rules: policy.rules.filter((rule) => rule.informational !== true && (rule.mappings?.length ?? 0) > 0),
+        rules: policy.rules.filter((rule) =>
+          rule.informational !== true && ((rule.mappings?.length ?? 0) > 0 || hasBuiltInRulesetMapping(rule.id))
+        ),
       }))
       .filter((policy) => policy.rules.length > 0),
   };

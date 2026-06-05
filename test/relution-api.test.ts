@@ -7,6 +7,7 @@ import {
   normalizeRelutionConnection,
   publicRelutionSession,
   queryRelutionDevices,
+  testRelutionConnection,
 } from "../src/relution-api.js";
 import { handleRelutionApiRequest } from "../src/relution-editor-routes.js";
 
@@ -38,6 +39,42 @@ test("derives protocol port and base path from host URLs", () => {
   assert.equal(connection.port, 8080);
   assert.equal(connection.basePath, "/customer-a");
   assert.equal(connection.baseUrl, "http://relution.example.test:8080/customer-a");
+});
+
+test("Relution connection test validates the device query response body", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    assert.equal(String(input), "https://relution.example.test/api/v2/devices/baseInfo/query");
+    assert.match(String(init?.body), /"limit":1/u);
+    return new Response(JSON.stringify({ nonpagedCount: 0, results: [] }));
+  };
+  try {
+    const result = await testRelutionConnection(
+      normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }),
+    );
+
+    assert.deepEqual(result, { ok: true, baseUrl: "https://relution.example.test" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Relution connection test returns a failure signal for malformed 200 responses", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: "unauthorized" }));
+  try {
+    const result = await testRelutionConnection(
+      normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }),
+    );
+
+    assert.deepEqual(result, {
+      ok: false,
+      baseUrl: "https://relution.example.test",
+      reason: "Relution connection test returned an unexpected device query response.",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("queries and normalizes Relution device responses", async () => {
@@ -80,10 +117,53 @@ test("queries and normalizes Relution device responses", async () => {
     );
 
     assert.equal(result.total, 1);
+    assert.equal(result.truncated, false);
     assert.equal(result.devices[0]?.name, "Campus iPad");
     assert.equal(result.devices[0]?.policyStatus, "APPLIED");
     assert.equal(result.devices[0]?.serialNumber, "SERIAL-1");
     assert.deepEqual(result.devices[0]?.assignedPolicies, ["Baseline iOS"]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("marks Relution device queries truncated when the page is smaller than the reported total", async () => {
+  const originalFetch = globalThis.fetch;
+  const devices = Array.from({ length: 100 }, (_, index) => ({
+    uuid: `DEVICE-${String(index + 1)}`,
+    name: `Device ${String(index + 1)}`,
+  }));
+  globalThis.fetch = async () => new Response(JSON.stringify({ nonpagedCount: 200, results: devices }));
+  try {
+    const result = await queryRelutionDevices(
+      normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }),
+      {},
+    );
+
+    assert.equal(result.count, 100);
+    assert.equal(result.total, 200);
+    assert.equal(result.truncated, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("rejects malformed Relution device query responses without treating them as empty", async () => {
+  const originalFetch = globalThis.fetch;
+  const connection = normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" });
+  try {
+    for (const body of [{}, { results: "none" }, []]) {
+      globalThis.fetch = async () => new Response(JSON.stringify(body));
+      await assert.rejects(
+        queryRelutionDevices(connection, {}),
+        /Malformed Relution device query response: expected results array/u,
+      );
+    }
+    globalThis.fetch = async () => new Response(JSON.stringify({ results: [] }));
+    const result = await queryRelutionDevices(connection, {});
+    assert.equal(result.count, 0);
+    assert.equal(result.truncated, false);
+    assert.deepEqual(result.devices, []);
   } finally {
     globalThis.fetch = originalFetch;
   }

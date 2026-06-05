@@ -83,7 +83,11 @@ function renderPlistValue(value: PlistValue, depth: number): string {
     return `${indent}<data>${escapeXml(value.base64)}</data>`;
   }
   if (Array.isArray(value)) {
-    return [`${indent}<array>`, ...value.map((entry) => renderPlistValue(entry, depth + 1)), `${indent}</array>`].join("\n");
+    let output = `${indent}<array>`;
+    for (const entry of value) {
+      output += `\n${renderPlistValue(entry, depth + 1)}`;
+    }
+    return `${output}\n${indent}</array>`;
   }
   const lines = [`${indent}<dict>`];
   for (const [key, entry] of Object.entries(value).sort(([left], [right]) => left.localeCompare(right))) {
@@ -111,9 +115,34 @@ function detectSignatureState(trimmed: string): MobileConfigInspection["signatur
 }
 
 function allPlistStringsForKey(content: string, key: string): string[] {
-  const escapedKey = escapeRegex(key);
-  const pattern = new RegExp(`<key>\\s*${escapedKey}\\s*</key>\\s*<string>([^<]*)</string>`, "gu");
-  return [...content.matchAll(pattern)].map((match) => unescapeXml(match[1] ?? ""));
+  const values: string[] = [];
+  let offset = 0;
+  while (offset < content.length) {
+    const keyStart = content.indexOf("<key>", offset);
+    if (keyStart === -1) {
+      break;
+    }
+    const keyEnd = content.indexOf("</key>", keyStart + "<key>".length);
+    if (keyEnd === -1) {
+      break;
+    }
+    const keyText = unescapeXml(content.slice(keyStart + "<key>".length, keyEnd).trim());
+    offset = keyEnd + "</key>".length;
+    if (keyText !== key) {
+      continue;
+    }
+    const stringStart = content.indexOf("<string>", offset);
+    if (stringStart === -1 || content.slice(offset, stringStart).trim().length > 0) {
+      continue;
+    }
+    const stringEnd = content.indexOf("</string>", stringStart + "<string>".length);
+    if (stringEnd === -1) {
+      break;
+    }
+    values.push(unescapeXml(content.slice(stringStart + "<string>".length, stringEnd)));
+    offset = stringEnd + "</string>".length;
+  }
+  return values;
 }
 
 function firstPlistStringForKey(content: string, key: string): string | undefined {
@@ -143,10 +172,6 @@ function unescapeXml(value: string): string {
     .replace(/&gt;/gu, ">")
     .replace(/&lt;/gu, "<")
     .replace(/&amp;/gu, "&");
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

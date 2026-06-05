@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import type { RelutionAssessmentReport } from "../src/relution-api.js";
 import { runRelutionCliCommand } from "../src/relution-cli.js";
 
 test("Relution CLI queries devices with environment credentials", async () => {
@@ -35,11 +36,30 @@ test("Relution CLI queries devices with environment credentials", async () => {
   }
 });
 
+test("Relution CLI test rejects malformed 200 connection responses", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ error: "unauthorized" }));
+  try {
+    await assert.rejects(
+      runRelutionCliCommand({
+        positionals: ["test"],
+        options: {
+          host: "relution.example.test",
+          token: "secret-token",
+        },
+      }),
+      /Relution API connection failed: Relution connection test returned an unexpected device query response/u,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("Relution CLI assessment writes local report files when workspace is provided", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({
     nonpagedCount: 1,
-    results: [{ uuid: "DEVICE-1", name: "Dorm Android", platform: "ANDROID_ENTERPRISE", status: "INACTIVE", policyStatus: "NONE" }],
+    results: [{ uuid: "DEVICE-1", name: "Dorm Android", platform: "ANDROID_ENTERPRISE", status: "COMPLIANT", policyStatus: "NONE" }],
   }));
   const workspace = mkdtempSync(join(tmpdir(), "relution-cli-report-"));
   try {
@@ -53,6 +73,36 @@ test("Relution CLI assessment writes local report files when workspace is provid
     }));
     assert.match(output, /Issues: 1/u);
     assert.equal(existsSync(join(workspace, "reports")), true);
+    const reportJsonPath = output.match(/^Report JSON: (?<path>.+)$/mu)?.groups?.path;
+    assert.notEqual(reportJsonPath, undefined);
+    const report = JSON.parse(readFileSync(reportJsonPath!, "utf8")) as RelutionAssessmentReport;
+    const stdoutIssueCount = Number(output.match(/^Issues: (?<count>\d+)$/mu)?.groups?.count);
+    const issueCount = report.devices.reduce((total, entry) => total + entry.issues.length, 0);
+
+    assert.equal(report.devices[0]?.device.uuid, "DEVICE-1");
+    assert.equal(report.summary.issue, stdoutIssueCount);
+    assert.equal(issueCount, stdoutIssueCount);
+    assert.equal(report.devices[0]?.issues.some((issue) => issue.id === "policy-status-not-applied"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Relution CLI assessment warns when device query results are truncated", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    nonpagedCount: 2,
+    results: [{ uuid: "DEVICE-1", name: "Dorm Android", platform: "ANDROID_ENTERPRISE", status: "COMPLIANT", policyStatus: "APPLIED" }],
+  }));
+  try {
+    const stderr = await captureStderr(() => runRelutionCliCommand({
+      positionals: ["assess"],
+      options: {
+        host: "relution.example.test",
+        token: "secret-token",
+      },
+    }));
+    assert.match(stderr, /showing 1 of 2 enrolled devices; compliance results are incomplete/u);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -70,6 +120,21 @@ async function captureStdout(run: () => Promise<void>): Promise<string> {
     return output;
   } finally {
     process.stdout.write = originalWrite;
+  }
+}
+
+async function captureStderr(run: () => Promise<void>): Promise<string> {
+  const originalWrite = process.stderr.write;
+  let output = "";
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    output += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    await run();
+    return output;
+  } finally {
+    process.stderr.write = originalWrite;
   }
 }
 

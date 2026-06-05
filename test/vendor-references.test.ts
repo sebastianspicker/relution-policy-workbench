@@ -77,6 +77,14 @@ type VendorRecommendation = {
   };
 };
 
+type ExpectedVendorRecommendation = {
+  id: string;
+  platform: string;
+  implementationCategory: string;
+  mappingStatus: string;
+  semanticConcept: string;
+};
+
 type WindowsRexpEvidence = {
   customCspSettings: Array<{
     name: string;
@@ -198,13 +206,59 @@ test("vendor recommendation catalog contains reasons and relution mapping metada
     "macos should include at least one directly mappable recommendation",
   );
 
-  const androidPlayProtect = recommendations.find((entry) => entry.id === "android-001-enforcegoogleplayprotectonmanageddevices");
-  assert.notEqual(androidPlayProtect, undefined);
-  assert.equal(hasSemanticConcept(androidPlayProtect, "malware_protection"), true);
-
-  const macosFileVault = recommendations.find((entry) => entry.id === "macos-001-enablefilevaultonmanagedmacs");
-  assert.notEqual(macosFileVault, undefined);
-  assert.equal(hasSemanticConcept(macosFileVault, "encryption"), true);
+  for (const expected of [
+    {
+      id: "windows-0001-preventenablinglockscreencamera",
+      platform: "WINDOWS",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "camera_microphone",
+    },
+    {
+      id: "windows-0050-requireapasswordwhenacomputerwakesonbattery",
+      platform: "WINDOWS",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "passcode_authentication",
+    },
+    {
+      id: "windows-0051-requireapasswordwhenacomputerwakespluggedin",
+      platform: "WINDOWS",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "passcode_authentication",
+    },
+    {
+      id: "android-001-enforcegoogleplayprotectonmanageddevices",
+      platform: "ANDROID",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "malware_protection",
+    },
+    {
+      id: "android-008-offerautomaticotasystemupdates",
+      platform: "ANDROID",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "updates",
+    },
+    {
+      id: "macos-001-enablefilevaultonmanagedmacs",
+      platform: "MACOS",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "encryption",
+    },
+    {
+      id: "macos-006-keepgatekeeperassessmentenabled",
+      platform: "MACOS",
+      implementationCategory: "relution-achievable",
+      mappingStatus: "exact",
+      semanticConcept: "exploit_mitigation",
+    },
+  ]) {
+    assertKnownVendorRecommendation(recommendations, expected);
+  }
 });
 
 test("Windows Relution CSP evidence matches the example REXP exports", () => {
@@ -288,6 +342,21 @@ function readJson<T>(path: string): T {
 
 function hasSemanticConcept(entry: VendorRecommendation | undefined, conceptId: string): boolean {
   return entry?.semanticConcepts?.some((concept) => concept.id === conceptId) ?? false;
+}
+
+function assertKnownVendorRecommendation(
+  recommendations: VendorRecommendation[],
+  expected: ExpectedVendorRecommendation,
+): void {
+  const entry = recommendations.find((candidate) => candidate.id === expected.id);
+  if (entry === undefined) {
+    assert.fail(`Missing vendor recommendation: ${expected.id}`);
+  }
+  assert.equal(entry.platform, expected.platform, expected.id);
+  assert.equal(entry.implementation?.category, expected.implementationCategory, expected.id);
+  assert.equal(entry.relutionMapping.status, expected.mappingStatus, expected.id);
+  assert.equal(entry.relutionMapping.rulesetMappings.length > 0, true, expected.id);
+  assert.equal(hasSemanticConcept(entry, expected.semanticConcept), true, expected.id);
 }
 
 function extractLocUri(syncMl: string): string {

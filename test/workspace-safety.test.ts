@@ -41,6 +41,30 @@ test("loadWorkspace rejects symlinked managed files", () => {
   assert.throws(() => loadWorkspace(workspaceDir), /symlink/i);
 });
 
+test("loadWorkspace reports the policy path for truncated policy JSON", () => {
+  const { workspaceDir, policyFile } = createWorkspaceWithPolicyFile("Truncated Policy JSON");
+  writeFileSync(policyFile, "{\"uuid\":");
+
+  assert.throws(() => loadWorkspace(workspaceDir), (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    assert.match(message, /Failed to parse workspace JSON file/u);
+    assert.equal(message.includes(policyFile), true);
+    return true;
+  });
+});
+
+test("loadWorkspace rejects empty policy JSON with the policy path", () => {
+  const { workspaceDir, policyFile } = createWorkspaceWithPolicyFile("Empty Policy JSON");
+  writeFileSync(policyFile, "");
+
+  assert.throws(() => loadWorkspace(workspaceDir), (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    assert.match(message, /Failed to parse workspace JSON file/u);
+    assert.equal(message.includes(policyFile), true);
+    return true;
+  });
+});
+
 test("saveWorkspace rejects symlinked managed files that point outside the workspace", () => {
   const bundle = loadTemplateBundle();
   const workspaceDir = mkdtempSync(join(tmpdir(), "relution-workspace-save-symlink-"));
@@ -59,3 +83,15 @@ test("saveWorkspace rejects symlinked managed files that point outside the works
   assert.throws(() => saveWorkspace(workspaceDir, original), /symlink/i);
   assert.equal(readFileSync(outsidePath, "utf8"), "{\"outside\":true}\n");
 });
+
+function createWorkspaceWithPolicyFile(name: string): { workspaceDir: string; policyFile: string } {
+  const bundle = loadTemplateBundle();
+  const workspaceDir = mkdtempSync(join(tmpdir(), "relution-workspace-corrupt-policy-"));
+  const workspace = createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name,
+    serverVersion: bundle.serverVersion,
+  });
+  return { workspaceDir, policyFile: join(workspaceDir, workspace.policies[0]!.path) };
+}

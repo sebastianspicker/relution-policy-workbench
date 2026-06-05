@@ -2,7 +2,7 @@ import { useEffect, useState, type JSX } from "react";
 import { findAppleCompatSettingForDetails } from "../../../src/apple-compat.js";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
-import { asRecord, cx } from "./editor-utils.js";
+import { asRecord } from "./editor-utils.js";
 import { PolicyTree } from "./PolicyTree.js";
 import type { Selection } from "./types.js";
 
@@ -51,7 +51,7 @@ export function PolicyNavigator(props: {
           +
         </button>
       </div>
-      <div className={cx("new-policy-form-wrapper", showCreate ? "new-policy-form-wrapper--open" : undefined)}>
+      <div className={showCreate ? "new-policy-form-wrapper new-policy-form-wrapper--open" : "new-policy-form-wrapper"}>
         <div className="new-policy-form">
           <label>
             <span className="field-label">Name</span>
@@ -150,12 +150,12 @@ function configurationTerms(configuration: unknown, templatesByType: ReadonlyMap
   const type = textValue(details?.type);
   const template = templatesByType.get(type);
   const appleCompatSetting = findAppleCompatSettingForDetails(details);
+  const templateTerms = template === undefined ? [] : [template.label, template.schemaName];
+  const appleTerms = appleCompatSetting === undefined ? [] : [appleCompatSetting.label, appleCompatSetting.payloadType];
   return [
     type,
-    template?.label ?? "",
-    template?.schemaName ?? "",
-    appleCompatSetting?.label ?? "",
-    appleCompatSetting?.payloadType ?? "",
+    ...templateTerms,
+    ...appleTerms,
     textValue(details?.displayName),
     textValue(details?.secondLevelPayloadType),
   ];

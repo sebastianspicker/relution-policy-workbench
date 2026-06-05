@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createRelutionAuditReport } from "../src/audit.js";
-import { refreshTemplates, resolveTemplateRefreshEntryTarget } from "../src/template-refresh.js";
+import { inspectImageDigest, refreshTemplates, resolveTemplateRefreshEntryTarget } from "../src/template-refresh.js";
 import { createTemplateBundle } from "../src/templates.js";
 import { writeZip } from "../src/zip.js";
 
@@ -85,6 +86,54 @@ test("template refresh heuristic fallback requires explicit opt-in", () => {
 
   const bundle = JSON.parse(readFileSync(out, "utf8")) as { refreshDiagnostics?: { runtimeMetadata?: { source?: string } } };
   assert.equal(bundle.refreshDiagnostics?.runtimeMetadata?.source, "heuristic");
+  assert.equal("sourceImageDigest" in bundle, false);
+});
+
+test("inspectImageDigest reports Docker inspect failures without a sentinel digest", () => {
+  const originalPath = process.env.PATH;
+  const originalWarn = console.warn;
+  const warnings: string[] = [];
+  process.env.PATH = "";
+  console.warn = (message?: unknown) => {
+    warnings.push(String(message));
+  };
+  try {
+    assert.equal(inspectImageDigest("relution/missing:test"), undefined);
+    assert.match(warnings.join("\n"), /Could not inspect image digest/u);
+  } finally {
+    if (originalPath === undefined) {
+      delete process.env.PATH;
+    } else {
+      process.env.PATH = originalPath;
+    }
+    console.warn = originalWarn;
+  }
+});
+
+test("templates refresh CLI warns before success output when build provenance is degraded", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-template-refresh-cli-warning-"));
+  const jarPath = join(root, "relution-exec.jar");
+  const out = join(root, "template-bundle.json");
+  writeMinimalRelutionJar(jarPath);
+
+  const result = spawnSync(process.execPath, [
+    "dist/src/cli.js",
+    "templates",
+    "refresh",
+    "--jar",
+    jarPath,
+    "--out",
+    out,
+    "--server-version",
+    "test",
+    "--allow-heuristic-runtime-metadata",
+  ], { encoding: "utf8" });
+
+  assert.equal(result.status, 0, `${result.stderr}\n${result.stdout}`);
+  assert.match(result.stderr, /runtime metadata built from heuristic fallback/u);
+  assert.match(result.stderr, /image digest unknown/u);
+  assert.match(result.stdout, /Wrote /u);
+  assert.equal(result.stdout.includes("runtime metadata built"), false, "stderr should not appear in stdout");
 });
 
 test("template refresh rejects class extraction entries outside the work directory", () => {

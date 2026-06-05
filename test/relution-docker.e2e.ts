@@ -15,7 +15,7 @@ import { extractRexp, inspectRexp, packPlainDirectory, verifyRexp } from "../src
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
 import {
-  archiveKey,
+  archiveSecret,
   baselineTemplateEntries,
   configurationsHaveType,
   dockerCompose,
@@ -65,8 +65,8 @@ test("local Docker Relution imports a generated Apple mobileconfig policy and ex
       versionIndex: 0,
       settingId: "associated-domains",
     });
-    packPlainDirectory(workspaceDir, rexpPath, archiveKey, { force: true });
-    assert.equal(verifyRexp(rexpPath, archiveKey).ok, true);
+    packPlainDirectory(workspaceDir, rexpPath, archiveSecret, { force: true });
+    assert.equal(verifyRexp(rexpPath, archiveSecret).ok, true);
 
     const importReport = await importPolicy(rexpPath);
     assert.deepEqual(importReport.errors ?? [], []);
@@ -90,10 +90,10 @@ test("local Docker Relution imports a generated Apple mobileconfig policy and ex
 
     const exportedArchive = await exportPolicy(importedPolicyUuid);
     writeFileSync(exportedPath, new Uint8Array(await exportedArchive.arrayBuffer()));
-    assert.equal(verifyRexp(exportedPath, archiveKey).ok, true);
-    const exported = inspectRexp(exportedPath, archiveKey);
+    assert.equal(verifyRexp(exportedPath, archiveSecret).ok, true);
+    const exported = inspectRexp(exportedPath, archiveSecret);
     assert.equal(exported.policies?.some((policy) => policy.name === "Docker E2E Apple Gap"), true);
-    extractRexp(exportedPath, exportedWorkspaceDir, archiveKey, { force: true, pretty: true });
+    extractRexp(exportedPath, exportedWorkspaceDir, archiveSecret, { force: true, pretty: true });
     const exportedWorkspace = loadWorkspace(exportedWorkspaceDir);
     assert.equal(workspaceHasConfigurationType(exportedWorkspace, "IOS_RESTRICTION"), true);
     assert.equal(
@@ -134,9 +134,9 @@ test("local Docker Relution imports every generated OS baseline template", { tim
       const workspaceDir = join(root, `${templateLabel}-workspace`);
       const rexpPath = join(root, `${templateLabel}.rexp`);
       saveWorkspace(workspaceDir, workspace);
-      packPlainDirectory(workspaceDir, rexpPath, archiveKey, { force: true });
-      assert.equal(verifyRexp(rexpPath, archiveKey).ok, true, `${label}: local rexp verification`);
-      const localArchive = inspectRexp(rexpPath, archiveKey);
+      packPlainDirectory(workspaceDir, rexpPath, archiveSecret, { force: true });
+      assert.equal(verifyRexp(rexpPath, archiveSecret).ok, true, `${label}: local rexp verification`);
+      const localArchive = inspectRexp(rexpPath, archiveSecret);
       assert.equal(localArchive.policies?.some((policy) => policy.name === template.policies[0]?.name), true, `${label}: local archive policy`);
 
       const importReport = await importBaselineTemplate(rexpPath, label);
@@ -152,8 +152,8 @@ test("local Docker Relution imports every generated OS baseline template", { tim
         const exportedPath = join(root, `${templateLabel}-${policyUuid}-exported.rexp`);
         const exportedArchive = await exportPolicy(policyUuid);
         writeFileSync(exportedPath, new Uint8Array(await exportedArchive.arrayBuffer()));
-        assert.equal(verifyRexp(exportedPath, archiveKey).ok, true, `${label}: ${policy.name}: exported rexp verification`);
-        const exported = inspectRexp(exportedPath, archiveKey);
+        assert.equal(verifyRexp(exportedPath, archiveSecret).ok, true, `${label}: ${policy.name}: exported rexp verification`);
+        const exported = inspectRexp(exportedPath, archiveSecret);
         if (isRelutionExportablePolicy(expectedTypes)) {
           assert.equal(
             exported.policies?.some((exportedPolicy) => exportedPolicy.name === policy.name),

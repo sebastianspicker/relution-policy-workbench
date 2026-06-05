@@ -46,12 +46,19 @@ type SettingsCatalog = {
 
 type RecommendationCatalogEntry = {
   id: string;
+  platform: string;
+  fallbackTranslations?: unknown[];
   implementation?: {
+    category?: string;
     importableVia?: string[];
   };
   relutionMapping: {
     status: string;
     mergeableInImportableRuleset: boolean;
+    parameterRequirements?: Array<{
+      id: string;
+      path: string;
+    }>;
     candidates: Array<{
       target?: string;
       match?: {
@@ -169,6 +176,67 @@ test("recommendation catalogs use normalized mapping status and importability me
   }
 });
 
+test("mapping class invariants prevent false exact promotion and preserve concrete import behavior", () => {
+  for (const sourceConfig of SOURCES) {
+    const recommendationCatalog = readJson<RecommendationCatalogEntry[]>(sourceConfig.recommendationCatalogPath);
+
+    for (const entry of recommendationCatalog) {
+      const parameterRequirements = entry.relutionMapping.parameterRequirements ?? [];
+      if (entry.relutionMapping.status === "exact") {
+        assert.equal(parameterRequirements.length, 0, `${sourceConfig.source}:${entry.id}`);
+      }
+      if (entry.relutionMapping.status === "parameterized") {
+        assert.equal(parameterRequirements.length > 0, true, `${sourceConfig.source}:${entry.id}`);
+        assert.equal(entry.relutionMapping.rulesetMappings.length, 0, `${sourceConfig.source}:${entry.id}`);
+        assert.equal(entry.relutionMapping.mergeableInImportableRuleset, false, `${sourceConfig.source}:${entry.id}`);
+        assert.deepEqual(entry.implementation?.importableVia ?? [], [], `${sourceConfig.source}:${entry.id}`);
+      }
+      if (entry.implementation?.category === "helper-only") {
+        assert.equal(entry.relutionMapping.rulesetMappings.length, 0, `${sourceConfig.source}:${entry.id}`);
+        assert.deepEqual(entry.implementation.importableVia ?? [], [], `${sourceConfig.source}:${entry.id}`);
+        assert.equal((entry.fallbackTranslations ?? []).length > 0, true, `${sourceConfig.source}:${entry.id}`);
+      }
+    }
+  }
+
+  const bsiCatalog = readJson<RecommendationCatalogEntry[]>("example/bsi-references/bsi-recommendations.json");
+  const scopedPolicy = recommendationById(bsiCatalog, "android-enterprise-sys-3-2-1-a1");
+  assert.equal(scopedPolicy.relutionMapping.status, "parameterized");
+  assert.deepEqual(scopedPolicy.relutionMapping.parameterRequirements?.map((requirement) => requirement.path), ["scope.assetGroup"]);
+  assert.equal(scopedPolicy.relutionMapping.candidates.some((candidate) => candidate.target === "ANDROID_ENTERPRISE_RESTRICTION"), true);
+
+  const cisCatalog = readJson<RecommendationCatalogEntry[]>("example/cis-references/cis-recommendations.json");
+  const constrainedPasscode = recommendationById(cisCatalog, "cis-apple-ios-17-ipados-17-intune-1-0-0-2-7-4");
+  assert.deepEqual(constrainedPasscode.relutionMapping.rulesetMappings[0]?.constraints, [
+    { path: "minLength", operator: "atLeast", value: 6 },
+  ]);
+  const cisSettings = readJson<SettingsCatalog>("example/cis-references/cis-relution-settings-catalog.json");
+  const passcodeBundle = bundleForRecommendation(cisSettings, constrainedPasscode.id);
+  assert.equal(passcodeBundle.targetType, "IOS_PASSCODE");
+  assert.equal(passcodeBundle.details.minLength, 6);
+
+  const helperOnly = recommendationById(cisCatalog, "cis-microsoft-windows-11-standalone-5-0-0-5-1");
+  assert.equal(helperOnly.implementation?.category, "helper-only");
+  assert.equal(helperOnly.fallbackTranslations?.some((fallback) => JSON.stringify(fallback).includes("Set-Service -Name BTAGService")), true);
+
+  const vendorCatalog = readJson<RecommendationCatalogEntry[]>("example/vendor-references/vendor-recommendations.json");
+  const androidOta = recommendationById(vendorCatalog, "android-008-offerautomaticotasystemupdates");
+  assert.equal(androidOta.platform, "ANDROID");
+  assert.deepEqual(androidOta.relutionMapping.rulesetMappings, [
+    {
+      kind: "relution-native",
+      type: "ANDROID_ENTERPRISE_SYSTEM_UPDATE",
+      values: { systemUpdateType: "AUTOMATIC" },
+    },
+  ]);
+  const vendorSettings = readJson<SettingsCatalog>("example/vendor-references/vendor-relution-settings-catalog.json");
+  const otaBundle = bundleForRecommendation(vendorSettings, androidOta.id);
+  assert.equal(otaBundle.sourcePlatform, "ANDROID");
+  assert.equal(otaBundle.policyPlatform, "ANDROID_ENTERPRISE");
+  assert.equal(otaBundle.targetType, "ANDROID_ENTERPRISE_SYSTEM_UPDATE");
+  assert.equal(otaBundle.details.systemUpdateType, "AUTOMATIC");
+});
+
 test("generated recommendation mappings preserve safe exact evidence and comparison constraints", () => {
   const cisCatalog = readJson<RecommendationCatalogEntry[]>("example/cis-references/cis-recommendations.json");
 
@@ -223,4 +291,16 @@ test("vendor Windows Custom CSP mappings emit additive bundles from Relution REX
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(resolve(path), "utf8")) as T;
+}
+
+function recommendationById(catalog: RecommendationCatalogEntry[], id: string): RecommendationCatalogEntry {
+  const entry = catalog.find((candidate) => candidate.id === id);
+  assert.notEqual(entry, undefined);
+  return entry as RecommendationCatalogEntry;
+}
+
+function bundleForRecommendation(catalog: SettingsCatalog, recommendationId: string): SettingsCatalog["bundles"][number] {
+  const matches = catalog.bundles.filter((bundle) => bundle.derivedFromRecommendationIds.includes(recommendationId));
+  assert.equal(matches.length, 1, recommendationId);
+  return matches[0] as SettingsCatalog["bundles"][number];
 }

@@ -6,11 +6,12 @@ import type { EditorSidecarState } from "../../../src/sidecar.js";
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../../../src/templates.js";
 import type { PolicyWorkspace, WorkspaceValidationResult } from "../../../src/workspace.js";
 import type { BaselineTemplatePlatform, BaselineTemplateShape, BaselineTemplateTier } from "../../../src/baseline-templates.js";
+import type { JsonRecord } from "../../../src/utils/json-guards.js";
 import type { BaselineExpertApplyRuleset } from "./baseline-template-client.js";
 import type { RulesetImportReport } from "./ruleset-import.js";
 export type { RulesetImportReport } from "./ruleset-import.js";
 
-export type JsonRecord = Record<string, unknown>;
+export type { JsonRecord };
 
 export interface AppState {
   bundle: RelutionTemplateBundle;
@@ -18,6 +19,8 @@ export interface AppState {
   validation: WorkspaceValidationResult;
   outputFile: string;
   keySet: boolean;
+  keyValidated: boolean;
+  keyValidationReason?: string;
   appleCompat: AppleCompatReport;
   appleSchema: AppleSchemaCatalog;
   sidecar: EditorSidecarState;
@@ -39,6 +42,8 @@ export interface WorkspaceResponse {
   workspace: PolicyWorkspace;
   validation: WorkspaceValidationResult;
   keySet?: boolean;
+  keyValidated?: boolean;
+  keyValidationReason?: string;
   sidecar?: EditorSidecarState;
 }
 
@@ -51,6 +56,10 @@ export type AddSelection =
 export type AddGroup = "all" | AddSelection["kind"];
 
 export type InspectorTab = "validation" | "preview" | "json" | "sidecar";
+
+export type EditorActionResult =
+  | { readonly ok: true }
+  | { readonly ok: false; readonly error: string };
 
 export interface EditorController {
   state: AppState;
@@ -65,6 +74,7 @@ export interface EditorController {
   newPolicyName: string;
   keyValue: string;
   status: string;
+  lastActionResult: EditorActionResult | undefined;
   isDirty: boolean;
   isBuildLoading: boolean;
   hasFreshBuild: boolean;

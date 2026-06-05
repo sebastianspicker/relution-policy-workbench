@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { lstatSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -53,6 +53,65 @@ test("sidecar I/O rejects a symlinked workspace root", () => {
   assert.equal(lstatSync(workspaceLink).isSymbolicLink(), true);
   assert.throws(() => loadEditorSidecar(workspaceLink), /sidecar path must not use symlinks/u);
   assert.throws(() => saveEditorSidecar(workspaceLink, EMPTY_SIDECAR), /sidecar path must not use symlinks/u);
+});
+
+test("sidecar I/O rejects malformed persisted sidecar state", () => {
+  const scenarios: Array<{ name: string; sidecar: unknown; expected: RegExp }> = [
+    {
+      name: "wrong-version",
+      sidecar: { version: 0, mobileConfigRestore: [], ddmArtifacts: [], mdmCommandArtifacts: [], customManifests: [] },
+      expected: /expected version 1 sidecar object/u,
+    },
+    {
+      name: "missing-array",
+      sidecar: { version: 1, mobileConfigRestore: [], ddmArtifacts: [], mdmCommandArtifacts: [] },
+      expected: /expected customManifests array/u,
+    },
+    {
+      name: "invalid-artifact",
+      sidecar: { version: 1, mobileConfigRestore: [], ddmArtifacts: [{ uuid: 42 }], mdmCommandArtifacts: [], customManifests: [] },
+      expected: /invalid ddmArtifacts\[0\]/u,
+    },
+  ];
+
+  for (const scenario of scenarios) {
+    const root = mkdtempSync(join(tmpdir(), `relution-sidecar-malformed-${scenario.name}-`));
+    const workspace = join(root, "workspace");
+    mkdirSync(workspace, { recursive: true });
+    writeFileSync(join(workspace, "editor-sidecar.json"), `${JSON.stringify(scenario.sidecar, null, 2)}\n`);
+
+    assert.throws(() => loadEditorSidecar(workspace), scenario.expected, scenario.name);
+  }
+});
+
+test("GET state surfaces malformed sidecar state without overwriting it", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-sidecar-state-malformed-"));
+  const workspace = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "Malformed sidecar state",
+    serverVersion: bundle.serverVersion,
+  });
+  const sidecarPath = join(workspace, "editor-sidecar.json");
+  const malformedSidecar = `${JSON.stringify({
+    version: 1,
+    mobileConfigRestore: [{ policyPath: "policies/policy_TEST.json", configuration: {}, configurationUuid: 42 }],
+    ddmArtifacts: [],
+    mdmCommandArtifacts: [],
+    customManifests: [],
+  }, null, 2)}\n`;
+  writeFileSync(sidecarPath, malformedSidecar);
+
+  await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: 0 }, async (handle) => {
+    const response = await fetch(new URL("api/state", handle.url));
+    assert.equal(response.status, 500);
+    assert.match(await response.text(), /Malformed editor-sidecar\.json: invalid mobileConfigRestore\[0\]/u);
+  });
+
+  assert.equal(readFileSync(sidecarPath, "utf8"), malformedSidecar);
 });
 
 test("editor mutation endpoints return 400 for malformed client requests", async () => {
@@ -137,6 +196,16 @@ test("network editor mode requires the fragment capability token for API request
     });
     assert.equal(blocked.status, 403);
     assert.match(blocked.body, /editor token/u);
+
+    const wrongSameLengthToken = token?.replace(/./gu, (char) => (char === "x" ? "y" : "x")) ?? "";
+    const wrongToken = await postJsonWithHost(handle.url, {
+      host: "attacker.example.test",
+      origin: "http://attacker.example.test",
+      token: wrongSameLengthToken,
+      body: { key: "wrong-token" },
+    });
+    assert.equal(wrongToken.status, 403);
+    assert.match(wrongToken.body, /editor token/u);
 
     const allowed = await postJsonWithHost(handle.url, {
       host: "attacker.example.test",
@@ -253,6 +322,47 @@ test("editor JSON body reader rejects excessively deep JSON before parsing", asy
   }
 });
 
+test("editor JSON body reader counts only direct array items", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-json-array-items-"));
+  const workspace = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "JSON array item guard",
+    serverVersion: bundle.serverVersion,
+  });
+
+  const handle = await startEditorServer({
+    workspace,
+    key: "",
+    out,
+    host: "127.0.0.1",
+    port: 0,
+  });
+
+  try {
+    const manyObjectFields = objectWithProperties(6_000);
+    const accepted = await postRawWithHost(new URL("api/key", handle.url), {
+      host: "127.0.0.1",
+      origin: "http://127.0.0.1",
+      body: `{"key":"array-object-commas","items":[${manyObjectFields},${manyObjectFields}]}`,
+    });
+    assert.equal(accepted.status, 200);
+
+    const rejected = await postRawWithHost(new URL("api/key", handle.url), {
+      host: "127.0.0.1",
+      origin: "http://127.0.0.1",
+      body: `{"key":"too-many-items","items":[${Array.from({ length: 10_001 }, () => "0").join(",")}]}`,
+    });
+    assert.equal(rejected.status, 413);
+    assert.match(rejected.body, /JSON array exceeds 10000 items/u);
+  } finally {
+    await handle.close();
+  }
+});
+
 test("editor server closes gracefully and releases its port", async () => {
   const root = mkdtempSync(join(tmpdir(), "relution-editor-close-"));
   const workspace = join(root, "workspace");
@@ -275,6 +385,39 @@ test("editor server closes gracefully and releases its port", async () => {
   assert.equal(Number.isSafeInteger(releasedPort) && releasedPort > 0, true, "server should expose a real port");
   await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: releasedPort }, async (handle) => {
     assert.equal(Number(new URL(handle.url).port), releasedPort, "closed server port should be reusable");
+  });
+});
+
+test("workspace save double-fault reports rollback failures and leaves the server responsive", async () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-workspace-double-fault-"));
+  const workspace = join(root, "workspace");
+  const out = join(root, "output.rexp");
+  const bundle = loadTemplateBundle();
+  const initialWorkspace = createNewWorkspace({
+    workspace,
+    platform: "IOS",
+    name: "Rollback double fault",
+    serverVersion: bundle.serverVersion,
+  });
+  saveEditorSidecar(workspace, EMPTY_SIDECAR);
+
+  const nextWorkspace = structuredClone(initialWorkspace);
+  nextWorkspace.policies[0]!.document.name = "Rollback double fault mutated";
+
+  await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: 0 }, async (handle) => {
+    chmodSync(workspace, 0o500);
+    try {
+      const failed = await postJson(new URL("api/workspace", handle.url), { workspace: nextWorkspace });
+      const failedBody = await failed.text();
+      assert.equal(failed.status, 500);
+      assert.match(failedBody, /workspace rollback failed/u);
+      assert.match(failedBody, /sidecar rollback failed/u);
+    } finally {
+      chmodSync(workspace, 0o700);
+    }
+
+    const state = await fetch(new URL("api/state", handle.url));
+    assert.equal(state.status, 200, await state.text());
   });
 });
 
@@ -314,6 +457,10 @@ function getWithHost(url: URL, host: string): Promise<{ status: number; body: st
   });
 }
 
+function objectWithProperties(count: number): string {
+  return `{${Array.from({ length: count }, (_, index) => `"p${String(index)}":${String(index)}`).join(",")}}`;
+}
+
 function postJsonWithHost(
   baseUrl: string,
   options: { host: string; origin: string; token?: string; body: unknown },
@@ -333,7 +480,7 @@ function postJsonWithHost(
           "content-length": Buffer.byteLength(body),
           "host": options.host,
           "origin": options.origin,
-          ...(options.token === undefined ? {} : { "x-relution-editor-token": options.token }),
+          ...(typeof options.token === "undefined" ? {} : { "x-relution-editor-token": options.token }),
         },
       },
       (response) => {

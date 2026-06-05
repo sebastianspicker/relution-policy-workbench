@@ -1,49 +1,33 @@
 import type { ComplianceReport } from "../../../src/compliance.js";
-import type {
-  RecommendationCatalogResponse,
-  RecommendationSource,
-} from "../../../src/recommendation-types.js";
+import type { RecommendationCatalogResponse, RecommendationSource } from "../../../src/recommendation-types.js";
 import type { PolicyWorkspace, WorkspacePolicy, WorkspaceValidationResult } from "../../../src/workspace.js";
-import {
-  addConfigurationLabel,
-  asRecord,
-  cloneWorkspace,
-  fileToBase64,
-  firstConfigurationSelection,
-  isEditorSidecarState,
-  parseAddSelection,
-  postJson,
-  readJsonResponse,
-  versionRecord,
-} from "./editor-utils.js";
+import { addConfigurationLabel, asRecord, cloneWorkspace, fileToBase64, firstConfigurationSelection, isEditorSidecarState, parseAddSelection, postJson, readJsonResponse, versionRecord } from "./editor-utils.js";
 import type { AddPolicyResponse, AppState, JsonRecord, Selection, WorkspaceResponse } from "./types.js";
 import { mergeSettingDetails, parseSettingDetailsJson } from "./json-template-import.js";
 import { importRulesetWorkspace } from "./ruleset-import.js";
 import { duplicatePolicy, recordPolicyInReport, removePolicyFromReport, updateReportPolicyName } from "./workspace-mutations.js";
 import { ALL_RECOMMENDATION_PLATFORMS, filterActionableRecommendationRuleset, policyPlatform, preferredRecommendationPlatform } from "./recommendation-platform.js";
-import { clearWorkspaceHistory, createWorkspaceHistoryActions, pushUndoState } from "./workspace-history.js";
-import { createBaselineTemplateApplyActions } from "./baseline-template-client.js";
-import type { UseEditorControllerActionsInput, EditorControllerActions } from "./useEditorControllerActionTypes.js";
+import { clearWorkspaceHistory, pushUndoState, WORKSPACE_HISTORY_LIMIT } from "./workspace-history.js";
+import { baselineTemplateImportName, fetchBaselineTemplateRuleset, type BaselineExpertApplyRuleset, type BaselineTemplateClientSelection } from "./baseline-template-client.js";
+import type { EditorControllerActions, UseEditorControllerActionsInput, WorkspaceHistoryEntry } from "./useEditorControllerActionTypes.js";
+import { importedKeyState, keyResponseState, keyStatusMessage, type KeyUpdateResponse } from "./key-validation.js";
+import { parseArtifactValuesJson, postAddConfiguration, postSidecarActionRequest } from "./useEditorControllerActionRequests.js";
 
 export function useEditorControllerActions(input: UseEditorControllerActionsInput): EditorControllerActions {
   const {
     currentState, isDirty, selection, policy, configuration, details, canonicalRawJson, rawJson,
-    selectedType, newPolicyPlatform, newPolicyName, keyValue, importFile, jsonTemplateFile, rulesetFile,
-    recommendationCatalog, recommendationSummary, recommendationIndex, recommendationSource, recommendationPlatform,
-    complianceSources, complianceReport, ddmSchemaId, mdmCommandSchemaId, undoStack, redoStack,
-    setState, setSelection, setRawJsonState, setRawJsonDirty, setSelectedType, setNewPolicyName, setStatus,
-    setIsDirty, setHasFreshBuild, setUndoStack, setRedoStack, setRulesetReport, setInspectorTab, setSelectedRecommendationId,
-    setRecommendationSourceState, setRecommendationPlatform, setRecommendationQuery, setComplianceSources,
-    setComplianceReport, setComplianceLoading, setComplianceError, setIsBuildLoading,
-  } = input;
-  const historyInput = { currentState, isDirty, selection, undoStack, redoStack, setState, setSelection, setIsDirty, setHasFreshBuild, setStatus, setUndoStack, setRedoStack };
-  const workspaceHistoryActions = createWorkspaceHistoryActions(historyInput);
-  const baselineApplyActions = createBaselineTemplateApplyActions({
-    currentWorkspaceHasContent: currentState.workspace.policies.length > 0,
-    isDirty,
-    applyRulesetJson,
-    setStatus,
-  });
+    selectedType, newPolicyPlatform, newPolicyName, keyValue, importFile, jsonTemplateFile, rulesetFile, ddmSchemaId, mdmCommandSchemaId,
+  } = input.workspace;
+  const {
+    setState, setSelection, setRawJsonState, setRawJsonDirty, setSelectedType, setNewPolicyName, setStatus, setLastActionResult,
+    setIsDirty, setHasFreshBuild, setRulesetReport, setInspectorTab, setIsBuildLoading,
+  } = input.workspaceSetters;
+  const { undoStack, redoStack, setUndoStack, setRedoStack } = input.history;
+  const { recommendationCatalog, recommendationSummary, recommendationIndex, recommendationSource, recommendationPlatform } = input.recommendations;
+  const { setSelectedRecommendationId, setRecommendationSourceState, setRecommendationPlatform, setRecommendationQuery } = input.recommendationSetters;
+  const { complianceSources, complianceReport } = input.compliance;
+  const { setComplianceSources, setComplianceReport, setComplianceLoading, setComplianceError } = input.complianceSetters;
+  const historyInput = { currentState, isDirty, selection, undoStack, redoStack, setState, setSelection, setIsDirty, setHasFreshBuild, setStatus, setLastActionResult, setUndoStack, setRedoStack };
 
 async function persistWorkspace(nextWorkspace: PolicyWorkspace): Promise<{
   workspace: PolicyWorkspace;
@@ -75,7 +59,7 @@ async function ensureSavedWorkspace(): Promise<PolicyWorkspace> {
     return currentState.workspace;
   }
   const updated = await persistWorkspace(currentState.workspace);
-  setStatus("Saved workspace before server action");
+  setActionSuccessStatus("Saved workspace before server action");
   return updated.workspace;
 }
 
@@ -85,22 +69,89 @@ function markWorkspaceDirty(nextWorkspace: PolicyWorkspace, nextSelection: Selec
   setSelection(nextSelection);
   setIsDirty(true);
   setHasFreshBuild(false);
+  setLastActionResult({ ok: true });
   setStatus(message);
 }
 
 function handleImportError(error: unknown, kind: string): void {
-  setStatus(`${kind} failed: ${error instanceof Error ? error.message : String(error)}`);
+  const message = actionErrorMessage(error);
+  setLastActionResult({ ok: false, error: message });
+  setStatus(`${kind} failed: ${message}`);
 }
-
+function actionErrorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
+function setActionSuccessStatus(message: string): void { setLastActionResult({ ok: true }); setStatus(message); }
+function setActionErrorStatus(message: string): void { setLastActionResult({ ok: false, error: message }); setStatus(message); }
+function currentHistoryEntry(): WorkspaceHistoryEntry { return { workspace: currentState.workspace, selection, isDirty }; }
+function restoreHistoryEntry(entry: WorkspaceHistoryEntry, status: string): void {
+  setState({ ...currentState, workspace: entry.workspace });
+  setSelection(entry.selection);
+  setIsDirty(entry.isDirty);
+  setHasFreshBuild(false);
+  setLastActionResult({ ok: true });
+  setStatus(status);
+}
+function clearWorkspace(): void {
+  if (currentState.workspace.policies.length === 0 && !isDirty) {
+    return;
+  }
+  pushUndoState(historyInput);
+  setState({ ...currentState, workspace: { ...currentState.workspace, report: {}, policies: [] } });
+  setSelection(undefined);
+  setIsDirty(true);
+  setHasFreshBuild(false);
+  setLastActionResult({ ok: true });
+  setStatus("Cleared workspace");
+}
+function undoWorkspace(): void {
+  const previous = undoStack.at(-1);
+  if (previous === undefined) {
+    return;
+  }
+  setUndoStack(undoStack.slice(0, -1));
+  setRedoStack((current) => [...current, currentHistoryEntry()].slice(-WORKSPACE_HISTORY_LIMIT));
+  restoreHistoryEntry(previous, "Restored previous workspace state");
+}
+function redoWorkspace(): void {
+  const next = redoStack.at(-1);
+  if (next === undefined) {
+    return;
+  }
+  setRedoStack(redoStack.slice(0, -1));
+  setUndoStack((current) => [...current, currentHistoryEntry()].slice(-WORKSPACE_HISTORY_LIMIT));
+  restoreHistoryEntry(next, "Reapplied workspace state");
+}
+function confirmReplaceWorkspace(): boolean { return currentState.workspace.policies.length === 0 && !isDirty ? true : window.confirm("Replace the current workspace with this baseline? This does not touch Relution and can be undone before saving."); }
+async function applyBaselineTemplate(template: BaselineTemplateClientSelection): Promise<void> {
+  if (!confirmReplaceWorkspace()) return;
+  await importBaselineRuleset(baselineTemplateImportName(template), fetchBaselineTemplateRuleset(template), "Applied baseline template", "Baseline template import failed");
+}
+async function applyExpertBaselineSelection(ruleset: BaselineExpertApplyRuleset): Promise<void> {
+  if (!ruleset.policies.some((policy) => policy.rules.length > 0)) {
+    setActionErrorStatus("Select at least one expert baseline setting");
+    return;
+  }
+  if (!confirmReplaceWorkspace()) return;
+  await importBaselineRuleset(ruleset.name, ruleset, "Applied expert baseline selection", "Expert baseline import failed");
+}
+async function importBaselineRuleset(name: string, parsed: Promise<unknown> | unknown, success: string, failure: string): Promise<void> {
+  try {
+    if (await applyRulesetJson(name, await parsed) === "applied") setActionSuccessStatus(success);
+  } catch (error) {
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`${failure}: ${message}`);
+  }
+}
 async function saveWorkspace(nextWorkspace = currentState.workspace): Promise<void> {
   try {
     await persistWorkspace(nextWorkspace);
-    setStatus("Saved workspace");
+    setActionSuccessStatus("Saved workspace");
   } catch (error) {
-    setStatus(`Save failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Save failed: ${message}`);
   }
 }
-
 async function addConfiguration(): Promise<void> {
   if (selection === undefined || selectedType.length === 0) {
     return;
@@ -115,7 +166,7 @@ async function addConfiguration(): Promise<void> {
     const response = await postAddConfiguration(addSelection, policyPath, selection.versionIndex);
     const updated = await readJsonResponse<{ workspace: PolicyWorkspace; validation: WorkspaceValidationResult; sidecar?: AppState["sidecar"] }>(response);
     if (!response.ok) {
-      setStatus(`Configuration creation blocked: ${JSON.stringify(updated)}`);
+      setActionErrorStatus(`Configuration creation blocked: ${JSON.stringify(updated)}`);
       return;
     }
     setState({ ...currentState, workspace: updated.workspace, validation: updated.validation, sidecar: updated.sidecar ?? currentState.sidecar });
@@ -125,16 +176,18 @@ async function addConfiguration(): Promise<void> {
     const nextConfigurationCount = Array.isArray(version?.configurations) ? version.configurations.length : 1;
     setSelection({ policyIndex: selection.policyIndex, versionIndex: selection.versionIndex, configurationIndex: nextConfigurationCount - 1 });
     setSelectedType("");
-    setStatus(`Added ${addConfigurationLabel(addSelection)}`);
+    setActionSuccessStatus(`Added ${addConfigurationLabel(addSelection)}`);
   } catch (error) {
-    setStatus(`Configuration creation failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Configuration creation failed: ${message}`);
   }
 }
 
 async function addPolicy(): Promise<void> {
   const name = newPolicyName.trim();
   if (newPolicyPlatform.length === 0 || name.length === 0) {
-    setStatus("Policy name and operating system are required");
+    setActionErrorStatus("Policy name and operating system are required");
     return;
   }
   try {
@@ -142,7 +195,7 @@ async function addPolicy(): Promise<void> {
     const response = await postJson("/api/add-policy", { platform: newPolicyPlatform, name });
     const result = await readJsonResponse<AddPolicyResponse | JsonRecord>(response);
     if (!response.ok) {
-      setStatus(`Policy creation blocked: ${JSON.stringify(result)}`);
+      setActionErrorStatus(`Policy creation blocked: ${JSON.stringify(result)}`);
       return;
     }
     const added = result as AddPolicyResponse;
@@ -154,9 +207,11 @@ async function addPolicy(): Promise<void> {
     setSelection({ policyIndex: nextPolicyIndex, versionIndex: 0 });
     setSelectedType("");
     setNewPolicyName("");
-    setStatus(`Created ${name}`);
+    setActionSuccessStatus(`Created ${name}`);
   } catch (error) {
-    setStatus(`Policy creation failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Policy creation failed: ${message}`);
   }
 }
 
@@ -205,14 +260,16 @@ async function moveConfiguration(targetSelection: Selection, direction: "up" | "
 
 async function buildArchive(): Promise<void> {
   setIsBuildLoading(true);
+  setHasFreshBuild(false);
   try {
     if (isDirty) {
       await persistWorkspace(currentState.workspace);
     }
     const response = await postJson("/api/build", {});
     const result = await readJsonResponse<JsonRecord>(response);
-    if (!response.ok) {
-      setStatus(`Build blocked: ${JSON.stringify(result)}`);
+    const verification = asRecord(result.verification);
+    if (!response.ok || verification?.ok !== true) {
+      setActionErrorStatus(verification !== undefined && verification.ok !== true ? "Build verification failed" : `Build blocked: ${JSON.stringify(result)}`);
       return;
     }
     setState((current) =>
@@ -225,9 +282,11 @@ async function buildArchive(): Promise<void> {
           },
     );
     setHasFreshBuild(true);
-    setStatus(`Built ${String(result.outputFile)}`);
+    setActionSuccessStatus(`Built ${String(result.outputFile)}`);
   } catch (error) {
-    setStatus(`Build failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Build failed: ${message}`);
   } finally {
     setIsBuildLoading(false);
   }
@@ -236,23 +295,23 @@ async function buildArchive(): Promise<void> {
 async function setActiveKey(): Promise<void> {
   const key = keyValue.trim();
   if (key.length === 0) {
-    setStatus("Encryption key is required");
+    setActionErrorStatus("Encryption key is required");
     return;
   }
   const response = await postJson("/api/key", { key });
-  const result = await readJsonResponse<JsonRecord>(response);
+  const result = await readJsonResponse<KeyUpdateResponse>(response);
   if (!response.ok) {
-    setStatus(`Key update blocked: ${JSON.stringify(result)}`);
+    setActionErrorStatus(`Key update blocked: ${JSON.stringify(result)}`);
     return;
   }
-  setState({ ...currentState, keySet: true });
+  setState({ ...currentState, ...keyResponseState(result) });
   setHasFreshBuild(false);
-  setStatus("Key set");
+  setActionSuccessStatus(keyStatusMessage(keyResponseState(result)));
 }
 
 async function importArchive(): Promise<void> {
   if (importFile === undefined) {
-    setStatus("Choose a .rexp file first");
+    setActionErrorStatus("Choose a .rexp file first");
     return;
   }
   if (isDirty && !window.confirm("Importing replaces the current workspace. Continue?")) {
@@ -270,7 +329,7 @@ async function importArchive(): Promise<void> {
     const response = await postJson("/api/import", body);
     const result = await readJsonResponse<WorkspaceResponse | JsonRecord>(response);
     if (!response.ok) {
-      setStatus(`Import blocked: ${JSON.stringify(result)}`);
+      setActionErrorStatus(`Import blocked: ${JSON.stringify(result)}`);
       return;
     }
     const imported = result as WorkspaceResponse;
@@ -278,7 +337,7 @@ async function importArchive(): Promise<void> {
       ...currentState,
       workspace: imported.workspace,
       validation: imported.validation,
-      keySet: imported.keySet ?? currentState.keySet,
+      ...importedKeyState(imported, currentState),
       sidecar: imported.sidecar ?? currentState.sidecar,
     });
     setIsDirty(false);
@@ -286,7 +345,7 @@ async function importArchive(): Promise<void> {
     clearWorkspaceHistory(historyInput);
     setSelection(firstConfigurationSelection(imported.workspace));
     setSelectedType("");
-    setStatus(`Imported ${importFile.name}`);
+    setActionSuccessStatus(`Imported ${importFile.name}`);
   } catch (error) {
     handleImportError(error, "Import");
   }
@@ -294,17 +353,17 @@ async function importArchive(): Promise<void> {
 
 async function importJsonTemplates(): Promise<void> {
   if (selection === undefined || configuration === undefined || details === undefined) {
-    setStatus("Select a configuration before applying JSON");
+    setActionErrorStatus("Select a configuration before applying JSON");
     return;
   }
   if (jsonTemplateFile === undefined) {
-    setStatus("Choose a setting JSON file first");
+    setActionErrorStatus("Choose a setting JSON file first");
     return;
   }
   try {
     const importedDetails = parseSettingDetailsJson(await jsonTemplateFile.text());
     updateSelectedConfiguration({ ...configuration, details: mergeSettingDetails(details, importedDetails) });
-    setStatus(`Applied ${jsonTemplateFile.name} to selected setting`);
+    setActionSuccessStatus(`Applied ${jsonTemplateFile.name} to selected setting`);
     setInspectorTab("validation");
   } catch (error) {
     handleImportError(error, "Setting JSON import");
@@ -313,7 +372,7 @@ async function importJsonTemplates(): Promise<void> {
 
 async function importRuleset(): Promise<void> {
   if (rulesetFile === undefined) {
-    setStatus("Choose a ruleset JSON file first");
+    setActionErrorStatus("Choose a ruleset JSON file first");
     return;
   }
   if (isDirty && !window.confirm("Importing a ruleset replaces the current workspace. Continue?")) {
@@ -329,7 +388,7 @@ async function importRuleset(): Promise<void> {
 
 async function importRecommendationRuleset(): Promise<void> {
   if (recommendationCatalog?.ruleset === undefined) {
-    setStatus(`No bundled ruleset is available for ${recommendationSummary?.label ?? recommendationSource.toUpperCase()}`);
+    setActionErrorStatus(`No bundled ruleset is available for ${recommendationSummary?.label ?? recommendationSource.toUpperCase()}`);
     return;
   }
   if (isDirty && !window.confirm("Importing a ruleset replaces the current workspace. Continue?")) {
@@ -340,7 +399,7 @@ async function importRecommendationRuleset(): Promise<void> {
     : recommendationCatalog.displayToImportPlatform[recommendationPlatform];
   const ruleset = filterActionableRecommendationRuleset(recommendationCatalog.ruleset, importPlatform);
   if (ruleset.policies.length === 0) {
-    setStatus(`No actionable ${recommendationSummary?.label ?? recommendationSource.toUpperCase()} ruleset settings are available for ${recommendationPlatform}`);
+    setActionErrorStatus(`No actionable ${recommendationSummary?.label ?? recommendationSource.toUpperCase()} ruleset settings are available for ${recommendationPlatform}`);
     return;
   }
   try {
@@ -352,7 +411,7 @@ async function importRecommendationRuleset(): Promise<void> {
 
 async function refreshCompliance(): Promise<void> {
   if (selection === undefined) {
-    setStatus("Select a policy before checking compliance");
+    setActionErrorStatus("Select a policy before checking compliance");
     return;
   }
   try {
@@ -368,13 +427,15 @@ async function refreshCompliance(): Promise<void> {
     });
     const result = await readJsonResponse<{ report?: ComplianceReport } & JsonRecord>(response);
     if (!response.ok || result.report === undefined) {
-      setStatus(`Compliance check failed: ${JSON.stringify(result)}`);
+      setActionErrorStatus(`Compliance check failed: ${JSON.stringify(result)}`);
       return;
     }
     setComplianceReport(result.report);
-    setStatus("Checked compliance");
+    setActionSuccessStatus("Checked compliance");
   } catch (error) {
-    setStatus(`Compliance check failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Compliance check failed: ${message}`);
   } finally {
     setComplianceLoading(false);
   }
@@ -382,7 +443,7 @@ async function refreshCompliance(): Promise<void> {
 
 async function applyComplianceRemediation(remediationId: string): Promise<void> {
   if (selection === undefined) {
-    setStatus("Select a policy before applying compliance remediation");
+    setActionErrorStatus("Select a policy before applying compliance remediation");
     return;
   }
   try {
@@ -392,7 +453,12 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
       candidate.remediationOptions.some((option) => option.id === remediationId),
     );
     if (resultToApply === undefined) {
-      setStatus(`Compliance remediation is not available: ${remediationId}`);
+      setActionErrorStatus(`Compliance remediation is not available: ${remediationId}`);
+      return;
+    }
+    const remediationToApply = resultToApply.remediationOptions.find((option) => option.id === remediationId);
+    if (remediationToApply?.available === false) {
+      setActionErrorStatus(`Compliance remediation is unavailable: ${remediationToApply.unavailableReason ?? remediationId}`);
       return;
     }
     const response = await postJson("/api/compliance/apply", {
@@ -413,7 +479,7 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
       report?: ComplianceReport;
     } & JsonRecord>(response);
     if (!response.ok || result.workspace === undefined || result.validation === undefined || result.report === undefined) {
-      setStatus(`Compliance remediation failed: ${JSON.stringify(result)}`);
+      setActionErrorStatus(`Compliance remediation failed: ${JSON.stringify(result)}`);
       return;
     }
     setState({
@@ -426,21 +492,18 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
     setIsDirty(false);
     clearWorkspaceHistory(historyInput);
     setHasFreshBuild(false);
-    setStatus(`Applied compliance remediation ${remediationId}`);
+    setActionSuccessStatus(`Applied compliance remediation ${remediationId}`);
   } catch (error) {
-    setStatus(`Compliance remediation failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Compliance remediation failed: ${message}`);
   } finally {
     setComplianceLoading(false);
   }
 }
 
-async function addDdmArtifact(): Promise<void> {
-  await postSidecarAction("/api/ddm/artifact", { schemaId: ddmSchemaId }, "Added offline DDM artifact");
-}
-
-async function addMdmCommandArtifact(): Promise<void> {
-  await postSidecarAction("/api/mdm-command/artifact", { schemaId: mdmCommandSchemaId }, "Added offline MDM command draft");
-}
+async function addDdmArtifact(): Promise<void> { await postSidecarAction("/api/ddm/artifact", { schemaId: ddmSchemaId }, "Added offline DDM artifact"); }
+async function addMdmCommandArtifact(): Promise<void> { await postSidecarAction("/api/mdm-command/artifact", { schemaId: mdmCommandSchemaId }, "Added offline MDM command draft"); }
 
 async function reconcileSidecar(): Promise<void> {
   try {
@@ -448,33 +511,24 @@ async function reconcileSidecar(): Promise<void> {
     const response = await postJson("/api/roundtrip/reconcile", {});
     const result = await readJsonResponse<{ workspace?: PolicyWorkspace; validation?: WorkspaceValidationResult; sidecar?: unknown } & JsonRecord>(response);
     if (!response.ok || result.workspace === undefined || result.validation === undefined || !isEditorSidecarState(result.sidecar)) {
-      setStatus(`Sidecar reconcile blocked: ${JSON.stringify(result)}`);
+      setActionErrorStatus(`Sidecar reconcile blocked: ${JSON.stringify(result)}`);
       return;
     }
     setState({ ...currentState, workspace: result.workspace, validation: result.validation, sidecar: result.sidecar });
     setIsDirty(false);
     setHasFreshBuild(false);
-    setStatus("Reconciled sidecar restore snapshots");
+    setActionSuccessStatus("Reconciled sidecar restore snapshots");
   } catch (error) {
-    setStatus(`Sidecar reconcile failed: ${error instanceof Error ? error.message : String(error)}`);
+    const message = actionErrorMessage(error);
+    setLastActionResult({ ok: false, error: message });
+    setStatus(`Sidecar reconcile failed: ${message}`);
   }
 }
 
-async function removeDdmArtifact(uuid: string): Promise<void> {
-  await postSidecarAction("/api/ddm/artifact/remove", { uuid }, "Removed DDM artifact");
-}
-
-async function removeMdmCommandArtifact(uuid: string): Promise<void> {
-  await postSidecarAction("/api/mdm-command/artifact/remove", { uuid }, "Removed MDM command draft");
-}
-
-async function updateDdmArtifact(uuid: string, valuesJson: string): Promise<void> {
-  await postArtifactUpdate("/api/ddm/artifact/update", uuid, valuesJson, "Updated DDM artifact");
-}
-
-async function updateMdmCommandArtifact(uuid: string, valuesJson: string): Promise<void> {
-  await postArtifactUpdate("/api/mdm-command/artifact/update", uuid, valuesJson, "Updated MDM command draft");
-}
+async function removeDdmArtifact(uuid: string): Promise<void> { await postSidecarAction("/api/ddm/artifact/remove", { uuid }, "Removed DDM artifact"); }
+async function removeMdmCommandArtifact(uuid: string): Promise<void> { await postSidecarAction("/api/mdm-command/artifact/remove", { uuid }, "Removed MDM command draft"); }
+async function updateDdmArtifact(uuid: string, valuesJson: string): Promise<void> { await postArtifactUpdate("/api/ddm/artifact/update", uuid, valuesJson, "Updated DDM artifact"); }
+async function updateMdmCommandArtifact(uuid: string, valuesJson: string): Promise<void> { await postArtifactUpdate("/api/mdm-command/artifact/update", uuid, valuesJson, "Updated MDM command draft"); }
 
 function renameSelectedPolicy(name: string): void {
   updateSelectedPolicy((policyToUpdate) => {
@@ -532,22 +586,23 @@ function updateSelectedConfiguration(nextConfiguration: JsonRecord): void {
 
 function applyRawJson(): void {
   if (selection === undefined || selection.configurationIndex === undefined || configuration === undefined) {
-    setStatus("Select a configuration before applying raw JSON");
+    setActionErrorStatus("Select a configuration before applying raw JSON");
     return;
   }
   try {
     const parsed = JSON.parse(rawJson) as unknown;
     const nextConfiguration = asRecord(parsed);
     if (nextConfiguration === undefined) {
-      setStatus("Raw JSON must be an object");
+      setActionErrorStatus("Raw JSON must be an object");
       return;
     }
     updateSelectedConfiguration(nextConfiguration);
     setRawJsonState(JSON.stringify(nextConfiguration, null, 2));
     setRawJsonDirty(false);
-    setStatus("Applied raw JSON");
+    setActionSuccessStatus("Applied raw JSON");
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error));
+    const message = actionErrorMessage(error);
+    setActionErrorStatus(message);
   }
 }
 
@@ -560,20 +615,19 @@ function resetRawJson(): void {
   setRawJsonState(canonicalRawJson);
   setRawJsonDirty(false);
 }
-
-async function applyRulesetJson(name: string, parsed: unknown): Promise<void> {
+async function applyRulesetJson(name: string, parsed: unknown): Promise<"applied" | "blocked"> {
   const result = importRulesetWorkspace(parsed, currentState.bundle, currentState.appleSchema);
   setRulesetReport(result.report);
   setInspectorTab("validation");
   if (result.workspace === undefined) {
-    setStatus(`Ruleset import blocked: ${result.report.conflicts.length} conflict(s), ${result.report.unresolved.length} unresolved rule(s)`);
-    return;
+    setActionErrorStatus(`Ruleset import blocked: ${result.report.conflicts.length} conflict(s), ${result.report.unresolved.length} unresolved rule(s)`);
+    return "blocked";
   }
   const response = await postJson("/api/workspace/validate", { workspace: result.workspace });
   const validated = await readJsonResponse<{ validation: WorkspaceValidationResult }>(response);
   if (!response.ok || !validated.validation.ok) {
-    setStatus(`Ruleset validation blocked: ${JSON.stringify(validated)}`);
-    return;
+    setActionErrorStatus(`Ruleset validation blocked: ${JSON.stringify(validated)}`);
+    return "blocked";
   }
   pushUndoState(historyInput);
   setState({
@@ -594,7 +648,8 @@ async function applyRulesetJson(name: string, parsed: unknown): Promise<void> {
   setSelectedRecommendationId(undefined);
   setIsDirty(true);
   setHasFreshBuild(false);
-  setStatus(`Imported ruleset ${name}`);
+  setActionSuccessStatus(`Imported ruleset ${name}`);
+  return "applied";
 }
 
 function setRecommendationSource(value: RecommendationSource): void {
@@ -615,54 +670,20 @@ function toggleComplianceSource(value: RecommendationSource): void {
   });
 }
 
-async function postAddConfiguration(
-  addSelection: ReturnType<typeof parseAddSelection>,
-  policyPath: string,
-  versionIndex: number,
-): Promise<Response> {
-  if (addSelection.kind === "apple-compat") {
-    return await postJson("/api/apple-compat/add", { policyPath, versionIndex, settingId: addSelection.value });
-  }
-  if (addSelection.kind === "apple-profile") {
-    return await postJson("/api/apple-profile/add", { policyPath, versionIndex, schemaId: addSelection.value });
-  }
-  if (addSelection.kind === "custom-settings") {
-    return await postJson("/api/custom-settings/add", {
-      policyPath,
-      versionIndex,
-      domain: "com.example.app",
-      settings: {},
-      displayName: "Application & Custom Settings",
-    });
-  }
-  return await postJson("/api/add-configuration", { policyPath, versionIndex, type: addSelection.value });
-}
-
 async function postSidecarAction(url: string, body: JsonRecord, success: string): Promise<void> {
-  if (Object.values(body).some((value) => typeof value === "string" && value.length === 0)) {
-    return;
+  try {
+    setState({ ...currentState, sidecar: await postSidecarActionRequest(url, body, success) });
+    setActionSuccessStatus(success);
+  } catch (error) {
+    setActionErrorStatus(actionErrorMessage(error));
   }
-  const response = await postJson(url, body);
-  const result = await readJsonResponse<{ sidecar?: unknown } & JsonRecord>(response);
-  if (!response.ok || !isEditorSidecarState(result.sidecar)) {
-    setStatus(`${success} blocked: ${JSON.stringify(result)}`);
-    return;
-  }
-  setState({ ...currentState, sidecar: result.sidecar });
-  setStatus(success);
 }
-
 async function postArtifactUpdate(url: string, uuid: string, valuesJson: string, success: string): Promise<void> {
   try {
-    const parsed = JSON.parse(valuesJson.length === 0 ? "{}" : valuesJson) as unknown;
-    const values = asRecord(parsed);
-    if (values === undefined) {
-      setStatus("Artifact values JSON must be an object");
-      return;
-    }
-    await postSidecarAction(url, { uuid, values }, success);
+    await postSidecarAction(url, { uuid, values: parseArtifactValuesJson(valuesJson) }, success);
   } catch (error) {
-    setStatus(error instanceof Error ? error.message : String(error));
+    const message = actionErrorMessage(error);
+    setActionErrorStatus(message);
   }
 }
 
@@ -680,37 +701,12 @@ function updateSelectedPolicy(change: (policyToUpdate: WorkspacePolicy) => void,
 }
 
   return {
-    setRawJson,
-    resetRawJson,
-    setRecommendationSource,
-    toggleComplianceSource,
-    saveWorkspace,
-    addConfiguration,
-    addPolicy,
-    removeConfiguration,
-    moveConfiguration,
-    buildArchive,
-    setActiveKey,
-    importArchive,
-    importJsonTemplates,
-    importRuleset,
-    importRecommendationRuleset,
-    refreshCompliance,
-    applyComplianceRemediation,
-    addDdmArtifact,
-    addMdmCommandArtifact,
-    reconcileSidecar,
-    removeDdmArtifact,
-    removeMdmCommandArtifact,
-    updateDdmArtifact,
-    updateMdmCommandArtifact,
-    renameSelectedPolicy,
-    updateSelectedPolicyDescription,
-    duplicateSelectedPolicy,
-    deleteSelectedPolicy,
-    ...workspaceHistoryActions,
-    ...baselineApplyActions,
-    updateSelectedConfiguration,
-    applyRawJson,
+    setRawJson, resetRawJson, setRecommendationSource, toggleComplianceSource, saveWorkspace, addConfiguration,
+    addPolicy, removeConfiguration, moveConfiguration, buildArchive, setActiveKey, importArchive, importJsonTemplates,
+    importRuleset, importRecommendationRuleset, refreshCompliance, applyComplianceRemediation, addDdmArtifact,
+    addMdmCommandArtifact, reconcileSidecar, removeDdmArtifact, removeMdmCommandArtifact, updateDdmArtifact,
+    updateMdmCommandArtifact, renameSelectedPolicy, updateSelectedPolicyDescription, duplicateSelectedPolicy,
+    deleteSelectedPolicy, clearWorkspace, undoWorkspace, redoWorkspace, applyBaselineTemplate,
+    applyExpertBaselineSelection, updateSelectedConfiguration, applyRawJson,
   };
 }

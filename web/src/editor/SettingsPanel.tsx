@@ -3,6 +3,7 @@ import { JsonTemplateImportControl } from "./JsonTemplateImportControl.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import type { CorporateTheme } from "./theme.js";
 import type { EditorController } from "./types.js";
+import { keyBadgeState } from "./key-validation.js";
 
 export function SettingsPanel(props: {
   readonly controller: EditorController;
@@ -13,6 +14,7 @@ export function SettingsPanel(props: {
   const [rexpFileName, setRexpFileName] = useState<string>();
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const shortcuts = shortcutLabels();
+  const keyBadge = keyBadgeState(c.state);
 
   return (
     <div className="settings-panel">
@@ -30,8 +32,8 @@ export function SettingsPanel(props: {
           <h3>Encryption</h3>
           <p className="settings-hint">Required to build or import encrypted archives.</p>
           <div className="settings-field-row">
-            <span className={c.state.keySet ? "settings-key-badge" : "settings-key-badge settings-key-badge--warn"}>
-              {c.state.keySet ? "Key set" : "No key"}
+            <span className={keyBadge.warn ? "settings-key-badge settings-key-badge--warn" : "settings-key-badge"}>
+              {keyBadge.label}
             </span>
             <input
               className="key-input"

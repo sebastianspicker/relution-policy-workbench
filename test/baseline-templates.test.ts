@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
-import { loadBaselineExpertOptions } from "../src/baseline-templates.js";
+import { listBaselineTemplateOptions, loadBaselineExpertOptions, loadBaselineTemplate } from "../src/baseline-templates.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
 
@@ -178,38 +179,7 @@ test("tiered baseline templates expose three monotonic security tiers per OS", (
   for (const platform of PLATFORMS) {
     const tierTargets = new Map<number, string[]>();
     for (const tier of TIERS) {
-      const fullEntry = index.tieredConsolidatedTemplates.find((entry) => entry.platform === platform && entry.tier === tier);
-      const bundleEntry = index.tieredModularBundleTemplates.find((entry) => entry.platform === platform && entry.tier === tier);
-      const moduleEntries = index.tieredModularTemplates.filter((entry) => entry.platform === platform && entry.tier === tier);
-      assert.notEqual(fullEntry, undefined, `${platform}:tier-${tier}:full`);
-      assert.notEqual(bundleEntry, undefined, `${platform}:tier-${tier}:bundle`);
-      assert.equal(existsSync(resolve(fullEntry?.path ?? "")), true, fullEntry?.path);
-      assert.equal(existsSync(resolve(bundleEntry?.path ?? "")), true, bundleEntry?.path);
-      assert.equal(fullEntry?.policyCount, 1, `${platform}:tier-${tier}:full policy count`);
-      assert.equal((fullEntry?.actionableRuleCount ?? 0) > 0, true, `${platform}:tier-${tier}:actionable`);
-      assert.equal(bundleEntry?.policyCount, moduleEntries.length, `${platform}:tier-${tier}:module count`);
-      assert.equal(
-        moduleEntries.every(
-          (entry) =>
-            entry.policyCount === 1 &&
-            entry.actionableRuleCount > 0 &&
-            entry.module !== undefined &&
-            entry.tierLabel !== undefined &&
-            entry.securityLevel !== undefined &&
-            entry.tierSourcePolicy === "bsi-cis-vendor" &&
-            entry.tierCoverage !== undefined &&
-            existsSync(resolve(entry.path)),
-        ),
-        true,
-        `${platform}:tier-${tier}:modules`,
-      );
-
-      const fullTemplate = readJson<BaselineTemplate>(fullEntry?.path ?? "");
-      assert.equal(fullTemplate.baselineTemplate.kind, "tiered-consolidated-platform");
-      assert.equal(fullTemplate.baselineTemplate.tier, tier);
-      assert.equal(fullTemplate.baselineTemplate.tierSourcePolicy, "bsi-cis-vendor");
-      assert.equal(fullTemplate.baselineTemplate.tierCoverage !== undefined, true);
-      tierTargets.set(tier, sortedActionableTargets(fullTemplate));
+      tierTargets.set(tier, assertTieredTemplateEntries(index, platform, tier));
     }
 
     assert.equal(isSubset(tierTargets.get(3) ?? [], tierTargets.get(2) ?? []), true, `${platform}:tier-3 subset tier-2`);
@@ -230,6 +200,25 @@ test("baseline templates are valid ruleset imports for the current editor import
     assert.equal(result.report.unresolved.length, 0, entry.path);
     assert.notEqual(result.workspace, undefined, entry.path);
     assert.equal(template.policies.every((policy) => policy.platform === entry.platform), true, entry.path);
+  }
+});
+
+test("baseline template loaders resolve bundled artifacts outside the process cwd", () => {
+  const originalCwd = process.cwd();
+  const foreignCwd = mkdtempSync(join(tmpdir(), "relution-baseline-cwd-"));
+
+  try {
+    process.chdir(foreignCwd);
+    const options = listBaselineTemplateOptions();
+    const template = loadBaselineTemplate({ platform: "IOS", tier: 3, shape: "modules" }) as { policies?: unknown[] };
+    const expert = loadBaselineExpertOptions({ platform: "IOS", shape: "modules" });
+
+    assert.equal(options.options.some((entry) => entry.platform === "IOS" && entry.tier === 3 && entry.shape === "modules"), true);
+    assert.equal((template.policies ?? []).length > 0, true);
+    assert.equal(expert.platform, "IOS");
+    assert.equal(expert.settings.length > 0, true);
+  } finally {
+    process.chdir(originalCwd);
   }
 });
 
@@ -332,30 +321,8 @@ test("modular baseline templates split each OS into non-conflicting policy block
 test("consolidated baseline templates preserve BSI precedence and suppress lower-priority conflicts", () => {
   for (const platform of PLATFORMS) {
     const template = readJson<BaselineTemplate>(`example/relution-baseline-templates/consolidated/${platform.toLowerCase().replaceAll("_", "-")}-full.json`);
-    const consolidation = template.consolidation;
-
-    assert.notEqual(consolidation, undefined, platform);
-    assert.deepEqual(consolidation?.sources, SOURCES);
-    assert.deepEqual(consolidation?.precedence, SOURCES);
-    assert.equal(consolidation?.platform, platform);
-    assert.equal(Object.keys(consolidation?.sourceReferences ?? {}).sort().join(","), [...SOURCES].sort().join(","));
-    for (const source of SOURCES) {
-      const references: SourceReference | undefined = consolidation?.sourceReferences[source];
-      assert.equal(references?.baselinePath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
-      assert.equal(references?.recommendationCatalogPath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
-      assert.equal(references?.rulesetPath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
-      assert.equal(existsSync(resolve(references?.baselinePath ?? "")), true, references?.baselinePath);
-      assert.equal(existsSync(resolve(references?.recommendationCatalogPath ?? "")), true, references?.recommendationCatalogPath);
-      assert.equal(existsSync(resolve(references?.rulesetPath ?? "")), true, references?.rulesetPath);
-    }
-    assert.equal((consolidation?.actionableRuleCounts.bsi ?? 0) > 0, true, platform);
-    assert.equal(
-      template.policies[0]?.rules
-        .filter((rule) => rule.conflict !== undefined)
-        .every((rule) => rule.informational === true && rule.mappings?.length === 0),
-      true,
-      platform,
-    );
+    assertConsolidationSources(template, platform);
+    assertSuppressedConflictsAreInformational(template, platform);
   }
 
   const windows = readJson<BaselineTemplate>("example/relution-baseline-templates/consolidated/windows-full.json");
@@ -380,6 +347,80 @@ test("consolidated baseline templates preserve BSI precedence and suppress lower
     true,
   );
 });
+
+function assertTieredTemplateEntries(index: TemplateIndex, platform: string, tier: number): string[] {
+  const fullEntry = index.tieredConsolidatedTemplates.find((entry) => entry.platform === platform && entry.tier === tier);
+  const bundleEntry = index.tieredModularBundleTemplates.find((entry) => entry.platform === platform && entry.tier === tier);
+  const moduleEntries = index.tieredModularTemplates.filter((entry) => entry.platform === platform && entry.tier === tier);
+  assertTieredEntryShape(fullEntry, bundleEntry, moduleEntries, platform, tier);
+
+  const fullTemplate = readJson<BaselineTemplate>(fullEntry?.path ?? "");
+  assert.equal(fullTemplate.baselineTemplate.kind, "tiered-consolidated-platform");
+  assert.equal(fullTemplate.baselineTemplate.tier, tier);
+  assert.equal(fullTemplate.baselineTemplate.tierSourcePolicy, "bsi-cis-vendor");
+  assert.equal(fullTemplate.baselineTemplate.tierCoverage !== undefined, true);
+  return sortedActionableTargets(fullTemplate);
+}
+
+function assertTieredEntryShape(
+  fullEntry: TemplateIndexEntry | undefined,
+  bundleEntry: TemplateIndexEntry | undefined,
+  moduleEntries: readonly TemplateIndexEntry[],
+  platform: string,
+  tier: number,
+): void {
+  assert.notEqual(fullEntry, undefined, `${platform}:tier-${tier}:full`);
+  assert.notEqual(bundleEntry, undefined, `${platform}:tier-${tier}:bundle`);
+  assert.equal(existsSync(resolve(fullEntry?.path ?? "")), true, fullEntry?.path);
+  assert.equal(existsSync(resolve(bundleEntry?.path ?? "")), true, bundleEntry?.path);
+  assert.equal(fullEntry?.policyCount, 1, `${platform}:tier-${tier}:full policy count`);
+  assert.equal((fullEntry?.actionableRuleCount ?? 0) > 0, true, `${platform}:tier-${tier}:actionable`);
+  assert.equal(bundleEntry?.policyCount, moduleEntries.length, `${platform}:tier-${tier}:module count`);
+  assert.equal(moduleEntries.every((entry) => validTieredModuleEntry(entry)), true, `${platform}:tier-${tier}:modules`);
+}
+
+function validTieredModuleEntry(entry: TemplateIndexEntry): boolean {
+  return entry.policyCount === 1
+    && entry.actionableRuleCount > 0
+    && entry.module !== undefined
+    && entry.tierLabel !== undefined
+    && entry.securityLevel !== undefined
+    && entry.tierSourcePolicy === "bsi-cis-vendor"
+    && entry.tierCoverage !== undefined
+    && existsSync(resolve(entry.path));
+}
+
+function assertConsolidationSources(template: BaselineTemplate, platform: string): void {
+  const consolidation = template.consolidation;
+  assert.notEqual(consolidation, undefined, platform);
+  assert.deepEqual(consolidation?.sources, SOURCES);
+  assert.deepEqual(consolidation?.precedence, SOURCES);
+  assert.equal(consolidation?.platform, platform);
+  assert.equal(Object.keys(consolidation?.sourceReferences ?? {}).sort().join(","), [...SOURCES].sort().join(","));
+  for (const source of SOURCES) {
+    assertSourceReference(consolidation?.sourceReferences[source], platform, source);
+  }
+  assert.equal((consolidation?.actionableRuleCounts.bsi ?? 0) > 0, true, platform);
+}
+
+function assertSourceReference(references: SourceReference | undefined, platform: string, source: string): void {
+  assert.equal(references?.baselinePath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
+  assert.equal(references?.recommendationCatalogPath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
+  assert.equal(references?.rulesetPath.startsWith(`example/${source}-references/`), true, `${platform}:${source}`);
+  assert.equal(existsSync(resolve(references?.baselinePath ?? "")), true, references?.baselinePath);
+  assert.equal(existsSync(resolve(references?.recommendationCatalogPath ?? "")), true, references?.recommendationCatalogPath);
+  assert.equal(existsSync(resolve(references?.rulesetPath ?? "")), true, references?.rulesetPath);
+}
+
+function assertSuppressedConflictsAreInformational(template: BaselineTemplate, platform: string): void {
+  assert.equal(
+    template.policies[0]?.rules
+      .filter((rule) => rule.conflict !== undefined)
+      .every((rule) => rule.informational === true && rule.mappings?.length === 0),
+    true,
+    platform,
+  );
+}
 
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(resolve(path), "utf8")) as T;

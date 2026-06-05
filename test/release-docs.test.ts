@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { createAppleCompatReport, renderAppleCompatReportMarkdown } from "../src/apple-compat-report.js";
@@ -7,14 +8,26 @@ import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { fixture, password } from "./rexp-helpers.js";
 
-function assertCountNearLabel(text: string, labelPattern: string, count: number): void {
+function assertCountNearLabel(text: string, labels: string[], count: number): void {
   const value = String(count);
-  assert.match(text, new RegExp(`${value}[^\\n]*(${labelPattern})|(${labelPattern})[^\\n]*${value}`, "i"));
+  const matchingLine = text.split("\n").find((line) => {
+    const lowerLine = line.toLowerCase();
+    return line.includes(value) && labels.some((label) => lowerLine.includes(label.toLowerCase()));
+  });
+  assert.notEqual(matchingLine, undefined, `Expected ${value} near one of: ${labels.join(", ")}`);
 }
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
-}
+test("assertCountNearLabel accepts a count on the same line as its label", () => {
+  assert.doesNotThrow(() => assertCountNearLabel("Policies: 5", ["Policies"], 5));
+});
+
+test("assertCountNearLabel rejects off-by-one counts", () => {
+  assert.throws(() => assertCountNearLabel("Policies: 5", ["Policies"], 6));
+});
+
+test("assertCountNearLabel does not match counts split onto another line", () => {
+  assert.throws(() => assertCountNearLabel("Policies:\n5", ["Policies"], 5));
+});
 
 test("committed Apple compatibility artifacts match generated output", () => {
   const bundle = loadTemplateBundle();
@@ -33,11 +46,11 @@ test("README factual counts match the bundled data", () => {
   const report = createAppleCompatReport(bundle);
   const audit = createRelutionAuditReport({ bundle, key: password, sampleRexp: fixture });
 
-  assertCountNearLabel(readme, "configuration (?:detail )?templates|configuration types", bundle.configurationTypes.length);
-  assertCountNearLabel(readme, "schemas", Object.keys(bundle.schemas).length);
-  assertCountNearLabel(readme, "mobileconfig-backed gap settings", report.summary.mobileconfigBacked);
-  assertCountNearLabel(readme, "Apple schema entries", catalog.entries.length);
-  assertCountNearLabel(readme, "OpenAPI schemas", audit.summary.schemaCount);
+  assertCountNearLabel(readme, ["configuration templates", "configuration detail templates", "configuration types"], bundle.configurationTypes.length);
+  assertCountNearLabel(readme, ["schemas"], Object.keys(bundle.schemas).length);
+  assertCountNearLabel(readme, ["mobileconfig-backed gap settings"], report.summary.mobileconfigBacked);
+  assertCountNearLabel(readme, ["Apple schema entries"], catalog.entries.length);
+  assertCountNearLabel(readme, ["OpenAPI schemas"], audit.summary.schemaCount);
 });
 
 test("committed audit report matches the generated stable summary", () => {
@@ -53,14 +66,14 @@ test("README, compose defaults, and template bundle agree on the pinned Relution
   const readme = readFileSync("README.md", "utf8");
   const compose = readFileSync("docker-compose.relution-e2e.yml", "utf8");
   const bundle = loadTemplateBundle();
-  const version = escapeRegExp(bundle.serverVersion);
+  const version = bundle.serverVersion;
 
-  assert.match(compose, new RegExp(`RELUTION_DOCKER_IMAGE:-relution/relution:${version}`));
-  assert.match(readme, new RegExp(`Relution Server \`${version}\``));
-  assert.match(readme, new RegExp(`RELUTION_DOCKER_IMAGE=relution/relution:${version}`));
-  assert.match(readme, new RegExp(`--server-version ${version}`));
-  assert.match(readme, new RegExp(`data/relution-${version}/template-bundle\\.json`));
-  assert.match(readme, new RegExp(`data/relution-${version}/audit-report\\.json`));
+  assert.equal(compose.includes(`RELUTION_DOCKER_IMAGE:-relution/relution:${version}`), true);
+  assert.equal(readme.includes(`Relution Server \`${version}\``), true);
+  assert.equal(readme.includes(`RELUTION_DOCKER_IMAGE=relution/relution:${version}`), true);
+  assert.equal(readme.includes(`--server-version ${version}`), true);
+  assert.equal(readme.includes(`data/relution-${version}/template-bundle.json`), true);
+  assert.equal(readme.includes(`data/relution-${version}/audit-report.json`), true);
 });
 
 test("README explains RELUTION_DOCKER_MEMORY as the value passed through to RELUTION_MEMORY", () => {
@@ -76,8 +89,11 @@ test("README documents Apple schema release snapshot refresh semantics", () => {
   assert.match(readme, /--revision <commit-or-tag>/u);
 });
 
-test("package exposes a post-build CLI runner", () => {
-  const packageJson = JSON.parse(readFileSync("package.json", "utf8")) as { scripts?: Record<string, string> };
+test("post-build CLI runner executes the built help command", () => {
+  const output = execFileSync("pnpm", ["rexp:built", "help"], { encoding: "utf8" });
 
-  assert.equal(packageJson.scripts?.["rexp:built"], "node dist/src/cli.js");
+  assert.match(output, /Usage:/u);
+  assert.match(output, /rexp inspect <file\.rexp>/u);
+  assert.match(output, /RELUTION_BASE_URL/u);
+  assert.match(output, /RELUTION_ACCESS_TOKEN/u);
 });

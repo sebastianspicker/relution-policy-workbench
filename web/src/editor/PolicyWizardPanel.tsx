@@ -30,15 +30,12 @@ import {
   toggleSetting,
   type TierCoverage,
 } from "./PolicyWizardPanel.logic.js";
+import { PolicyWizardHeader, WizardModeTabs, type WizardMode } from "./PolicyWizardFrame.js";
+import { TierSelector } from "./PolicyWizardTierSelector.js";
+import type { BaselineExpertApplyRuleset } from "./baseline-template-client.js";
 import type { EditorController } from "./types.js";
 
-type WizardMode = "guided" | "expert";
-
 export function PolicyWizardPanel({ controller: c }: { readonly controller: EditorController }): JSX.Element {
-  const [options, setOptions] = useState<BaselineTemplateOptionsResponse | undefined>();
-  const [expertOptions, setExpertOptions] = useState<BaselineExpertOptionsResponse | undefined>();
-  const [loadError, setLoadError] = useState<string | undefined>();
-  const [expertError, setExpertError] = useState<string | undefined>();
   const [mode, setMode] = useState<WizardMode>("guided");
   const [platform, setPlatform] = useState<BaselineTemplatePlatform>("IOS");
   const [tier, setTier] = useState<BaselineTemplateTier>(3);
@@ -46,7 +43,77 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
   const [selectedSettingIds, setSelectedSettingIds] = useState<readonly string[]>([]);
   const [expertQuery, setExpertQuery] = useState("");
   const [selectedSources, setSelectedSources] = useState<readonly string[]>(RECOMMENDATION_SOURCES.slice());
+  const { loadError, options } = useBaselineTemplateOptions(platform, setPlatform);
+  const { expertError, expertOptions } = useBaselineExpertOptions(platform, shape);
 
+  useEffect(() => {
+    if (expertOptions !== undefined) {
+      setSelectedSettingIds(presetSettingIds(expertOptions.settings, tier, selectedSources));
+    }
+  }, [expertOptions, selectedSources, tier]);
+
+  const availableOptions = options?.options ?? [];
+  const selectedOption = selectedBaselineOption(availableOptions, platform, tier, shape);
+  const platformOptions = options?.platforms ?? [];
+  const tierOptions = useMemo(() => tierOptionsFor(availableOptions, platform, shape), [availableOptions, platform, shape]);
+  const shapeOptions = options?.shapes ?? [];
+
+  useEffect(() => {
+    if (tierOptions.length > 0 && !tierOptions.includes(tier)) {
+      setTier(tierOptions[0] ?? 3);
+    }
+  }, [tier, tierOptions]);
+
+  function chooseTier(nextTier: BaselineTemplateTier): void {
+    setTier(nextTier);
+    if (mode === "expert" && expertOptions !== undefined) {
+      setSelectedSettingIds(presetSettingIds(expertOptions.settings, nextTier, selectedSources));
+    }
+  }
+
+  return (
+    <div className="inspector-content policy-wizard">
+      <PolicyWizardHeader optionsLoaded={options !== undefined} platform={platform} tier={tier} shape={shape} />
+      {loadError !== undefined ? <p className="error">{loadError}</p> : null}
+      {options === undefined && loadError === undefined ? <p className="loading-inline" aria-live="polite">Loading baseline templates...</p> : null}
+      {options !== undefined ? (
+        <PolicyWizardLoaded
+          availableOptions={availableOptions}
+          controller={c}
+          expertError={expertError}
+          expertOptions={expertOptions}
+          expertQuery={expertQuery}
+          mode={mode}
+          platform={platform}
+          platformOptions={platformOptions}
+          selectedOption={selectedOption}
+          selectedSettingIds={selectedSettingIds}
+          selectedSources={selectedSources}
+          shape={shape}
+          shapeOptions={shapeOptions}
+          tier={tier}
+          onExpertQueryChange={setExpertQuery}
+          onModeChange={setMode}
+          onPlatformChange={setPlatform}
+          onSelectedSettingIdsChange={setSelectedSettingIds}
+          onSelectedSourcesChange={setSelectedSources}
+          onShapeChange={setShape}
+          onTierChange={chooseTier}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function useBaselineTemplateOptions(
+  platform: BaselineTemplatePlatform,
+  setPlatform: (platform: BaselineTemplatePlatform) => void,
+): {
+  readonly loadError: string | undefined;
+  readonly options: BaselineTemplateOptionsResponse | undefined;
+} {
+  const [options, setOptions] = useState<BaselineTemplateOptionsResponse | undefined>();
+  const [loadError, setLoadError] = useState<string | undefined>();
   useEffect(() => {
     let cancelled = false;
     void fetch("/api/baseline-templates", { headers: networkEditorAuthHeaders() }).then(async (response) => {
@@ -57,10 +124,7 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
         return;
       }
       setOptions(result);
-      const firstPlatform = result.platforms.includes(platform) ? platform : result.platforms[0];
-      if (firstPlatform !== undefined) {
-        setPlatform(firstPlatform);
-      }
+      selectAvailablePlatform(result, platform, setPlatform);
     }).catch((error: unknown) => {
       if (!cancelled) {
         setLoadError(error instanceof Error ? error.message : String(error));
@@ -70,7 +134,29 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
       cancelled = true;
     };
   }, []);
+  return { loadError, options };
+}
 
+function selectAvailablePlatform(
+  options: BaselineTemplateOptionsResponse,
+  platform: BaselineTemplatePlatform,
+  setPlatform: (platform: BaselineTemplatePlatform) => void,
+): void {
+  const firstPlatform = options.platforms.includes(platform) ? platform : options.platforms[0];
+  if (firstPlatform !== undefined) {
+    setPlatform(firstPlatform);
+  }
+}
+
+function useBaselineExpertOptions(
+  platform: BaselineTemplatePlatform,
+  shape: BaselineTemplateShape,
+): {
+  readonly expertError: string | undefined;
+  readonly expertOptions: BaselineExpertOptionsResponse | undefined;
+} {
+  const [expertOptions, setExpertOptions] = useState<BaselineExpertOptionsResponse | undefined>();
+  const [expertError, setExpertError] = useState<string | undefined>();
   useEffect(() => {
     let cancelled = false;
     setExpertOptions(undefined);
@@ -93,120 +179,110 @@ export function PolicyWizardPanel({ controller: c }: { readonly controller: Edit
       cancelled = true;
     };
   }, [platform, shape]);
+  return { expertError, expertOptions };
+}
 
-  useEffect(() => {
-    if (expertOptions !== undefined) {
-      setSelectedSettingIds(presetSettingIds(expertOptions.settings, tier, selectedSources));
-    }
-  }, [expertOptions, selectedSources, tier]);
+function selectedBaselineOption(
+  options: readonly BaselineTemplateOption[],
+  platform: BaselineTemplatePlatform,
+  tier: BaselineTemplateTier,
+  shape: BaselineTemplateShape,
+): BaselineTemplateOption | undefined {
+  return options.find((candidate) => candidate.platform === platform && candidate.tier === tier && candidate.shape === shape);
+}
 
-  const availableOptions = options?.options ?? [];
-  const selectedOption = availableOptions.find((candidate) =>
-    candidate.platform === platform && candidate.tier === tier && candidate.shape === shape,
-  );
-  const platformOptions = options?.platforms ?? [];
-  const tierOptions = useMemo(
-    () => [...new Set(availableOptions.filter((candidate) => candidate.platform === platform && candidate.shape === shape).map((candidate) => candidate.tier))].sort(),
-    [availableOptions, platform, shape],
-  );
-  const shapeOptions = options?.shapes ?? [];
+function tierOptionsFor(
+  options: readonly BaselineTemplateOption[],
+  platform: BaselineTemplatePlatform,
+  shape: BaselineTemplateShape,
+): BaselineTemplateTier[] {
+  const tiers = options
+    .filter((candidate) => candidate.platform === platform && candidate.shape === shape)
+    .map((candidate) => candidate.tier);
+  return [...new Set(tiers)].sort();
+}
 
-  useEffect(() => {
-    if (tierOptions.length > 0 && !tierOptions.includes(tier)) {
-      setTier(tierOptions[0] ?? 3);
-    }
-  }, [tier, tierOptions]);
-
-  function chooseTier(nextTier: BaselineTemplateTier): void {
-    setTier(nextTier);
-    if (mode === "expert" && expertOptions !== undefined) {
-      setSelectedSettingIds(presetSettingIds(expertOptions.settings, nextTier, selectedSources));
-    }
-  }
-
+function PolicyWizardLoaded(props: {
+  readonly availableOptions: readonly BaselineTemplateOption[];
+  readonly controller: EditorController;
+  readonly expertError: string | undefined;
+  readonly expertOptions: BaselineExpertOptionsResponse | undefined;
+  readonly expertQuery: string;
+  readonly mode: WizardMode;
+  readonly platform: BaselineTemplatePlatform;
+  readonly platformOptions: readonly BaselineTemplatePlatform[];
+  readonly selectedOption: BaselineTemplateOption | undefined;
+  readonly selectedSettingIds: readonly string[];
+  readonly selectedSources: readonly string[];
+  readonly shape: BaselineTemplateShape;
+  readonly shapeOptions: readonly BaselineTemplateShape[];
+  readonly tier: BaselineTemplateTier;
+  readonly onExpertQueryChange: (query: string) => void;
+  readonly onModeChange: (mode: WizardMode) => void;
+  readonly onPlatformChange: (platform: BaselineTemplatePlatform) => void;
+  readonly onSelectedSettingIdsChange: (ids: readonly string[]) => void;
+  readonly onSelectedSourcesChange: (sources: readonly string[]) => void;
+  readonly onShapeChange: (shape: BaselineTemplateShape) => void;
+  readonly onTierChange: (tier: BaselineTemplateTier) => void;
+}): JSX.Element {
   return (
-    <div className="inspector-content policy-wizard">
-      <header className="policy-wizard-header">
+    <>
+      <WizardModeTabs mode={props.mode} onModeChange={props.onModeChange} />
+      <section className="policy-wizard-step" aria-labelledby="wizard-scope-heading">
         <div>
-          <h2>Policy Wizard</h2>
-          <p>Build a local workspace from exact BSI/CIS/vendor baseline templates.</p>
+          <h3 id="wizard-scope-heading">1. Scope</h3>
+          <p>Choose the platform and whether the generated workspace is modular or consolidated.</p>
         </div>
-        {options !== undefined ? (
-          <div className="policy-wizard-current" aria-label="Current wizard selection">
-            <span>{platformLabel(platform)}</span>
-            <span>Tier {tier}</span>
-            <span>{shapeLabel(shape)}</span>
-          </div>
-        ) : null}
-      </header>
-      {loadError !== undefined ? <p className="error">{loadError}</p> : null}
-      {options === undefined && loadError === undefined ? <p className="loading-inline" aria-live="polite">Loading baseline templates...</p> : null}
-      {options !== undefined ? (
-        <>
-          <div className="recommendation-source-switcher" role="tablist" aria-label="Wizard mode">
-            {(["guided", "expert"] as const).map((candidate) => (
-              <button key={candidate} type="button" role="tab" aria-selected={mode === candidate} className={mode === candidate ? "active" : ""} onClick={() => setMode(candidate)}>
-                {candidate === "guided" ? "Guided baseline" : "Expert selection"}
-              </button>
-            ))}
-          </div>
-          <section className="policy-wizard-step" aria-labelledby="wizard-scope-heading">
-            <div>
-              <h3 id="wizard-scope-heading">1. Scope</h3>
-              <p>Choose the platform and whether the generated workspace is modular or consolidated.</p>
-            </div>
-            <WizardControls
-              platform={platform}
-              shape={shape}
-              platformOptions={platformOptions}
-              shapeOptions={shapeOptions}
-              selectedSources={selectedSources}
-              onPlatformChange={setPlatform}
-              onShapeChange={setShape}
-              onSourcesChange={setSelectedSources}
-            />
-          </section>
-          <section className="policy-wizard-step" aria-labelledby="wizard-tier-heading">
-            <div>
-              <h3 id="wizard-tier-heading">2. Security tier</h3>
-              <p>Pick the baseline strength before previewing or selecting individual settings.</p>
-            </div>
-            <TierSelector
-              availableOptions={availableOptions}
-              expertOptions={expertOptions}
-              platform={platform}
-              shape={shape}
-              tier={tier}
-              selectedSources={selectedSources}
-              onTierChange={chooseTier}
-            />
-          </section>
-          {mode === "guided" ? (
-            <GuidedWizard
-              selectedOption={selectedOption}
-              expertOptions={expertOptions}
-              platform={platform}
-              tier={tier}
-              shape={shape}
-              selectedSources={selectedSources}
-              controller={c}
-            />
-          ) : (
-            <ExpertWizard
-              controller={c}
-              expertOptions={expertOptions}
-              error={expertError}
-              query={expertQuery}
-              selectedSettingIds={selectedSettingIds}
-              selectedSources={selectedSources}
-              tier={tier}
-              onQueryChange={setExpertQuery}
-              onSelectedSettingIdsChange={setSelectedSettingIds}
-            />
-          )}
-        </>
-      ) : null}
-    </div>
+        <WizardControls
+          platform={props.platform}
+          shape={props.shape}
+          platformOptions={props.platformOptions}
+          shapeOptions={props.shapeOptions}
+          selectedSources={props.selectedSources}
+          onPlatformChange={props.onPlatformChange}
+          onShapeChange={props.onShapeChange}
+          onSourcesChange={props.onSelectedSourcesChange}
+        />
+      </section>
+      <section className="policy-wizard-step" aria-labelledby="wizard-tier-heading">
+        <div>
+          <h3 id="wizard-tier-heading">2. Security tier</h3>
+          <p>Pick the baseline strength before previewing or selecting individual settings.</p>
+        </div>
+        <TierSelector
+          availableOptions={props.availableOptions}
+          expertOptions={props.expertOptions}
+          platform={props.platform}
+          shape={props.shape}
+          tier={props.tier}
+          selectedSources={props.selectedSources}
+          onTierChange={props.onTierChange}
+        />
+      </section>
+      {props.mode === "guided" ? (
+        <GuidedWizard
+          selectedOption={props.selectedOption}
+          expertOptions={props.expertOptions}
+          platform={props.platform}
+          tier={props.tier}
+          shape={props.shape}
+          selectedSources={props.selectedSources}
+          controller={props.controller}
+        />
+      ) : (
+        <ExpertWizard
+          controller={props.controller}
+          expertOptions={props.expertOptions}
+          error={props.expertError}
+          query={props.expertQuery}
+          selectedSettingIds={props.selectedSettingIds}
+          selectedSources={props.selectedSources}
+          tier={props.tier}
+          onQueryChange={props.onExpertQueryChange}
+          onSelectedSettingIdsChange={props.onSelectedSettingIdsChange}
+        />
+      )}
+    </>
   );
 }
 
@@ -220,6 +296,10 @@ function WizardControls(props: {
   readonly onShapeChange: (shape: BaselineTemplateShape) => void;
   readonly onSourcesChange: (sources: readonly string[]) => void;
 }): JSX.Element {
+  function sourceChange(source: string, checked: boolean): void {
+    props.onSourcesChange(checked ? [...props.selectedSources, source] : props.selectedSources.filter((s) => s !== source));
+  }
+
   return (
     <div className="recommendation-controls policy-wizard-controls">
       <label>
@@ -239,78 +319,11 @@ function WizardControls(props: {
         {RECOMMENDATION_SOURCES.map((source) => (
           <label key={source} className="checkbox-control">
             <input type="checkbox" checked={props.selectedSources.includes(source)}
-              onChange={(e) => props.onSourcesChange(e.target.checked ? [...props.selectedSources, source] : props.selectedSources.filter((s) => s !== source))} />
+              onChange={(event) => sourceChange(source, event.target.checked)} />
             <span>{sourceLabel(source)}</span>
           </label>
         ))}
       </fieldset>
-    </div>
-  );
-}
-
-function TierSelector(props: {
-  readonly availableOptions: readonly BaselineTemplateOption[];
-  readonly expertOptions: BaselineExpertOptionsResponse | undefined;
-  readonly platform: BaselineTemplatePlatform;
-  readonly shape: BaselineTemplateShape;
-  readonly tier: BaselineTemplateTier;
-  readonly selectedSources: readonly string[];
-  readonly onTierChange: (tier: BaselineTemplateTier) => void;
-}): JSX.Element {
-  const allSourcesSelected = props.selectedSources.length === RECOMMENDATION_SOURCES.length;
-  return (
-    <div className="policy-wizard-tier-grid" role="radiogroup" aria-label="Security tier">
-      {[3, 2, 1].map((candidateTier) => {
-        const option = props.availableOptions.find((candidate) =>
-          candidate.platform === props.platform && candidate.tier === candidateTier && candidate.shape === props.shape,
-        );
-        const tierSettings = props.expertOptions?.settings.filter((s) =>
-          s.requiredInTiers.includes(candidateTier as BaselineTemplateTier),
-        ) ?? [];
-        const filteredSettings = tierSettings.filter((s) => settingMatchesSources(s, props.selectedSources, candidateTier as BaselineTemplateTier));
-        const filteredRuleCount = props.expertOptions !== undefined ? filteredSettings.length : undefined;
-        const showFiltered = !allSourcesSelected && filteredRuleCount !== undefined && option !== undefined;
-        const moduleNames = props.expertOptions !== undefined ? moduleNamesForTier(props.expertOptions.settings, candidateTier as BaselineTemplateTier, props.selectedSources) : undefined;
-        const policyCount = moduleNames?.length ?? option?.policyCount ?? 0;
-        return (
-          <button
-            key={candidateTier}
-            type="button"
-            className="policy-wizard-tier"
-            aria-checked={props.tier === candidateTier}
-            role="radio"
-            disabled={option === undefined}
-            onClick={() => props.onTierChange(candidateTier as BaselineTemplateTier)}
-          >
-            <span className="policy-wizard-tier-title">
-              <strong>Tier {candidateTier}</strong>
-              {option !== undefined ? (
-                showFiltered
-                  ? <span>{filteredRuleCount} <span className="policy-wizard-tier-total">/ {option.ruleCount} rules</span></span>
-                  : <span>{option.ruleCount} rules</span>
-              ) : <span>Unavailable</span>}
-            </span>
-            <span>{tierDescription(candidateTier as BaselineTemplateTier)}</span>
-            {option !== undefined ? (
-              <>
-                <small>{option.stakeholderExamples.join(", ")}</small>
-                <span className="policy-wizard-tier-meta">
-                  <span>{policyCount} {policyCount === 1 ? "policy" : "policies"}</span>
-                  <span>{option.actionableRuleCount} actionable</span>
-                  {option.suppressedConflictRuleCount > 0 ? (
-                    <span title="Source rules dropped due to irreconcilable conflicts">{option.suppressedConflictRuleCount} conflicts resolved</span>
-                  ) : null}
-                </span>
-                {moduleNames !== undefined && moduleNames.length > 0 ? (
-                  <span className="policy-wizard-tier-modules" aria-label="Policy modules">
-                    {moduleNames.map((name) => <span key={name} className="policy-wizard-tier-module">{name}</span>)}
-                  </span>
-                ) : null}
-              </>
-            ) : null}
-          </button>
-        );
-      })}
     </div>
   );
 }
@@ -324,22 +337,16 @@ function GuidedWizard(props: {
   readonly selectedSources: readonly string[];
   readonly controller: EditorController;
 }): JSX.Element {
-  const allSourcesSelected = props.selectedSources.length === RECOMMENDATION_SOURCES.length;
   const filteredSettings = props.expertOptions?.settings.filter((s) =>
     s.requiredInTiers.includes(props.tier) && settingMatchesSources(s, props.selectedSources, props.tier),
   );
-  const filteredRuleCount = filteredSettings?.length;
-  const filteredPolicyCount = props.expertOptions !== undefined ? moduleNamesForTier(props.expertOptions.settings, props.tier, props.selectedSources).length : undefined;
-  const sourceLabelText = props.selectedSources.length === 0 ? "No sources" : props.selectedSources.map(sourceLabel).join("+");
-  const summary = props.selectedOption === undefined
-    ? "No baseline ready"
-    : !allSourcesSelected && filteredRuleCount !== undefined
-      ? `${filteredRuleCount} / ${props.selectedOption.ruleCount} rules (${sourceLabelText} filtered), ${filteredPolicyCount ?? 0} policies`
-      : `${props.selectedOption.policyCount} policies, ${props.selectedOption.ruleCount} rules ready`;
+  const filteredPolicyCount = filteredPolicyCountFor(props.expertOptions, props.tier, props.selectedSources);
+  const summary = guidedSummary(props, filteredSettings?.length, filteredPolicyCount);
   const filteredRuleset = props.expertOptions !== undefined && filteredSettings !== undefined
     ? buildExpertRuleset(props.expertOptions, props.tier, new Set(filteredSettings.map((setting) => setting.id)), props.selectedSources)
     : undefined;
-  const disabled = props.selectedOption === undefined || (!allSourcesSelected && (filteredRuleset === undefined || filteredRuleset.policies.length === 0));
+  const allSourcesSelected = sourcesAreUnfiltered(props.selectedSources);
+  const disabled = guidedApplyDisabled(props.selectedOption, allSourcesSelected, filteredRuleset);
   return (
     <section className="policy-wizard-step policy-wizard-review" aria-labelledby="wizard-review-heading">
       <div>
@@ -352,7 +359,7 @@ function GuidedWizard(props: {
             expertOptions={props.expertOptions}
             tier={props.tier}
             selectedSources={props.selectedSources}
-            filteredRuleCount={filteredRuleCount}
+            filteredRuleCount={filteredSettings?.length}
             filteredPolicyCount={filteredPolicyCount}
           />
         : <p className="empty-state">No baseline template exists for this selection.</p>}
@@ -373,6 +380,41 @@ function GuidedWizard(props: {
       />
     </section>
   );
+}
+
+function sourcesAreUnfiltered(selectedSources: readonly string[]): boolean {
+  return selectedSources.length === RECOMMENDATION_SOURCES.length;
+}
+
+function filteredPolicyCountFor(
+  expertOptions: BaselineExpertOptionsResponse | undefined,
+  tier: BaselineTemplateTier,
+  selectedSources: readonly string[],
+): number | undefined {
+  return expertOptions === undefined ? undefined : moduleNamesForTier(expertOptions.settings, tier, selectedSources).length;
+}
+
+function guidedSummary(
+  props: Parameters<typeof GuidedWizard>[0],
+  filteredRuleCount: number | undefined,
+  filteredPolicyCount: number | undefined,
+): string {
+  if (props.selectedOption === undefined) {
+    return "No baseline ready";
+  }
+  if (!sourcesAreUnfiltered(props.selectedSources) && filteredRuleCount !== undefined) {
+    const sourceLabelText = props.selectedSources.length === 0 ? "No sources" : props.selectedSources.map(sourceLabel).join("+");
+    return `${filteredRuleCount} / ${props.selectedOption.ruleCount} rules (${sourceLabelText} filtered), ${filteredPolicyCount ?? 0} policies`;
+  }
+  return `${props.selectedOption.policyCount} policies, ${props.selectedOption.ruleCount} rules ready`;
+}
+
+function guidedApplyDisabled(
+  selectedOption: BaselineTemplateOption | undefined,
+  allSourcesSelected: boolean,
+  filteredRuleset: BaselineExpertApplyRuleset | undefined,
+): boolean {
+  return selectedOption === undefined || (!allSourcesSelected && (filteredRuleset === undefined || filteredRuleset.policies.length === 0));
 }
 
 function ExpertWizard(props: {

@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { tmpdir } from "node:os";
-import yaml from "js-yaml";
-import { createTemplateBundle, type JsonObject, type RuntimeConfigurationTypeMetadata } from "./templates.js";
+import yaml, { load as parseYamlWithSchema } from "js-yaml";
+import { createTemplateBundle, type JsonObject, type RelutionTemplateBundle, type RuntimeConfigurationTypeMetadata } from "./templates.js";
 import { readZip } from "./zip.js";
 
 export interface RefreshTemplatesOptions {
@@ -14,7 +14,7 @@ export interface RefreshTemplatesOptions {
   serverVersion?: string;
 }
 
-export function refreshTemplates(options: RefreshTemplatesOptions): void {
+export function refreshTemplates(options: RefreshTemplatesOptions): RelutionTemplateBundle {
   const source = readSourceJar(options);
   const zipEntries = readZip(source.jar);
   const openApi = readJsonEntry(zipEntries, "BOOT-INF/classes/openapi.json");
@@ -33,7 +33,7 @@ export function refreshTemplates(options: RefreshTemplatesOptions): void {
     runtimeMetadata,
     serverVersion: options.serverVersion ?? source.serverVersion,
     sourceImage: source.image,
-    sourceImageDigest: source.imageDigest,
+    ...(source.imageDigest === undefined ? {} : { sourceImageDigest: source.imageDigest }),
     refreshDiagnostics: {
       runtimeMetadata: {
         source: runtimeMetadata.length > 0 ? "reflected" : "heuristic",
@@ -47,12 +47,13 @@ export function refreshTemplates(options: RefreshTemplatesOptions): void {
 
   mkdirSync(dirname(options.out), { recursive: true });
   writeFileSync(options.out, `${JSON.stringify(bundle, null, 2)}\n`);
+  return bundle;
 }
 
 interface SourceJar {
   jar: Buffer;
   image: string;
-  imageDigest: string;
+  imageDigest?: string;
   serverVersion: string;
 }
 
@@ -63,11 +64,10 @@ interface ZipEntryLike {
 
 function readSourceJar(options: RefreshTemplatesOptions): SourceJar {
   if (options.jar !== undefined) {
-    const serverVersion = options.serverVersion ?? "unknown";
+    const serverVersion = options.serverVersion ?? "unspecified";
     return {
       jar: readFileSync(options.jar),
       image: options.image ?? "local-jar",
-      imageDigest: "unknown",
       serverVersion,
     };
   }
@@ -80,17 +80,17 @@ function readSourceJar(options: RefreshTemplatesOptions): SourceJar {
   return {
     jar,
     image,
-    imageDigest,
+    ...(imageDigest === undefined ? {} : { imageDigest }),
     serverVersion: options.serverVersion ?? versionFromImage(image),
   };
 }
 
-function inspectImageDigest(image: string): string {
+export function inspectImageDigest(image: string): string | undefined {
   try {
     const output = execFileSync("docker", ["image", "inspect", image], { encoding: "utf8", maxBuffer: 1024 * 1024 });
     const parsed = JSON.parse(output) as unknown;
     if (!Array.isArray(parsed)) {
-      return "unknown";
+      return undefined;
     }
     const first = parsed[0] as Record<string, unknown> | undefined;
     const repoDigests = first?.RepoDigests;
@@ -98,15 +98,16 @@ function inspectImageDigest(image: string): string {
       return repoDigests[0];
     }
     const id = first?.Id;
-    return typeof id === "string" ? id : "unknown";
-  } catch {
-    return "unknown";
+    return typeof id === "string" ? id : undefined;
+  } catch (error) {
+    console.warn(`[template-refresh] Could not inspect image digest for ${image}: ${error instanceof Error ? error.message : String(error)}`);
+    return undefined;
   }
 }
 
 function versionFromImage(image: string): string {
   const tag = image.split(":").at(-1);
-  return tag !== undefined && tag !== image ? tag : "unknown";
+  return tag !== undefined && tag !== image ? tag : "unspecified";
 }
 
 function readJsonEntry(entries: ZipEntryLike[], name: string): JsonObject {
@@ -134,7 +135,7 @@ function readYamlEntry(entries: ZipEntryLike[], name: string): unknown {
   if (entry === undefined) {
     return [];
   }
-  return yaml.load(entry.data.toString("utf8"));
+  return parseYamlWithSchema(entry.data.toString("utf8"), { schema: yaml.JSON_SCHEMA });
 }
 
 function reflectRuntimeMetadata(jar: Buffer): RuntimeConfigurationTypeMetadata[] {

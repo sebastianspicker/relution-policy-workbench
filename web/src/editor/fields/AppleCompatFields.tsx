@@ -14,6 +14,7 @@ import {
   keyValueEntries,
   nextHeaderName,
   objectListRows,
+  parseIntegerValue,
   replaceKeyValueEntry,
   textAreaValue,
 } from "../editor-utils.js";
@@ -63,7 +64,12 @@ export function AppleCompatFields(props: {
           value={values[field.id]}
           onChange={(value) => {
             try {
-              const nextValues = { ...values, [field.id]: value };
+              const nextValues = { ...values };
+              if (value === undefined) {
+                delete nextValues[field.id];
+              } else {
+                nextValues[field.id] = value;
+              }
               props.onChange(updateAppleCompatDetails(props.details, props.setting.id, nextValues));
             } catch (error) {
               props.onError(error instanceof Error ? error.message : String(error));
@@ -126,8 +132,25 @@ function AppleCompatFieldInput(props: {
         <input
           type="number"
           step={props.field.kind === "number" ? "any" : "1"}
-          value={Number(props.value ?? 0)}
-          onChange={(event) => props.onChange(Number(event.target.value))}
+          value={props.value === undefined ? "" : String(props.value)}
+          onChange={(event) => {
+            if (event.target.value.length === 0) {
+              props.onChange(undefined);
+              return;
+            }
+            if (props.field.kind === "integer") {
+              const parsed = parseIntegerValue(event.target.value);
+              if (parsed === undefined) {
+                return;
+              }
+              props.onChange(parsed);
+              return;
+            }
+            const parsed = Number(event.target.value);
+            if (Number.isFinite(parsed)) {
+              props.onChange(parsed);
+            }
+          }}
         />
       </div>
     );
@@ -235,8 +258,25 @@ function AppleCompatObjectFieldInput(props: {
         <input
           type="number"
           step={props.field.kind === "number" ? "any" : "1"}
-          value={Number(props.value ?? 0)}
-          onChange={(event) => props.onChange(Number(event.target.value))}
+          value={props.value === undefined ? "" : String(props.value)}
+          onChange={(event) => {
+            if (event.target.value.length === 0) {
+              props.onChange(undefined);
+              return;
+            }
+            if (props.field.kind === "integer") {
+              const parsed = parseIntegerValue(event.target.value);
+              if (parsed === undefined) {
+                return;
+              }
+              props.onChange(parsed);
+              return;
+            }
+            const parsed = Number(event.target.value);
+            if (Number.isFinite(parsed)) {
+              props.onChange(parsed);
+            }
+          }}
         />
       </div>
     );
@@ -321,6 +361,6 @@ function appleCompatFieldFacts(field: AppleCompatField | AppleCompatObjectField)
 }
 
 function shortJson(value: unknown): string {
-  const rendered = typeof value === "string" ? value : JSON.stringify(value);
+  const rendered = value === undefined ? "undefined" : typeof value === "string" ? value : JSON.stringify(value);
   return rendered.length > 80 ? `${rendered.slice(0, 77)}...` : rendered;
 }

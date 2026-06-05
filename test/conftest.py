@@ -1,3 +1,5 @@
+"""Shared pytest cleanup hooks for Python tool tests."""
+
 from pathlib import Path
 from shutil import rmtree
 

@@ -2,13 +2,13 @@ import { useEffect, useState, type JSX } from "react";
 import type {
   BsiRecommendationRecord,
   CisRecommendationRecord,
-  RecommendationFallbackTranslation,
   RecommendationRecord,
   RecommendationSource,
   VendorRecommendationRecord,
 } from "../../../src/recommendation-types.js";
 import type { ComplianceRecommendationResult, ComplianceStatus } from "../../../src/compliance.js";
-import { fallbackTranslationsOf, secondaryRecommendationId } from "./recommendation-record-utils.js";
+import { secondaryRecommendationId } from "./recommendation-record-utils.js";
+import { FallbackTranslationsSection } from "./FallbackTranslationsSection.js";
 import type { EditorController } from "./types.js";
 
 const ALL_STATUSES = "ALL";
@@ -79,6 +79,7 @@ export function CompliancePanel({ controller: c }: { readonly controller: Editor
               <span className="compliance-stat compliance-stat--unknown"><span role="img" aria-label="Not checkable">?</span> {report.summary.byStatus["not-checkable"]}</span>
             </div>
           ) : null}
+          {report?.warnings?.map((warning) => <p className="warning" key={warning}>{warning}</p>)}
           {c.complianceError !== undefined ? <p className="error">{c.complianceError}</p> : null}
           {c.complianceLoading ? <p className="loading-inline" aria-live="polite">Checking compliance…</p> : null}
           {report === undefined && !c.complianceLoading ? <p className="empty-state">No compliance report has been generated yet.</p> : null}
@@ -180,7 +181,13 @@ function ComplianceDetail(props: {
         {props.result.remediationOptions.length > 0 ? (
           <div className="json-actions">
             {props.result.remediationOptions.map((option) => (
-              <button key={option.id} type="button" onClick={() => props.onApply(option.id)}>
+              <button
+                key={option.id}
+                type="button"
+                disabled={option.available === false}
+                title={option.available === false ? option.unavailableReason : undefined}
+                onClick={() => props.onApply(option.id)}
+              >
                 {option.label}
               </button>
             ))}
@@ -239,35 +246,6 @@ function VendorDetail({ recommendation }: { readonly recommendation: Recommendat
       </details>
       {item.sourceIds.length > 0 ? <p>Sources: {item.sourceIds.join(", ")}</p> : null}
     </>
-  );
-}
-
-function FallbackTranslationsSection({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element | null {
-  const fallbacks = fallbackTranslationsOf(recommendation);
-  if (fallbacks.length === 0) {
-    return null;
-  }
-  return (
-    <details className="preview-block">
-      <summary>Fallback methods</summary>
-      {fallbacks.map((fallback) => <FallbackTranslationView key={fallback.id} fallback={fallback} />)}
-    </details>
-  );
-}
-
-function FallbackTranslationView({ fallback }: { readonly fallback: RecommendationFallbackTranslation }): JSX.Element {
-  return (
-    <section className="preview-block">
-      <h5>{fallback.title}</h5>
-      <p>{fallback.role} | {fallback.method}</p>
-      {fallback.commands.length > 0 ? <pre>{fallback.commands.join("\n")}</pre> : null}
-      {fallback.groupPolicyPaths !== undefined && fallback.groupPolicyPaths.length > 0 ? <pre>{fallback.groupPolicyPaths.join("\n")}</pre> : null}
-      {fallback.registryPaths !== undefined && fallback.registryPaths.length > 0 ? <pre>{fallback.registryPaths.join("\n")}</pre> : null}
-      {fallback.profilePayloadType !== undefined ? <p>PayloadType: {fallback.profilePayloadType}</p> : null}
-      {fallback.profileKeys !== undefined && fallback.profileKeys.length > 0 ? (
-        <pre>{fallback.profileKeys.map((entry) => `${entry.key}: ${entry.value}`).join("\n")}</pre>
-      ) : null}
-    </section>
   );
 }
 

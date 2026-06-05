@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 export const BASELINE_TEMPLATE_PLATFORMS = ["WINDOWS", "MACOS", "IOS", "ANDROID_ENTERPRISE"] as const;
 export const BASELINE_TEMPLATE_TIERS = [1, 2, 3] as const;
@@ -144,8 +145,9 @@ interface BaselineTemplateSourceRule {
   readonly title: string;
 }
 
-const INDEX_PATH = resolve("example/relution-baseline-templates/index.json");
-const TEMPLATE_ROOT = resolve("example/relution-baseline-templates");
+const PACKAGE_ROOT = fileURLToPath(new URL("../../", import.meta.url));
+const TEMPLATE_ROOT = resolve(PACKAGE_ROOT, "example/relution-baseline-templates");
+const INDEX_PATH = resolve(TEMPLATE_ROOT, "index.json");
 
 const TIER_STAKEHOLDER_EXAMPLES: Record<BaselineTemplateTier, readonly string[]> = {
   1: ["Administration", "Finance/HR", "Exam devices", "Sensitive research devices"],
@@ -481,7 +483,7 @@ function findTemplateEntry(index: TemplateIndex, selection: BaselineTemplateSele
 }
 
 function safeTemplatePath(indexPath: string): string {
-  const file = resolve(indexPath);
+  const file = resolve(PACKAGE_ROOT, indexPath);
   if (!existsSync(file)) {
     throw new Error(`Baseline template file does not exist: ${indexPath}`);
   }

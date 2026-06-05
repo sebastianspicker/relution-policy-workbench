@@ -1,5 +1,6 @@
 import type { ZammadTicketDraft } from "./zammad-ticket-drafts.js";
 import { normalizeHttpConnectionInput } from "./connection-normalization.js";
+import { asRecord } from "./utils/json-guards.js";
 
 export type ZammadProtocol = "http" | "https";
 
@@ -39,13 +40,20 @@ export class ZammadNetworkError extends Error {
   }
 }
 
-export interface ZammadTicketResult {
-  id?: number;
-  number?: string;
+interface ZammadTicketResultBase {
   title?: string;
   url?: string;
   raw: Record<string, unknown>;
 }
+
+export type ZammadTicketResult = ZammadTicketResultBase & (
+  | { id: number; number?: string }
+  | { id?: number; number: string }
+);
+
+export type ZammadConnectionTestResult =
+  | { ok: true; baseUrl: string }
+  | { ok: false; baseUrl: string; reason: string };
 
 export function normalizeZammadConnection(input: ZammadConnectionInput): ZammadConnection {
   const apiToken = input.apiToken.trim();
@@ -77,8 +85,30 @@ export function publicZammadSession(connection: ZammadConnection | undefined): Z
   };
 }
 
-export async function testZammadConnection(connection: ZammadConnection): Promise<{ ok: true; baseUrl: string }> {
-  await zammadFetch(connection, "/api/v1/users/me", { method: "GET" });
+export async function testZammadConnection(connection: ZammadConnection): Promise<ZammadConnectionTestResult> {
+  const response = await zammadFetch(connection, "/api/v1/users/me", { method: "GET" });
+  let rawValue: unknown;
+  try {
+    rawValue = await response.json() as unknown;
+  } catch {
+    return {
+      ok: false,
+      baseUrl: connection.baseUrl,
+      reason: "Zammad connection test returned an unexpected current-user response.",
+    };
+  }
+  const raw = asRecord(rawValue);
+  const hasAuthenticatedUser = typeof raw?.id === "number"
+    && Number.isFinite(raw.id)
+    && typeof raw.login === "string"
+    && raw.login.trim().length > 0;
+  if (!hasAuthenticatedUser) {
+    return {
+      ok: false,
+      baseUrl: connection.baseUrl,
+      reason: "Zammad connection test returned an unexpected current-user response.",
+    };
+  }
   return { ok: true, baseUrl: connection.baseUrl };
 }
 
@@ -98,23 +128,38 @@ export async function createZammadTicket(connection: ZammadConnection, draft: Za
       },
     }),
   });
-  const raw = await response.json() as Record<string, unknown>;
-  const id = typeof raw.id === "number" ? raw.id : undefined;
-  const number = typeof raw.number === "string" ? raw.number : undefined;
+  let rawValue: unknown;
+  try {
+    rawValue = await response.json() as unknown;
+  } catch {
+    throw new Error("Zammad ticket creation returned invalid JSON");
+  }
+  if (typeof rawValue !== "object" || rawValue === null || Array.isArray(rawValue)) {
+    throw new Error("Zammad ticket creation returned a non-object response");
+  }
+  const raw = rawValue as Record<string, unknown>;
+  const id = typeof raw.id === "number" && Number.isFinite(raw.id) ? raw.id : undefined;
+  const number = typeof raw.number === "string" && raw.number.trim().length > 0 ? raw.number : undefined;
   const title = typeof raw.title === "string" ? raw.title : undefined;
-  return {
-    ...(id === undefined ? {} : { id }),
-    ...(number === undefined ? {} : { number }),
+  const result = {
     ...(title === undefined ? {} : { title }),
     ...(id === undefined ? {} : { url: `${connection.baseUrl}/#ticket/zoom/${String(id)}` }),
     raw,
   };
+  if (id !== undefined) {
+    return { ...result, id, ...(number === undefined ? {} : { number }) };
+  }
+  if (number !== undefined) {
+    return { ...result, number };
+  }
+  throw new Error("Zammad ticket creation returned no ticket id or number");
 }
 
 async function zammadFetch(connection: ZammadConnection, path: string, init: RequestInit): Promise<Response> {
+  const url = zammadRequestUrl(connection, path);
   let response: Response;
   try {
-    response = await fetch(`${connection.baseUrl}${path}`, {
+    response = await fetchZammadUrl(connection, url, {
       ...init,
       headers: {
         "accept": "application/json",
@@ -130,4 +175,37 @@ async function zammadFetch(connection: ZammadConnection, path: string, init: Req
     throw new Error(`Zammad API request failed: ${String(response.status)} ${response.statusText}`);
   }
   return response;
+}
+
+function zammadRequestUrl(connection: ZammadConnection, path: string): URL {
+  const origin = `${connection.protocol}://${connection.port === undefined ? connection.host : `${connection.host}:${String(connection.port)}`}`;
+  const url = new URL(`${connection.basePath}${path}`, origin);
+  if (url.protocol !== `${connection.protocol}:` || url.hostname !== connection.host || url.pathname !== `${connection.basePath}${path}`) {
+    throw new Error(`Zammad API path resolves outside the configured service root: ${path}`);
+  }
+  return url;
+}
+
+async function fetchZammadUrl(connection: ZammadConnection, url: URL, init: RequestInit): Promise<Response> {
+  assertZammadServiceUrl(connection, url);
+  const fetchImpl = globalThis.fetch;
+  return await fetchImpl(url, init);
+}
+
+function assertZammadServiceUrl(connection: ZammadConnection, url: URL): void {
+  if (
+    url.protocol !== `${connection.protocol}:`
+    || url.hostname !== connection.host
+    || url.port !== expectedUrlPort(connection.protocol, connection.port)
+    || !url.pathname.startsWith(connection.basePath)
+  ) {
+    throw new Error(`Zammad API URL resolves outside the configured service root: ${url.href}`);
+  }
+}
+
+function expectedUrlPort(protocol: ZammadProtocol, port: number | undefined): string {
+  if (port === undefined || (protocol === "https" && port === 443) || (protocol === "http" && port === 80)) {
+    return "";
+  }
+  return String(port);
 }

@@ -1,13 +1,14 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { type IncomingMessage } from "node:http";
 import { isIP } from "node:net";
 import { RECOMMENDATION_SOURCES, type RecommendationSource } from "./recommendation-types.js";
-import { type ComplianceSelection, type ComplianceSourceCatalogs } from "./compliance.js";
-import { isRecommendationSource, loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
+import { type ComplianceSelection } from "./compliance.js";
+import { isRecommendationSource } from "./recommendations.js";
 import { type PolicyWorkspace } from "./workspace.js";
 import type { EditorServerOptions } from "./editor-server.js";
+import type { JsonRecord } from "./utils/json-guards.js";
 
-export type JsonRecord = Record<string, unknown>;
+export type { JsonRecord };
 
 const DEFAULT_JSON_BODY_LIMIT_BYTES = 1024 * 1024;
 const DEFAULT_JSON_MAX_DEPTH = 200;
@@ -34,6 +35,9 @@ export async function readJsonBody(request: IncomingMessage, limitBytes = DEFAUL
     chunks.push(buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");
+  // Network editor mode can expose mutating workspace APIs beyond loopback; keep
+  // a cheap shape scan before JSON.parse so byte-capped requests still reject
+  // pathological nesting or wide arrays with a clear 413.
   assertJsonShapeWithinLimits(text);
   let parsed: unknown;
   try {
@@ -75,17 +79,28 @@ export function createNetworkApiToken(): string {
 
 export function editorUrlWithNetworkToken(host: string, port: number, token: string | undefined): string {
   const baseUrl = `http://${host}:${String(port)}/`;
-  return token === undefined ? baseUrl : `${baseUrl}#editorToken=${encodeURIComponent(token)}`;
+  return typeof token === "undefined" ? baseUrl : `${baseUrl}#editorToken=${encodeURIComponent(token)}`;
 }
 
 export function assertNetworkApiToken(request: IncomingMessage, token: string | undefined): void {
-  if (token === undefined) {
+  if (typeof token === "undefined") {
     return;
   }
-  if (firstHeaderValue(request.headers["x-relution-editor-token"]) === token) {
+  const headerToken = firstHeaderValue(request.headers["x-relution-editor-token"]);
+  if (typeof headerToken === "string" && constantTimeStringEqual(headerToken, token)) {
     return;
   }
   throw new HttpError(403, "Network editor API requests require the editor token");
+}
+
+function constantTimeStringEqual(left: string, right: string): boolean {
+  const leftBuffer = Buffer.from(left, "utf8");
+  const rightBuffer = Buffer.from(right, "utf8");
+  if (leftBuffer.length !== rightBuffer.length) {
+    timingSafeEqual(rightBuffer, rightBuffer);
+    return false;
+  }
+  return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 function requireRequestHost(request: IncomingMessage, label: string): { host: string; hostname: string } {
@@ -155,57 +170,94 @@ function isLoopbackHostname(hostname: string): boolean {
 
 function normalizedUrlHost(url: URL): string {
   const hostname = normalizeHostname(url.hostname);
-  if (url.port.length === 0 || (url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443")) {
-    return hostname.includes(":") ? `[${hostname}]` : hostname;
+  const host = bracketIpv6Hostname(hostname);
+  if (hasImplicitPort(url)) {
+    return host;
   }
-  return `${hostname.includes(":") ? `[${hostname}]` : hostname}:${url.port}`;
+  return `${host}:${url.port}`;
+}
+
+function bracketIpv6Hostname(hostname: string): string {
+  return hostname.includes(":") ? `[${hostname}]` : hostname;
+}
+
+function hasImplicitPort(url: URL): boolean {
+  if (url.port.length === 0) {
+    return true;
+  }
+  return (url.protocol === "http:" && url.port === "80") || (url.protocol === "https:" && url.port === "443");
 }
 
 function assertJsonShapeWithinLimits(text: string): void {
   let depth = 0;
   let inString = false;
   let escaped = false;
-  const arrayItemCounts: number[] = [];
+  const containers: Array<{ kind: "array" | "object"; itemCount: number; expectingValue: boolean }> = [];
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
+    if (char === undefined) {
+      continue;
+    }
     if (inString) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === "\"") {
-        inString = false;
-      }
+      ({ inString, escaped } = nextStringScannerState(char, escaped));
       continue;
     }
     if (char === "\"") {
+      countArrayValueIfExpected(containers);
       inString = true;
       continue;
     }
     if (char === "{" || char === "[") {
-      depth += 1;
-      if (depth > DEFAULT_JSON_MAX_DEPTH) {
-        throw new HttpError(413, `JSON body exceeds maximum nesting depth ${String(DEFAULT_JSON_MAX_DEPTH)}`);
-      }
-      if (char === "[") {
-        arrayItemCounts.push(0);
-      }
+      countArrayValueIfExpected(containers);
+      depth = incrementJsonDepth(depth);
+      containers.push({ kind: char === "[" ? "array" : "object", itemCount: 0, expectingValue: true });
       continue;
     }
     if (char === "}" || char === "]") {
-      if (char === "]") {
-        arrayItemCounts.pop();
-      }
+      containers.pop();
       depth = Math.max(0, depth - 1);
       continue;
     }
-    if (char === "," && arrayItemCounts.length > 0) {
-      const nextCount = (arrayItemCounts.at(-1) ?? 0) + 1;
-      arrayItemCounts[arrayItemCounts.length - 1] = nextCount;
-      if (nextCount >= DEFAULT_JSON_MAX_ARRAY_ITEMS) {
-        throw new HttpError(413, `JSON array exceeds ${String(DEFAULT_JSON_MAX_ARRAY_ITEMS)} items`);
+    if (char === ",") {
+      const current = containers.at(-1);
+      if (current?.kind === "array") {
+        current.expectingValue = true;
       }
+      continue;
     }
+    if (/\S/u.test(char)) {
+      countArrayValueIfExpected(containers);
+    }
+  }
+}
+
+function nextStringScannerState(char: string, escaped: boolean): { inString: boolean; escaped: boolean } {
+  if (escaped) {
+    return { inString: true, escaped: false };
+  }
+  if (char === "\\") {
+    return { inString: true, escaped: true };
+  }
+  return { inString: char !== "\"", escaped: false };
+}
+
+function incrementJsonDepth(depth: number): number {
+  const nextDepth = depth + 1;
+  if (nextDepth > DEFAULT_JSON_MAX_DEPTH) {
+    throw new HttpError(413, `JSON body exceeds maximum nesting depth ${String(DEFAULT_JSON_MAX_DEPTH)}`);
+  }
+  return nextDepth;
+}
+
+function countArrayValueIfExpected(containers: Array<{ kind: "array" | "object"; itemCount: number; expectingValue: boolean }>): void {
+  const current = containers.at(-1);
+  if (current?.kind !== "array" || !current.expectingValue) {
+    return;
+  }
+  current.itemCount += 1;
+  current.expectingValue = false;
+  if (current.itemCount > DEFAULT_JSON_MAX_ARRAY_ITEMS) {
+    throw new HttpError(413, `JSON array exceeds ${String(DEFAULT_JSON_MAX_ARRAY_ITEMS)} items`);
   }
 }
 
@@ -245,7 +297,7 @@ export function parseRecommendationSourcesBody(body: JsonRecord): Recommendation
   if (sources.length === 0) {
     throw badRequest("At least one recommendation source is required");
   }
-  return uniqueRecommendationSources(sources);
+  return [...new Set(sources)];
 }
 
 export function parseRecommendationSourceBody(body: JsonRecord): RecommendationSource {
@@ -254,33 +306,6 @@ export function parseRecommendationSourceBody(body: JsonRecord): RecommendationS
     throw badRequest(`Unknown recommendation source: ${source}`);
   }
   return source;
-}
-
-export function loadComplianceArtifacts(
-  sources: RecommendationSource[],
-): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
-  const artifacts: Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> = {};
-  for (const source of sources) {
-    const recommendationCatalog = loadRecommendationCatalog(source);
-    if (!recommendationCatalog.available) {
-      continue;
-    }
-    let settingBundleCatalog: ReturnType<typeof loadRecommendationSettingBundleCatalog> | undefined;
-    try {
-      settingBundleCatalog = loadRecommendationSettingBundleCatalog(source);
-    } catch (error) {
-      console.warn(`Compliance setting-bundle catalog unavailable for ${source}: ${error instanceof Error ? error.message : String(error)}`);
-      settingBundleCatalog = undefined;
-    }
-    artifacts[source] = settingBundleCatalog === undefined
-      ? { recommendationCatalog }
-      : { recommendationCatalog, settingBundleCatalog };
-  }
-  return artifacts;
-}
-
-export function uniqueRecommendationSources(sources: RecommendationSource[]): RecommendationSource[] {
-  return [...new Set(sources)];
 }
 
 export function requireString(record: JsonRecord, key: string): string {

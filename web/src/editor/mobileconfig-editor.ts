@@ -107,10 +107,14 @@ function parsePlistElement(element: Element): unknown {
     case "string":
     case "data":
     case "date":
-      return element.textContent ?? "";
+      return textContent(element);
     default:
       throw new Error(`Unsupported plist element: ${element.nodeName}`);
   }
+}
+
+function textContent(element: Element): string {
+  return element.textContent ?? "";
 }
 
 function parsePlistInteger(value: string): number {

@@ -17,7 +17,7 @@ describe("EditorShell", () => {
     expect(screen.getByLabelText(/new policy platform/i)).toBeTruthy();
   });
 
-  it("exposes collapsible mobile pane controls", () => {
+  it("mobile pane controls expose navigation and inspector expanded state", () => {
     render(<EditorShell controller={createEditorControllerStub()} theme="default" onThemeChange={vi.fn()} />);
 
     const navigation = screen.getByRole("button", { name: /navigation/i });
@@ -37,11 +37,24 @@ describe("EditorShell", () => {
     expect(document.querySelector(".workspace-grid")?.classList.contains("show-inspector")).toBe(true);
   });
 
-  it("exposes every app section in the responsive section switcher", () => {
+  it("responsive section switcher keeps primary work areas reachable", async () => {
+    installFetchMock();
     render(<EditorShell controller={createEditorControllerStub()} theme="default" onThemeChange={vi.fn()} />);
 
-    for (const label of ["Policies", "Baseline", "Dashboard", "Settings"]) {
-      expect(screen.getAllByRole("button", { name: label }).length).toBeGreaterThan(0);
+    const sections: readonly { readonly label: string; readonly heading: RegExp }[] = [
+      { label: "Policies", heading: /select a policy to start editing/i },
+      { label: "Baseline", heading: /policy wizard/i },
+      { label: "Dashboard", heading: /relution dashboard/i },
+      { label: "Settings", heading: /settings/i },
+    ];
+
+    for (const section of sections) {
+      const sectionButtons = screen.getAllByRole("button", { name: section.label });
+
+      fireEvent.click(sectionButtons[0]!);
+
+      expect(sectionButtons.some((button) => button.getAttribute("aria-current") === "page")).toBe(true);
+      expect(await screen.findByRole("heading", { name: section.heading })).toBeTruthy();
     }
   });
 

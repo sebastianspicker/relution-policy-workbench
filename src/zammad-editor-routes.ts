@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { badRequest, optionalString, readJsonBody, requireString } from "./editor-server-helpers.js";
-import { optionalHttpProtocol, optionalPort } from "./editor-routes-utils.js";
+import { HttpError, badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { requireRuntimeConnection, sendJson } from "./editor-routes-utils.js";
 import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
   createZammadTicket,
@@ -14,10 +14,6 @@ import type { ZammadTicketDraft } from "./zammad-ticket-drafts.js";
 
 export interface ZammadEditorRuntime {
   connection?: ZammadConnection;
-}
-
-export function createZammadEditorRuntime(): ZammadEditorRuntime {
-  return {};
 }
 
 export async function handleZammadApiRequest(
@@ -35,31 +31,7 @@ export async function handleZammadApiRequest(
     return true;
   }
   if (url.pathname === "/api/zammad/session" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const input: ZammadConnectionInput = {
-      host: requireString(body, "host"),
-      apiToken: requireString(body, "apiToken"),
-      group: requireString(body, "group"),
-      customer: requireString(body, "customer"),
-    };
-    const protocol = optionalHttpProtocol(body);
-    const port = optionalPort(body);
-    const basePath = optionalString(body, "basePath");
-    if (protocol !== undefined) {
-      input.protocol = protocol;
-    }
-    if (port !== undefined) {
-      input.port = port;
-    }
-    if (basePath !== undefined) {
-      input.basePath = basePath;
-    }
-    const connection = normalizeZammadConnection(input);
-    const policyError = await outboundHostPolicyError("Zammad", connection.host, allowLocalServiceHosts);
-    if (policyError !== undefined) {
-      throw badRequest(policyError);
-    }
-    runtime.connection = connection;
+    runtime.connection = await parseAllowedZammadConnection(await readJsonBody(request), allowLocalServiceHosts);
     sendJson(response, 200, publicZammadSession(runtime.connection));
     return true;
   }
@@ -76,25 +48,63 @@ export async function handleZammadApiRequest(
   return true;
 }
 
-function requireConnection(runtime: ZammadEditorRuntime): ZammadConnection {
-  if (runtime.connection === undefined) {
-    throw badRequest("Zammad API session is not configured");
+async function parseAllowedZammadConnection(body: Record<string, unknown>, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {
+  const connection = normalizeZammadConnection(parseZammadConnectionInput(body));
+  const policyError = await outboundHostPolicyError("Zammad", connection.host, allowLocalServiceHosts);
+  if (policyError === undefined) {
+    return connection;
   }
-  return runtime.connection;
+  if (policyError.kind === "blocked") {
+    console.warn(`[zammad outbound host blocked] ${policyError.reason}`);
+    throw badRequest(policyError.reason);
+  }
+  console.warn(`[zammad outbound host dns-failure] ${policyError.error}`);
+  throw new HttpError(502, policyError.error);
+}
+
+function parseZammadConnectionInput(body: Record<string, unknown>): ZammadConnectionInput {
+  const input: ZammadConnectionInput = {
+    host: requireString(body, "host"),
+    apiToken: requireString(body, "apiToken"),
+    group: requireString(body, "group"),
+    customer: requireString(body, "customer"),
+  };
+  assignOptionalConnectionFields(input, body);
+  return input;
+}
+
+function assignOptionalConnectionFields(input: ZammadConnectionInput, body: Record<string, unknown>): void {
+  const protocol = optionalString(body, "protocol");
+  if (protocol !== undefined) {
+    input.protocol = requireConnectionProtocol(protocol);
+  }
+  if (body.port !== undefined) {
+    input.port = requireNumber(body, "port");
+  }
+  const basePath = optionalString(body, "basePath");
+  if (basePath !== undefined) {
+    input.basePath = basePath;
+  }
+}
+
+function requireConnectionProtocol(protocol: string): "http" | "https" {
+  if (protocol !== "http" && protocol !== "https") {
+    throw badRequest(`Unsupported protocol: ${protocol}`);
+  }
+  return protocol;
 }
 
 async function requireOutboundConnection(runtime: ZammadEditorRuntime, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {
-  const connection = requireConnection(runtime);
+  const connection = requireRuntimeConnection(runtime, "Zammad");
   await assertOutboundHostAllowed("Zammad", connection.host, allowLocalServiceHosts);
   return connection;
 }
 
 function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {
-  const draft = body.draft;
-  if (typeof draft !== "object" || draft === null || Array.isArray(draft)) {
+  const record = optionalRecord(body, "draft");
+  if (record === undefined) {
     throw badRequest("Expected draft object");
   }
-  const record = draft as Record<string, unknown>;
   const kind = requireString(record, "kind");
   if (kind !== "non-compliant-device" && kind !== "inactive-device") {
     throw badRequest(`Unsupported Zammad ticket kind: ${kind}`);
@@ -113,9 +123,4 @@ function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {
     ticketDraft.deviceUuid = deviceUuid;
   }
   return ticketDraft;
-}
-
-function sendJson(response: ServerResponse, status: number, value: unknown): void {
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(value));
 }

@@ -17,20 +17,28 @@ export function normalizeHttpConnectionInput(input: {
 }): NormalizedConnectionBase {
   const parsed = parseHostInput(input.host);
   const protocol = input.protocol ?? parsed.protocol ?? "https";
-  if (protocol !== "http" && protocol !== "https") {
-    throw new Error(`Unsupported ${input.serviceName} protocol: ${String(protocol)}`);
-  }
+  assertHttpProtocol(protocol, input.serviceName);
   const host = parsed.host;
   if (host.length === 0) {
     throw new Error(`${input.serviceName} host is required`);
   }
   const basePath = normalizeBasePath(input.basePath ?? parsed.basePath ?? "");
   const port = input.port ?? parsed.port;
-  if (port !== undefined && (!Number.isSafeInteger(port) || port < 1 || port > 65535)) {
-    throw new Error(`Invalid ${input.serviceName} port: ${String(port)}`);
-  }
+  assertOptionalPort(port, input.serviceName);
   const authority = port === undefined ? host : `${host}:${String(port)}`;
   return { protocol, host, ...(port === undefined ? {} : { port }), basePath, baseUrl: `${protocol}://${authority}${basePath}` };
+}
+
+function assertHttpProtocol(protocol: string, serviceName: string): asserts protocol is HttpProtocol {
+  if (protocol !== "http" && protocol !== "https") {
+    throw new Error(`Unsupported ${serviceName} protocol: ${String(protocol)}`);
+  }
+}
+
+function assertOptionalPort(port: number | undefined, serviceName: string): void {
+  if (port !== undefined && (!Number.isSafeInteger(port) || port < 1 || port > 65535)) {
+    throw new Error(`Invalid ${serviceName} port: ${String(port)}`);
+  }
 }
 
 function normalizeBasePath(value: string): string {

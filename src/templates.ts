@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 export interface RelutionTemplateBundle {
   serverVersion: string;
   sourceImage: string;
-  sourceImageDigest: string;
+  sourceImageDigest?: string;
   generatedAt: string;
   refreshDiagnostics: TemplateRefreshDiagnostics;
   platforms: string[];
@@ -204,7 +204,7 @@ export function createTemplateBundle(input: {
   runtimeMetadata: RuntimeConfigurationTypeMetadata[];
   serverVersion: string;
   sourceImage: string;
-  sourceImageDigest: string;
+  sourceImageDigest?: string;
   springConfigurationMetadata: unknown;
   generatedAt?: string;
   refreshDiagnostics?: TemplateRefreshDiagnostics;
@@ -259,7 +259,7 @@ export function createTemplateBundle(input: {
   return withTemplateFieldMetadata({
     serverVersion: input.serverVersion,
     sourceImage: input.sourceImage,
-    sourceImageDigest: input.sourceImageDigest,
+    ...(input.sourceImageDigest === undefined ? {} : { sourceImageDigest: input.sourceImageDigest }),
     generatedAt: input.generatedAt ?? new Date().toISOString(),
     refreshDiagnostics,
     platforms,
@@ -544,35 +544,39 @@ function joinSpecialLabels(labels: string[]): string[] {
     if (current === undefined) {
       continue;
     }
-    if (current === "File" && next === "Vault") {
-      joined.push("FileVault");
+    const special = joinedSpecialLabel(current, next);
+    if (special !== undefined) {
+      joined.push(special);
       index += 1;
-    } else if (current === "MAC" && next === "OS") {
-      joined.push("macOS");
-      index += 1;
-    } else if (current === "I" && next === "OS") {
-      joined.push("iOS");
-      index += 1;
-    } else if (current === "Wi" && next === "Fi") {
-      joined.push("Wi-Fi");
-      index += 1;
-    } else if (current === "PKCS" && next !== undefined && /^\d+$/u.test(next)) {
-      joined.push(`${current}${next}`);
-      index += 1;
-    } else if ((current === "WPA" || current === "WEP") && next !== undefined && /^\d+$/u.test(next)) {
-      joined.push(`${current}${next}`);
-      index += 1;
-    } else if (current === "Cal" && next === "DAV") {
-      joined.push("CalDAV");
-      index += 1;
-    } else if (current === "Card" && next === "DAV") {
-      joined.push("CardDAV");
-      index += 1;
-    } else {
-      joined.push(current);
+      continue;
     }
+    joined.push(current);
   }
   return joined;
+}
+
+const SPECIAL_LABEL_PAIRS: Record<string, string> = {
+  "File Vault": "FileVault",
+  "MAC OS": "macOS",
+  "I OS": "iOS",
+  "Wi Fi": "Wi-Fi",
+  "Cal DAV": "CalDAV",
+  "Card DAV": "CardDAV",
+};
+
+function joinedSpecialLabel(current: string, next: string | undefined): string | undefined {
+  if (next === undefined) {
+    return undefined;
+  }
+  const pair = SPECIAL_LABEL_PAIRS[`${current} ${next}`];
+  if (pair !== undefined) {
+    return pair;
+  }
+  return isNumberSuffixLabel(current, next) ? `${current}${next}` : undefined;
+}
+
+function isNumberSuffixLabel(current: string, next: string): boolean {
+  return (current === "PKCS" || current === "WPA" || current === "WEP") && /^\d+$/u.test(next);
 }
 
 function cleanDescription(description: string | undefined): string | undefined {

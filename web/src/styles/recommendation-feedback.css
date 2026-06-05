@@ -32,7 +32,7 @@
 }
 
 .recommendation-source-switcher button:hover {
-  background: color-mix(in srgb, var(--ci-color-surface, #ffffff) 60%, transparent);
+  background: var(--ci-color-surface, #ffffff);
   color: var(--ci-color-text, #20242a);
 }
 

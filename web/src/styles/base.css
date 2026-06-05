@@ -34,7 +34,7 @@ select:focus-visible,
 textarea:focus-visible {
   outline: 2px solid var(--ci-color-focus, #1d6fb8);
   outline-offset: 2px;
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ci-color-focus, #1d6fb8) 20%, transparent);
+  box-shadow: 0 0 0 4px var(--ci-color-focus-ring, #d2e2f1);
 }
 
 h1,

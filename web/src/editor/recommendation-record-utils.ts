@@ -1,18 +1,7 @@
 import type {
-  RecommendationFallbackTranslation,
   RecommendationRecord,
   RecommendationSource,
 } from "../../../src/recommendation-types.js";
-
-export function fallbackTranslationsOf(recommendation: RecommendationRecord): RecommendationFallbackTranslation[] {
-  if (Array.isArray(recommendation.fallbackTranslations)) {
-    return recommendation.fallbackTranslations;
-  }
-  if ("helperFallbacks" in recommendation && Array.isArray(recommendation.helperFallbacks)) {
-    return recommendation.helperFallbacks;
-  }
-  return [];
-}
 
 export function secondaryRecommendationId(source: RecommendationSource, recommendation: RecommendationRecord): string {
   if (source === "bsi" && hasStringField(recommendation, "requirementId")) {

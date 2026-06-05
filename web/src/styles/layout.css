@@ -80,12 +80,12 @@
 }
 
 .app-rail-btn:hover {
-  background: color-mix(in srgb, var(--ci-color-border, #cad2dc) 50%, transparent);
+  background: var(--ci-color-surface-muted, #eef3f7);
   color: var(--ci-color-heading, #1f2933);
 }
 
 .app-rail-btn[aria-current="page"] {
-  background: color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 12%, transparent);
+  background: var(--ci-color-primary-soft, #e8f1f8);
   color: var(--ci-color-primary, #1d6fb8);
 }
 
@@ -138,7 +138,7 @@
 
 .toolbar-icon-btn:hover:not(:disabled) {
   border-color: var(--ci-color-toolbar-border, var(--ci-color-border, #cad2dc));
-  background: color-mix(in srgb, currentColor 8%, transparent);
+  background: var(--ci-color-surface-muted, #eef3f7);
 }
 
 .toolbar-icon-btn:disabled {
@@ -147,7 +147,7 @@
 }
 
 .toolbar-icon-btn[aria-pressed="true"] {
-  background: color-mix(in srgb, var(--ci-color-primary, #1d6fb8) 12%, transparent);
+  background: var(--ci-color-primary-soft, #e8f1f8);
   color: var(--ci-color-primary, #1d6fb8);
   border-color: transparent;
   transition: inherit;

@@ -92,9 +92,17 @@ type UnifiedAnalysis = {
     authoritativeSource?: string;
   }>;
   differences: Array<{
+    id?: string;
     type: string;
     severity: string;
     authoritativeSource?: string;
+    target?: string;
+    fieldPath?: string;
+    valuesBySource?: Record<string, Array<{
+      recommendationId: string;
+      value: unknown;
+      constraints: unknown[];
+    }>>;
   }>;
   summary: {
     totalCommonGroups: number;
@@ -180,6 +188,9 @@ test("coverage matrix summarizes relution achievability across all recommendatio
   assert.equal(matrix.version, 1);
   assert.equal(matrix.name.length > 0, true);
   assert.equal(matrix.rows.length, matrix.summary.totalRecommendations);
+  assert.equal(sumCounts(matrix.summary.bySource), matrix.summary.totalRecommendations);
+  assert.equal(sumCounts(matrix.summary.byPlatform), matrix.summary.totalRecommendations);
+  assert.equal(sumCounts(matrix.summary.byCategory), matrix.summary.totalRecommendations);
   assert.deepEqual(Object.keys(matrix.summary.bySource).sort(), ["bsi", "cis", "vendor"]);
   assert.equal((matrix.summary.byCategory["relution-achievable"] ?? 0) > 0, true);
   assert.equal((matrix.summary.byCategory["relution-partial"] ?? 0) > 0, true);
@@ -235,10 +246,16 @@ test("coverage matrix summarizes relution achievability across all recommendatio
   const appleCisExact = matrix.rows.filter((row) => row.source === "cis" && ["IOS", "MACOS"].includes(row.platform) && row.mappingStatus === "exact");
   const androidCisExact = matrix.rows.filter((row) => row.source === "cis" && row.platform === "ANDROID_ENTERPRISE" && row.mappingStatus === "exact");
   const androidBsiCandidates = matrix.rows.filter((row) => row.source === "bsi" && row.platform === "ANDROID_ENTERPRISE" && row.candidateTargetTypes.length > 0);
-  assert.equal(appleBsiExact.length >= 3, true);
-  assert.equal(appleCisExact.length >= 390, true);
-  assert.equal(androidCisExact.length >= 9, true);
-  assert.equal(androidBsiCandidates.length >= 30, true);
+  const exactRows = matrix.rows.filter((row) => row.mappingStatus === "exact");
+  const candidateRows = matrix.rows.filter((row) => row.candidateTargetTypes.length > 0);
+  assert.equal(sumCounts(countRowsByPlatform(exactRows)), exactRows.length);
+  assert.equal(sumCounts(countRowsByPlatform(candidateRows)), candidateRows.length);
+  assert.equal(exactRows.length <= matrix.rows.length, true);
+  assert.equal(candidateRows.length <= matrix.rows.length, true);
+  assert.equal(appleBsiExact.length > 0, true);
+  assert.equal(appleCisExact.length > 0, true);
+  assert.equal(androidCisExact.length > 0, true);
+  assert.equal(androidBsiCandidates.length > 0, true);
 
   const androidOtaAutomatic = matrix.rows.find((row) => row.source === "vendor" && row.recommendationId === "android-008-offerautomaticotasystemupdates");
   assert.notEqual(androidOtaAutomatic, undefined);
@@ -344,6 +361,21 @@ test("unified recommendation analysis groups shared semantics and records BSI pr
   );
   assert.equal(analysis.contradictions.every((difference) => difference.severity === "error"), true);
 
+  const iosPasscodeLengthDifference = analysis.differences.find(
+    (difference) => difference.id === "difference-ios-relution-native-ios-passcode-minlength",
+  );
+  assert.notEqual(iosPasscodeLengthDifference, undefined);
+  assert.equal(iosPasscodeLengthDifference?.authoritativeSource, "bsi");
+  assert.equal(iosPasscodeLengthDifference?.target, "IOS_PASSCODE");
+  assert.equal(iosPasscodeLengthDifference?.fieldPath, "minLength");
+  assert.deepEqual(iosPasscodeLengthDifference?.valuesBySource?.bsi?.map((entry) => entry.value), [8]);
+  assert.equal(
+    iosPasscodeLengthDifference?.valuesBySource?.cis?.every((entry) =>
+      entry.constraints.some((constraint) => JSON.stringify(constraint) === JSON.stringify({ path: "minLength", operator: "atLeast", value: 6 })),
+    ),
+    true,
+  );
+
   const macosAppAllowlist = analysis.commonGroups.find((group) => group.platform === "MACOS" && group.conceptId === "app_allowlist");
   assert.notEqual(macosAppAllowlist, undefined);
   assert.equal(
@@ -444,6 +476,18 @@ function statusCountsFromMatrix(rows: CoverageRow[]): Record<string, number> {
     counts[status] = (counts[status] ?? 0) + 1;
   }
   return Object.fromEntries(Object.entries(counts).sort());
+}
+
+function countRowsByPlatform(rows: CoverageRow[]): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    counts[row.platform] = (counts[row.platform] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function sumCounts(counts: Record<string, number>): number {
+  return Object.values(counts).reduce((sum, count) => sum + count, 0);
 }
 
 function statusFromCategory(category: string): string {

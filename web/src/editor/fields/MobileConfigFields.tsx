@@ -42,13 +42,16 @@ export function MobileConfigFields(props: {
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file !== undefined) {
-                setFileName(file.name);
                 void file.text().then((text) => {
                   try {
                     props.onChange(updateMobileConfigDetails(props.details, text));
+                    setFileName(file.name);
                   } catch (error) {
                     props.onError(error instanceof Error ? error.message : String(error));
                   }
+                }).catch((error: unknown) => {
+                  const message = error instanceof Error ? error.message : String(error);
+                  props.onError(`Mobileconfig file read failed: ${message}`);
                 });
               }
             }}

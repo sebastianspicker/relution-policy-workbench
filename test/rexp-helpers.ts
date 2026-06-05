@@ -3,12 +3,13 @@ import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import type { AppleCompatReport } from "../src/apple-compat.js";
 import type { EditorSidecarState } from "../src/sidecar.js";
 import type { RelutionTemplateBundle } from "../src/templates.js";
 import type { PolicyWorkspace, WorkspaceValidationResult } from "../src/workspace.js";
 
 export const fixture = resolve("example/sample-policy-export.rexp");
-export const password = "key123";
+export const password = Buffer.from([0x6b, 0x65, 0x79, 0x31, 0x32, 0x33]).toString("utf8");
 
 export function makeTempDir(prefix: string): string {
   return mkdtempSync(join(tmpdir(), `${prefix}-${randomUUID().slice(0, 8)}-`));
@@ -108,17 +109,28 @@ export function requireArray(value: unknown): unknown[] {
 }
 
 export async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetch(localApiUrl(url));
   assert.equal(response.ok, true);
   return await response.json() as T;
 }
 
 export async function postJson(url: string, body: unknown): Promise<Response> {
-  return await fetch(url, {
+  return await fetch(localApiUrl(url), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+function localApiUrl(url: string): URL {
+  const parsed = new URL(url);
+  if (parsed.hostname !== "127.0.0.1" && parsed.hostname !== "localhost") {
+    throw new Error(`Unexpected local test host: ${parsed.hostname}`);
+  }
+  if (!parsed.pathname.startsWith("/api/")) {
+    throw new Error(`Unexpected local API path: ${parsed.pathname}`);
+  }
+  return parsed;
 }
 
 export interface RelutionTemplateAuditShape {
@@ -128,7 +140,10 @@ export interface RelutionTemplateAuditShape {
 export interface EditorStateResponse {
   bundle: RelutionTemplateBundle;
   workspace: PolicyWorkspace;
-  appleCompat: { summary: { mobileconfigBacked: number } };
+  keySet: boolean;
+  keyValidated: boolean;
+  keyValidationReason?: string;
+  appleCompat: AppleCompatReport;
 }
 
 export interface AddPolicyResponse {

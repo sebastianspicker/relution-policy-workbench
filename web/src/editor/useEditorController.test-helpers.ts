@@ -10,6 +10,12 @@ import type { BaselineExpertOptionsResponse, BaselineTemplateOptionsResponse } f
 import { createBaselineExpertOptions, createBaselineRuleset, createBaselineTemplateOptions } from "./baseline-test-fixtures.js";
 import type { AddGroup, AppState, EditorController, EditorControllerResult, InspectorTab, Selection } from "./types.js";
 
+export interface FetchRequestRecord {
+  readonly url: string;
+  readonly method: string;
+  readonly body: unknown;
+}
+
 export function currentReady(result: { current: EditorControllerResult }): Extract<EditorControllerResult, { kind: "ready" }> {
   if (result.current.kind !== "ready") {
     throw new Error(`Expected ready controller, got ${result.current.kind}`);
@@ -33,64 +39,148 @@ export function installFetchMock(
     recommendationCatalogs?: Partial<Record<"bsi" | "vendor" | "cis", RecommendationCatalogResponse>>;
     complianceReport?: Record<string, unknown>;
     complianceApply?: Record<string, unknown>;
+    complianceApplyStatus?: number;
+    buildResult?: Record<string, unknown>;
+    buildStatus?: number;
+    buildError?: Error;
+    keyResult?: Record<string, unknown>;
+    keyStatus?: number;
+    workspaceStatus?: number;
+    workspaceValidateStatus?: number;
+    workspaceValidateError?: Error;
+    sidecarResponses?: Record<string, Record<string, unknown>>;
     baselineTemplates?: {
       readonly index?: BaselineTemplateOptionsResponse;
       readonly template?: unknown;
       readonly expert?: BaselineExpertOptionsResponse;
     };
   } = {},
-): void {
+): FetchRequestRecord[] {
+  const requests: FetchRequestRecord[] = [];
+  let buildError = options.buildError;
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
-    if (url === "/api/state") {
-      return jsonResponse(state);
+    requests.push({ url, method: init?.method ?? "GET", body: requestBody(init) });
+    const response = mockFetchResponse(url, state, options, buildError);
+    if (response.kind === "build-error") {
+      buildError = undefined;
+      throw response.error;
     }
-    if (url === "/api/recommendations") {
-      return jsonResponse(options.recommendationIndex ?? createRecommendationIndex());
+    if (response.kind === "handled") {
+      return response.response;
     }
-    if (url === "/api/recommendations/bsi") {
-      return jsonResponse(options.recommendationCatalogs?.bsi ?? createRecommendationCatalog());
+    throw new Error(`Unhandled fetch in test: ${url} (${init?.method ?? "GET"})`);
+  });
+  return requests;
+}
+
+type FetchMockOptions = NonNullable<Parameters<typeof installFetchMock>[1]>;
+
+type MockFetchResponse =
+  | { readonly kind: "handled"; readonly response: Response }
+  | { readonly kind: "build-error"; readonly error: Error }
+  | { readonly kind: "unhandled" };
+
+function mockFetchResponse(url: string, state: AppState, options: FetchMockOptions, buildError: Error | undefined): MockFetchResponse {
+  const catalogResponse = recommendationCatalogResponse(url, options);
+  if (catalogResponse !== undefined) {
+    return { kind: "handled", response: catalogResponse };
+  }
+  const baselineResponse = baselineTemplateResponse(url, options);
+  if (baselineResponse !== undefined) {
+    return { kind: "handled", response: baselineResponse };
+  }
+  const stateResponse = stateFetchResponse(url, state, options);
+  if (stateResponse !== undefined) {
+    return { kind: "handled", response: stateResponse };
+  }
+  if (url === "/api/build") {
+      if (buildError !== undefined) {
+      return { kind: "build-error", error: buildError };
+      }
+    return {
+      kind: "handled",
+      response: jsonResponse(
+        options.buildResult ?? { outputFile: "fresh-build.rexp", sidecar: state.sidecar, verification: { ok: true, checkedEntries: [] } },
+        options.buildStatus ?? 200,
+      ),
+    };
+  }
+  const complianceResponse = complianceFetchResponse(url, state, options);
+  if (complianceResponse !== undefined) {
+    return { kind: "handled", response: complianceResponse };
+  }
+  if (options.sidecarResponses?.[url] !== undefined) {
+    return { kind: "handled", response: jsonResponse(options.sidecarResponses[url]) };
+  }
+  return { kind: "unhandled" };
+}
+
+function recommendationCatalogResponse(url: string, options: FetchMockOptions): Response | undefined {
+  if (url === "/api/recommendations") {
+    return jsonResponse(options.recommendationIndex ?? createRecommendationIndex());
+  }
+  if (url === "/api/recommendations/bsi") {
+    return jsonResponse(options.recommendationCatalogs?.bsi ?? createRecommendationCatalog());
+  }
+  if (url === "/api/recommendations/vendor") {
+    return jsonResponse(options.recommendationCatalogs?.vendor ?? createRecommendationCatalog({ source: "vendor", label: "Vendor", displayPlatforms: ["ANDROID"] }));
+  }
+  if (url === "/api/recommendations/cis") {
+    return jsonResponse(options.recommendationCatalogs?.cis ?? createRecommendationCatalog({ source: "cis", label: "CIS" }));
+  }
+  return undefined;
+}
+
+function baselineTemplateResponse(url: string, options: FetchMockOptions): Response | undefined {
+  if (url === "/api/baseline-templates") {
+    return jsonResponse(options.baselineTemplates?.index ?? createBaselineTemplateOptions());
+  }
+  if (url.startsWith("/api/baseline-templates/template")) {
+    return jsonResponse(options.baselineTemplates?.template ?? createBaselineRuleset());
+  }
+  if (url.startsWith("/api/baseline-templates/expert")) {
+    return jsonResponse(options.baselineTemplates?.expert ?? createBaselineExpertOptions());
+  }
+  return undefined;
+}
+
+function stateFetchResponse(url: string, state: AppState, options: FetchMockOptions): Response | undefined {
+  if (url === "/api/state") {
+    return jsonResponse(state);
+  }
+  if (url === "/api/key") {
+    return jsonResponse(options.keyResult ?? { keySet: true, validated: false }, options.keyStatus ?? 200);
+  }
+  if (url === "/api/import") {
+    return jsonResponse({
+      workspace: state.workspace,
+      validation: state.validation,
+      keySet: state.keySet,
+      sidecar: state.sidecar,
+    });
+  }
+  if (url === "/api/workspace") {
+    return jsonResponse({
+      workspace: state.workspace,
+      validation: state.validation,
+    }, options.workspaceStatus ?? 200);
+  }
+  if (url === "/api/workspace/validate") {
+    if (options.workspaceValidateError !== undefined) {
+      throw options.workspaceValidateError;
     }
-    if (url === "/api/recommendations/vendor") {
-      return jsonResponse(options.recommendationCatalogs?.vendor ?? createRecommendationCatalog({ source: "vendor", label: "Vendor", displayPlatforms: ["ANDROID"] }));
-    }
-    if (url === "/api/recommendations/cis") {
-      return jsonResponse(options.recommendationCatalogs?.cis ?? createRecommendationCatalog({ source: "cis", label: "CIS" }));
-    }
-    if (url === "/api/baseline-templates") {
-      return jsonResponse(options.baselineTemplates?.index ?? createBaselineTemplateOptions());
-    }
-    if (url.startsWith("/api/baseline-templates/template")) {
-      return jsonResponse(options.baselineTemplates?.template ?? createBaselineRuleset());
-    }
-    if (url.startsWith("/api/baseline-templates/expert")) {
-      return jsonResponse(options.baselineTemplates?.expert ?? createBaselineExpertOptions());
-    }
-    if (url === "/api/build") {
-      return jsonResponse({ outputFile: "fresh-build.rexp", sidecar: state.sidecar });
-    }
-    if (url === "/api/import") {
-      return jsonResponse({
-        workspace: state.workspace,
-        validation: state.validation,
-        keySet: state.keySet,
-        sidecar: state.sidecar,
-      });
-    }
-    if (url === "/api/workspace") {
-      return jsonResponse({
-        workspace: state.workspace,
-        validation: state.validation,
-      });
-    }
-    if (url === "/api/workspace/validate") {
-      return jsonResponse({ validation: state.validation });
-    }
-    if (url === "/api/compliance/check") {
-      return jsonResponse({ report: options.complianceReport ?? createComplianceReport() });
-    }
-    if (url === "/api/compliance/apply") {
-      return jsonResponse(options.complianceApply ?? {
+    return jsonResponse({ validation: state.validation }, options.workspaceValidateStatus ?? 200);
+  }
+  return undefined;
+}
+
+function complianceFetchResponse(url: string, state: AppState, options: FetchMockOptions): Response | undefined {
+  if (url === "/api/compliance/check") {
+    return jsonResponse({ report: options.complianceReport ?? createComplianceReport() });
+  }
+  if (url === "/api/compliance/apply") {
+    return jsonResponse(options.complianceApply ?? {
         workspace: state.workspace,
         validation: state.validation,
         sidecar: state.sidecar,
@@ -107,10 +197,9 @@ export function installFetchMock(
             },
           },
         }),
-      });
-    }
-    throw new Error(`Unhandled fetch in test: ${url} (${init?.method ?? "GET"})`);
-  });
+    }, options.complianceApplyStatus ?? 200);
+  }
+  return undefined;
 }
 
 export function jsonResponse(body: unknown, status = 200): Response {
@@ -120,6 +209,17 @@ export function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function requestBody(init: RequestInit | undefined): unknown {
+  if (init?.body === undefined) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(String(init.body)) as unknown;
+  } catch {
+    return String(init.body);
+  }
+}
+
 export function createAppState(): AppState {
   return {
     bundle: createBundle(),
@@ -127,6 +227,7 @@ export function createAppState(): AppState {
     validation: createValidation(),
     outputFile: "stale-build.rexp",
     keySet: false,
+    keyValidated: false,
     appleCompat: createAppleCompatReport(),
     appleSchema: createAppleSchemaCatalog(),
     sidecar: createSidecar(),
@@ -147,6 +248,7 @@ export function createEditorControllerStub(overrides: Partial<EditorController> 
     newPolicyName: "",
     keyValue: "",
     status: "",
+    lastActionResult: undefined,
     isDirty: false,
     isBuildLoading: false,
     hasFreshBuild: false,

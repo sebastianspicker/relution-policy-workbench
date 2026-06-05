@@ -19,132 +19,58 @@ afterEach(() => {
 });
 
 describe("useEditorController", () => {
-it("sets beforeunload returnValue when the workspace is dirty", async () => {
-  installFetchMock();
-  const { result } = renderHook(() => useEditorController());
-  await waitForReady(result.current, result);
+  it("sets lastActionResult ok false when an action fails", async () => {
+    installFetchMock(createAppState(), { buildError: new Error("network down") });
+    const { result } = renderHook(() => useEditorController());
+    await waitForReady(result.current, result);
 
     await act(async () => {
-      currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
+      await currentReady(result).controller.buildArchive();
     });
+
+    expect(currentReady(result).controller.lastActionResult).toEqual({ ok: false, error: "network down" });
+  });
+
+  it("clears lastActionResult after a subsequent successful action", async () => {
+    installFetchMock(createAppState(), { buildError: new Error("network down") });
+    const { result } = renderHook(() => useEditorController());
+    await waitForReady(result.current, result);
 
     await act(async () => {
-      const controller = currentReady(result).controller;
-      controller.updateSelectedConfiguration({
-        ...(controller.configuration ?? {}),
-        details: {
-          ...(controller.details ?? {}),
-          name: "Dirty name",
-        },
-      });
+      await currentReady(result).controller.buildArchive();
+    });
+    expect(currentReady(result).controller.lastActionResult).toEqual({ ok: false, error: "network down" });
+
+    await act(async () => {
+      await currentReady(result).controller.buildArchive();
     });
 
-    const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
-    Object.defineProperty(event, "returnValue", { configurable: true, writable: true, value: undefined });
-
-    window.dispatchEvent(event);
-
-  expect(event.returnValue).toBe("");
-});
-
-it("clears the dirty beforeunload warning after undo restores a clean workspace", async () => {
-  installFetchMock();
-  const { result } = renderHook(() => useEditorController());
-  await waitForReady(result.current, result);
-
-  await act(async () => {
-    currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
+    expect(currentReady(result).controller.lastActionResult).toEqual({ ok: true });
   });
 
-  await act(async () => {
-    const controller = currentReady(result).controller;
-    controller.updateSelectedConfiguration({
-      ...(controller.configuration ?? {}),
-      details: {
-        ...(controller.details ?? {}),
-        name: "Dirty name",
-      },
+  it("keeps network and server action errors distinguishable in lastActionResult", async () => {
+    installFetchMock(createAppState(), {
+      buildError: new Error("network down"),
+      buildResult: { error: "server exploded" },
+      buildStatus: 500,
     });
-  });
+    const { result } = renderHook(() => useEditorController());
+    await waitForReady(result.current, result);
 
-  await act(async () => {
-    currentReady(result).controller.undoWorkspace();
-  });
-
-  const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
-  Object.defineProperty(event, "returnValue", { configurable: true, writable: true, value: undefined });
-
-  window.dispatchEvent(event);
-
-  expect(event.returnValue).toBeUndefined();
-});
-
-it("supports redo after undoing a local workspace edit", async () => {
-  installFetchMock();
-  const { result } = renderHook(() => useEditorController());
-  await waitForReady(result.current, result);
-
-  await act(async () => {
-    currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
-  });
-
-  await act(async () => {
-    const controller = currentReady(result).controller;
-    controller.updateSelectedConfiguration({
-      ...(controller.configuration ?? {}),
-      details: {
-        ...(controller.details ?? {}),
-        name: "Redo name",
-      },
+    await act(async () => {
+      await currentReady(result).controller.buildArchive();
     });
+    const networkError = currentReady(result).controller.lastActionResult;
+
+    await act(async () => {
+      await currentReady(result).controller.buildArchive();
+    });
+    const serverError = currentReady(result).controller.lastActionResult;
+
+    expect(networkError).toEqual({ ok: false, error: "network down" });
+    expect(serverError).toEqual({ ok: false, error: 'Build blocked: {"error":"server exploded"}' });
+    expect(networkError).not.toEqual(serverError);
   });
-
-  expect(currentReady(result).controller.canUndo).toBe(true);
-  expect(currentReady(result).controller.canRedo).toBe(false);
-
-  await act(async () => {
-    currentReady(result).controller.undoWorkspace();
-  });
-
-  expect(currentReady(result).controller.details?.name).toBe("Original name");
-  expect(currentReady(result).controller.canRedo).toBe(true);
-
-  await act(async () => {
-    currentReady(result).controller.redoWorkspace();
-  });
-
-  expect(currentReady(result).controller.details?.name).toBe("Redo name");
-  expect(currentReady(result).controller.canUndo).toBe(true);
-});
-
-it("clears the workspace with undo and redo support", async () => {
-  installFetchMock();
-  vi.spyOn(window, "confirm").mockReturnValue(true);
-  const { result } = renderHook(() => useEditorController());
-  await waitForReady(result.current, result);
-
-  expect(currentReady(result).controller.state.workspace.policies.length).toBe(1);
-
-  await act(async () => {
-    currentReady(result).controller.clearWorkspace();
-  });
-
-  expect(currentReady(result).controller.state.workspace.policies.length).toBe(0);
-  expect(currentReady(result).controller.isDirty).toBe(true);
-  expect(currentReady(result).controller.status).toBe("Cleared workspace");
-
-  await act(async () => {
-    currentReady(result).controller.undoWorkspace();
-  });
-
-  expect(currentReady(result).controller.state.workspace.policies.length).toBe(1);
-
-  await act(async () => {
-    currentReady(result).controller.redoWorkspace();
-  });
-
-  expect(currentReady(result).controller.state.workspace.policies.length).toBe(0);
-});
 
 it("applies a baseline template through the ruleset importer", async () => {
   installFetchMock();
@@ -168,6 +94,30 @@ it("applies a baseline template through the ruleset importer", async () => {
   });
 
   expect(JSON.stringify(currentReady(result).controller.state.workspace)).toContain("Original name");
+});
+
+it("keeps blocked status when a baseline template has unresolved rules", async () => {
+  installFetchMock(createAppState(), {
+    baselineTemplates: {
+      template: {
+        version: 1,
+        name: "Unresolved baseline",
+        policies: [{ platform: "IOS", name: "Unresolved iOS", rules: [{ id: "missing-baseline-rule", title: "Missing baseline rule", mappings: [] }] }],
+      },
+    },
+  });
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { result } = renderHook(() => useEditorController());
+  await waitForReady(result.current, result);
+
+  await act(async () => {
+    await currentReady(result).controller.applyBaselineTemplate({ platform: "IOS", tier: 3, shape: "modules" });
+  });
+
+  const ready = currentReady(result).controller;
+  expect(ready.status).toBe("Ruleset import blocked: 0 conflict(s), 1 unresolved rule(s)");
+  expect(ready.rulesetReport?.unresolved.map((entry) => entry.ruleId)).toEqual(["missing-baseline-rule"]);
+  expect(ready.isDirty).toBe(false);
 });
 
 it("applies an expert baseline selection through the ruleset importer", async () => {
@@ -210,6 +160,28 @@ it("applies an expert baseline selection through the ruleset importer", async ()
   expect(ready.status).toBe("Applied expert baseline selection");
   expect(ready.rulesetReport?.applied.map((entry) => entry.ruleId)).toEqual(["expert-ios-passcode"]);
   expect(JSON.stringify(ready.state.workspace)).toContain("Expert imported setting");
+});
+
+it("keeps validation blocked status when an expert baseline workspace is invalid", async () => {
+  const state = createAppState();
+  state.validation = { ok: false, errors: [{ path: "/policies/0", message: "invalid baseline workspace" }] };
+  installFetchMock(state);
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const { result } = renderHook(() => useEditorController());
+  await waitForReady(result.current, result);
+
+  await act(async () => {
+    await currentReady(result).controller.applyExpertBaselineSelection({
+      version: 1,
+      name: "Invalid expert baseline",
+      policies: [{ platform: "IOS", name: "Invalid expert iOS", rules: [{ id: "expert-invalid", title: "Invalid expert", informational: false, mappings: [{ kind: "relution-native", type: "NATIVE_SINGLE", values: { type: "NATIVE_SINGLE", name: "Invalid expert setting" } }] }] }],
+    });
+  });
+
+  const ready = currentReady(result).controller;
+  expect(ready.status).toContain("Ruleset validation blocked");
+  expect(ready.status).not.toBe("Applied expert baseline selection");
+  expect(JSON.stringify(ready.state.workspace)).not.toContain("Invalid expert setting");
 });
 
   it("does not claim raw JSON was applied when no configuration is selected", async () => {
@@ -328,6 +300,54 @@ it("applies an expert baseline selection through the ruleset importer", async ()
     });
 
     expect(currentReady(result).controller.hasFreshBuild).toBe(false);
+  });
+
+  it("does not mark downloads fresh when build verification fails", async () => {
+    installFetchMock(createAppState(), {
+      buildResult: {
+        outputFile: "unverified-build.rexp",
+        verification: {
+          ok: false,
+          checkedEntries: [{ path: "metadata.json", hashStatus: "mismatch" }],
+        },
+        failedEntryCount: 1,
+      },
+    });
+    const { result } = renderHook(() => useEditorController());
+    await waitForReady(result.current, result);
+
+    await act(async () => {
+      await currentReady(result).controller.buildArchive();
+    });
+
+    expect(currentReady(result).controller.hasFreshBuild).toBe(false);
+    expect(currentReady(result).controller.status).toBe("Build verification failed");
+  });
+
+  it("records encryption key validation status returned by the server", async () => {
+    const requests = installFetchMock(createAppState(), {
+      keyResult: {
+        keySet: true,
+        validated: false,
+        reason: "No built .rexp output is available to validate this key.",
+      },
+    });
+    const { result } = renderHook(() => useEditorController());
+    await waitForReady(result.current, result);
+
+    await act(async () => {
+      currentReady(result).controller.setKeyValue("new-key");
+    });
+
+    await act(async () => {
+      await currentReady(result).controller.setActiveKey();
+    });
+
+    const keyRequest = requests.find((request) => request.url === "/api/key");
+    expect(keyRequest?.body).toEqual({ key: "new-key" });
+    expect(currentReady(result).controller.state.keySet).toBe(true);
+    expect(currentReady(result).controller.state.keyValidated).toBe(false);
+    expect(currentReady(result).controller.status).toContain("Key set, not validated");
   });
 
   it("clears fresh-build state after importing a workspace", async () => {

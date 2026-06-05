@@ -94,8 +94,7 @@ type CisRecommendation = {
   audit: string;
   remediation: string;
   references: string[];
-  helperFallbacks: CisHelperFallback[];
-  fallbackTranslations?: CisHelperFallback[];
+  fallbackTranslations: CisHelperFallback[];
   implementation?: RecommendationImplementation;
   semanticConcepts?: Array<{
     id: string;
@@ -218,8 +217,7 @@ test("CIS recommendation catalog preserves benchmark coverage and Relution mappi
     assert.equal(typeof entry.remediation, "string");
     assert.equal(entry.remediation.length > 0, true, entry.id);
     assert.equal(Array.isArray(entry.references), true, entry.id);
-    assert.equal(Array.isArray(entry.helperFallbacks), true, entry.id);
-    assert.equal(Array.isArray(entry.fallbackTranslations ?? []), true, entry.id);
+    assert.equal(Array.isArray(entry.fallbackTranslations), true, entry.id);
     assert.equal(typeof entry.implementation?.category, "string", entry.id);
     assert.equal(Array.isArray(entry.implementation?.surfaces ?? []), true, entry.id);
     assert.equal(Array.isArray(entry.implementation?.importableVia ?? []), true, entry.id);
@@ -233,222 +231,12 @@ test("CIS recommendation catalog preserves benchmark coverage and Relution mappi
     );
   }
 
-  const androidDeveloperOptions = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "1.9",
-  );
-  assert.notEqual(androidDeveloperOptions, undefined);
-  assert.equal(androidDeveloperOptions?.relutionMapping.status, "exact");
-  assert.equal(androidDeveloperOptions?.relutionMapping.rulesetMappings.length, 1);
-  assert.equal(hasNativeValue(androidDeveloperOptions, "ANDROID_ENTERPRISE_ADVANCED_SECURITY_OVERRIDES", "developerSettings", "DEVELOPER_SETTINGS_DISABLED"), true);
-
-  const androidSmartLock = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "1.12",
-  );
-  assert.notEqual(androidSmartLock, undefined);
-  assert.equal(androidSmartLock?.relutionMapping.status, "exact");
-  assert.equal(hasNativeValue(androidSmartLock, "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT", "keyguardDisabledFeatures", ["TRUST_AGENTS"]), true);
-
-  const androidNetworkTime = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "1.14",
-  );
-  assert.notEqual(androidNetworkTime, undefined);
-  assert.equal(androidNetworkTime?.relutionMapping.status, "exact");
-  assert.equal(
-    hasNativeValue(androidNetworkTime, "ANDROID_ENTERPRISE_RESTRICTION", "androidAutoDateAndTimeZoneSetting", "AUTO_DATE_AND_TIME_ZONE_ENFORCED"),
-    true,
-  );
-
-  const androidAppUpdates = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "1.22",
-  );
-  assert.notEqual(androidAppUpdates, undefined);
-  assert.equal(androidAppUpdates?.relutionMapping.status, "exact");
-  assert.equal(hasNativeValue(androidAppUpdates, "ANDROID_ENTERPRISE_PLAY_STORE_MANAGEMENT", "appAutoUpdatePolicy", "ALWAYS"), true);
-
-  const androidLockScreenNotifications = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "2.1",
-  );
-  assert.notEqual(androidLockScreenNotifications, undefined);
-  assert.equal(androidLockScreenNotifications?.relutionMapping.status, "exact");
-  assert.equal(hasNativeValue(androidLockScreenNotifications, "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT", "keyguardDisabledFeatures", ["NOTIFICATIONS"]), true);
-
-  const androidLocationHistory = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-google-android-1-6-0" && entry.recommendationId === "2.8",
-  );
-  assert.notEqual(androidLocationHistory, undefined);
-  assert.notEqual(androidLocationHistory?.relutionMapping.status, "exact");
-
-  const windowsPasswordHistory = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-microsoft-windows-11-standalone-5-0-0" && entry.recommendationId === "1.1.1",
-  );
-  assert.notEqual(windowsPasswordHistory, undefined);
-  assert.equal(windowsPasswordHistory?.relutionMapping.status, "exact");
-
-  const macosFileVault = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-apple-macos-26-tahoe-1-0-0" && entry.title === "Ensure FileVault Is Enabled",
-  );
-  assert.notEqual(macosFileVault, undefined);
-  assert.equal(macosFileVault?.relutionMapping.status, "exact");
-
-  const windowsServiceFallback = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-microsoft-windows-11-standalone-5-0-0" && entry.recommendationId === "5.1",
-  );
-  assert.notEqual(windowsServiceFallback, undefined);
-  assert.equal(windowsServiceFallback?.relutionMapping.status, "none");
-  assert.equal(windowsServiceFallback?.relutionMapping.candidates.length, 0);
-  assert.equal(
-    windowsServiceFallback?.helperFallbacks.some(
-      (fallback) =>
-        fallback.method === "powershell"
-        && fallback.role === "remediation"
-        && fallback.commands.includes("Set-Service -Name BTAGService -StartupType Disabled"),
-    ),
-    true,
-  );
-
-  const windowsAuditPolicyFallback = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-microsoft-windows-11-standalone-5-0-0" && entry.recommendationId === "17.1.1",
-  );
-  assert.notEqual(windowsAuditPolicyFallback, undefined);
-  assert.equal(
-    windowsAuditPolicyFallback?.helperFallbacks.some(
-      (fallback) =>
-        fallback.method === "auditpol"
-        && fallback.role === "audit"
-        && fallback.commands.includes('auditpol /get /subcategory:"{0cce923f-69ae-11d9-bed3-505054503030}"'),
-    ),
-    true,
-  );
-  assert.equal(
-    windowsAuditPolicyFallback?.helperFallbacks.some(
-      (fallback) =>
-        fallback.method === "group-policy-path"
-        && fallback.groupPolicyPaths?.includes(
-          "Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Advanced Audit Policy Configuration\\Audit Policies\\Account Logon\\Audit Credential Validation",
-        ) === true,
-    ),
-    true,
-  );
-
-  const macosSoftwareUpdateFallback = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-apple-macos-15-sequoia-2-0-0" && entry.recommendationId === "1.2",
-  );
-  assert.notEqual(macosSoftwareUpdateFallback, undefined);
-  assert.equal(macosSoftwareUpdateFallback?.relutionMapping.status, "exact");
-  assert.equal(
-    macosSoftwareUpdateFallback?.relutionMapping.rulesetMappings.some(
-      (mapping) => mapping.kind === "apple-schema-profile" && mapping.schemaId === "profile:com.apple.SoftwareUpdate",
-    ),
-    true,
-  );
-  assert.equal(macosSoftwareUpdateFallback?.implementation?.category, "relution-achievable");
-  assert.equal(macosSoftwareUpdateFallback?.implementation?.surfaces.includes("apple-schema-profile"), true);
-  assert.equal(macosSoftwareUpdateFallback?.implementation?.importableVia.includes("ruleset-import"), true);
-  assert.equal(
-    macosSoftwareUpdateFallback?.helperFallbacks.some(
-      (fallback) =>
-        fallback.method === "terminal"
-        && fallback.role === "remediation"
-        && fallback.commands.includes("/usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true"),
-    ),
-    true,
-  );
-  assert.equal(
-    macosSoftwareUpdateFallback?.helperFallbacks.some(
-      (fallback) =>
-        fallback.method === "profile-method"
-        && fallback.profilePayloadType === "com.apple.SoftwareUpdate"
-        && fallback.profileKeys?.some((key) => key.key === "AutomaticDownload" && key.value === "<true/>") === true,
-    ),
-    true,
-  );
-  assert.equal(macosSoftwareUpdateFallback?.fallbackTranslations?.length, macosSoftwareUpdateFallback?.helperFallbacks.length);
-
-  assert.equal(windowsServiceFallback?.implementation?.category, "helper-only");
-  assert.equal(windowsServiceFallback?.implementation?.surfaces.includes("helper"), true);
-
-  const windowsUserRightsFallback = recommendations.find(
-    (entry) => entry.benchmarkId === "cis-microsoft-windows-11-standalone-5-0-0" && entry.recommendationId === "2.2.4",
-  );
-  assert.notEqual(windowsUserRightsFallback, undefined);
-  assert.equal(windowsUserRightsFallback?.relutionMapping.status, "none");
-  assert.equal(windowsUserRightsFallback?.relutionMapping.candidates.length, 0);
-
-  const iosSiriLocked = recommendations.find((entry) => entry.id === "cis-apple-ios-17-ipados-17-intune-1-0-0-2-2-1");
-  assert.notEqual(iosSiriLocked, undefined);
-  assert.equal(iosSiriLocked?.relutionMapping.status, "exact");
-  assert.equal(hasSchemaValue(iosSiriLocked, "profile:com.apple.applicationaccess", "allowAssistantWhileLocked", false), true);
-
-  const iosScreenshots = recommendations.find((entry) => entry.id === "cis-apple-ios-17-ipados-17-intune-1-0-0-2-5-2");
-  assert.notEqual(iosScreenshots, undefined);
-  assert.equal(iosScreenshots?.relutionMapping.status, "exact");
-  assert.equal(hasSchemaValue(iosScreenshots, "profile:com.apple.applicationaccess", "allowScreenShot", false), true);
-
-  const iosPhotoLibrary = recommendations.find((entry) => entry.id === "cis-apple-ios-17-ipados-17-intune-1-0-0-2-3-6");
-  assert.notEqual(iosPhotoLibrary, undefined);
-  assert.equal(iosPhotoLibrary?.relutionMapping.status, "exact");
-  assert.equal(hasSchemaValue(iosPhotoLibrary, "profile:com.apple.applicationaccess", "allowCloudPhotoLibrary", false), true);
-  assert.equal(hasSchemaValue(iosPhotoLibrary, "profile:com.apple.applicationaccess", "allowScreenShot", false), false);
-
-  const iosLockScreenMessage = recommendations.find((entry) => entry.id === "cis-apple-ios-17-ipados-17-intune-1-0-0-3-9-1");
-  assert.notEqual(iosLockScreenMessage, undefined);
-  assert.notEqual(iosLockScreenMessage?.relutionMapping.status, "exact");
-  assert.equal(hasCandidate(iosLockScreenMessage, "apple-mobileconfig", "com.apple.shareddeviceconfiguration"), true);
-
-  const iosCompliance = recommendations.find((entry) => entry.id === "cis-apple-ios-17-ipados-17-intune-1-0-0-4-5");
-  assert.notEqual(iosCompliance, undefined);
-  assert.equal(iosCompliance?.relutionMapping.status, "partial");
-  assert.equal(hasSemanticConcept(iosCompliance, "mdm_compliance"), true);
-  assert.equal(hasSemanticCandidate(iosCompliance, "IOS_APP_COMPLIANCE"), true);
-  assert.equal(iosCompliance?.relutionMapping.rulesetMappings.length, 0);
-
-  const iosHardenedDevices = recommendations.filter((entry) => entry.platform === "IOS" && entry.title.includes("latest iOS device architecture"));
-  assert.equal(iosHardenedDevices.length, 4);
-  for (const entry of iosHardenedDevices) {
-    assert.equal(entry.relutionMapping.status, "partial", entry.id);
-    assert.equal(hasSemanticConcept(entry, "hardened_device_procurement"), true, entry.id);
-    assert.equal(hasSemanticCandidate(entry, "IOS_RESTRICTION"), true, entry.id);
-    assert.equal(hasSemanticCandidate(entry, "IOS_SECURED_SHARED_DEVICE"), true, entry.id);
-    assert.equal(hasSemanticCandidate(entry, "IOS_SHARED_DEVICE"), true, entry.id);
-    assert.equal(entry.relutionMapping.rulesetMappings.length, 0, entry.id);
-  }
-
-  const iosExactCount = recommendations.filter((entry) => entry.platform === "IOS" && entry.relutionMapping.status === "exact").length;
-  const macosExactCount = recommendations.filter((entry) => entry.platform === "MACOS" && entry.relutionMapping.status === "exact").length;
-  const androidExactCount = recommendations.filter((entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.relutionMapping.status === "exact").length;
-  const windowsExactCount = recommendations.filter((entry) => entry.platform === "WINDOWS" && entry.relutionMapping.status === "exact").length;
-  assert.equal(windowsExactCount, 24);
-  assert.equal(macosExactCount, 52);
-  assert.equal(iosExactCount, 346);
-  assert.equal(androidExactCount, 9);
-
-  const candidateCounts = recommendations.reduce(
-    (acc, recommendation) => {
-      if (recommendation.relutionMapping.candidates.length > 0) {
-        acc[recommendation.platform] = (acc[recommendation.platform] ?? 0) + 1;
-      }
-      return acc;
-    },
-    {} as Record<string, number>,
-  );
-  assert.equal((candidateCounts.WINDOWS ?? 0) >= 502, true);
-  assert.equal((candidateCounts.MACOS ?? 0) >= 248, true);
-  assert.equal((candidateCounts.IOS ?? 0) > 491, true);
-  assert.equal((candidateCounts.ANDROID_ENTERPRISE ?? 0) >= 45, true);
-
-  const computedFallbackCounts = recommendations.reduce(
-    (acc, recommendation) => {
-      for (const fallback of recommendation.helperFallbacks) {
-        acc.total += 1;
-        acc.byPlatform[recommendation.platform] = (acc.byPlatform[recommendation.platform] ?? 0) + 1;
-        acc.byMethod[fallback.method] = (acc.byMethod[fallback.method] ?? 0) + 1;
-      }
-      return acc;
-    },
-    { total: 0, byPlatform: {} as Record<string, number>, byMethod: {} as Record<string, number> },
-  );
-  const summary = readJson<CisBaselineSummary>("example/cis-references/cis-relution-baseline.json");
-  assert.deepEqual(summary.helperFallbackCounts, computedFallbackCounts);
+  assertCisAndroidRecommendations(recommendations);
+  assertCisWindowsRecommendations(recommendations);
+  assertCisMacosRecommendations(recommendations);
+  assertCisIosRecommendations(recommendations);
+  assertCisCoverageCounts(recommendations);
+  assertCisFallbackCounts(recommendations);
 });
 
 test("Apple mobileconfig evidence exposes Relution APPLE_MOBILECONFIG-backed payloads for recommendation matching", () => {
@@ -535,6 +323,182 @@ test("CIS ruleset is importable and exposes aggregate exact mappings per OS fami
   );
 });
 
+function assertCisAndroidRecommendations(recommendations: CisRecommendation[]): void {
+  assertExactNativeCis(recommendations, "cis-google-android-1-6-0", "1.9", "ANDROID_ENTERPRISE_ADVANCED_SECURITY_OVERRIDES", "developerSettings", "DEVELOPER_SETTINGS_DISABLED");
+  assertExactNativeCis(recommendations, "cis-google-android-1-6-0", "1.12", "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT", "keyguardDisabledFeatures", ["TRUST_AGENTS"]);
+  assertExactNativeCis(recommendations, "cis-google-android-1-6-0", "1.14", "ANDROID_ENTERPRISE_RESTRICTION", "androidAutoDateAndTimeZoneSetting", "AUTO_DATE_AND_TIME_ZONE_ENFORCED");
+  assertExactNativeCis(recommendations, "cis-google-android-1-6-0", "1.22", "ANDROID_ENTERPRISE_PLAY_STORE_MANAGEMENT", "appAutoUpdatePolicy", "ALWAYS");
+  assertExactNativeCis(recommendations, "cis-google-android-1-6-0", "2.1", "ANDROID_ENTERPRISE_KEYGUARD_FEATURE_MANAGEMENT", "keyguardDisabledFeatures", ["NOTIFICATIONS"]);
+
+  const locationHistory = findCisRecommendation(recommendations, "cis-google-android-1-6-0", "2.8");
+  assert.notEqual(locationHistory, undefined);
+  assert.notEqual(locationHistory?.relutionMapping.status, "exact");
+}
+
+function assertCisWindowsRecommendations(recommendations: CisRecommendation[]): void {
+  const passwordHistory = findCisRecommendation(recommendations, "cis-microsoft-windows-11-standalone-5-0-0", "1.1.1");
+  assert.notEqual(passwordHistory, undefined);
+  assert.equal(passwordHistory?.relutionMapping.status, "exact");
+
+  const serviceFallback = findCisRecommendation(recommendations, "cis-microsoft-windows-11-standalone-5-0-0", "5.1");
+  assertNoMappingFallback(serviceFallback);
+  assert.equal(hasFallbackCommand(serviceFallback, "powershell", "remediation", "Set-Service -Name BTAGService -StartupType Disabled"), true);
+  assert.equal(serviceFallback?.implementation?.category, "helper-only");
+  assert.equal(serviceFallback?.implementation?.surfaces.includes("helper"), true);
+
+  const auditPolicyFallback = findCisRecommendation(recommendations, "cis-microsoft-windows-11-standalone-5-0-0", "17.1.1");
+  assert.notEqual(auditPolicyFallback, undefined);
+  assert.equal(hasFallbackCommand(auditPolicyFallback, "auditpol", "audit", 'auditpol /get /subcategory:"{0cce923f-69ae-11d9-bed3-505054503030}"'), true);
+  assert.equal(hasGroupPolicyPath(auditPolicyFallback, "Computer Configuration\\Policies\\Windows Settings\\Security Settings\\Advanced Audit Policy Configuration\\Audit Policies\\Account Logon\\Audit Credential Validation"), true);
+
+  assertNoMappingFallback(findCisRecommendation(recommendations, "cis-microsoft-windows-11-standalone-5-0-0", "2.2.4"));
+}
+
+function assertCisMacosRecommendations(recommendations: CisRecommendation[]): void {
+  const fileVault = recommendations.find((entry) => entry.benchmarkId === "cis-apple-macos-26-tahoe-1-0-0" && entry.title === "Ensure FileVault Is Enabled");
+  assert.notEqual(fileVault, undefined);
+  assert.equal(fileVault?.relutionMapping.status, "exact");
+
+  const softwareUpdate = findCisRecommendation(recommendations, "cis-apple-macos-15-sequoia-2-0-0", "1.2");
+  assert.notEqual(softwareUpdate, undefined);
+  assert.equal(softwareUpdate?.relutionMapping.status, "exact");
+  assert.equal(hasSchemaMapping(softwareUpdate, "profile:com.apple.SoftwareUpdate"), true);
+  assert.equal(softwareUpdate?.implementation?.category, "relution-achievable");
+  assert.equal(softwareUpdate?.implementation?.surfaces.includes("apple-schema-profile"), true);
+  assert.equal(softwareUpdate?.implementation?.importableVia.includes("ruleset-import"), true);
+  assert.equal(hasFallbackCommand(softwareUpdate, "terminal", "remediation", "/usr/bin/sudo /usr/bin/defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool true"), true);
+  assert.equal(hasProfileFallbackKey(softwareUpdate, "com.apple.SoftwareUpdate", "AutomaticDownload", "<true/>"), true);
+}
+
+function assertCisIosRecommendations(recommendations: CisRecommendation[]): void {
+  assertExactSchemaCisById(recommendations, "cis-apple-ios-17-ipados-17-intune-1-0-0-2-2-1", "allowAssistantWhileLocked", false);
+  assertExactSchemaCisById(recommendations, "cis-apple-ios-17-ipados-17-intune-1-0-0-2-5-2", "allowScreenShot", false);
+
+  const photoLibrary = findCisRecommendationById(recommendations, "cis-apple-ios-17-ipados-17-intune-1-0-0-2-3-6");
+  assert.notEqual(photoLibrary, undefined);
+  assert.equal(photoLibrary?.relutionMapping.status, "exact");
+  assert.equal(hasSchemaValue(photoLibrary, "profile:com.apple.applicationaccess", "allowCloudPhotoLibrary", false), true);
+  assert.equal(hasSchemaValue(photoLibrary, "profile:com.apple.applicationaccess", "allowScreenShot", false), false);
+
+  const lockScreenMessage = findCisRecommendationById(recommendations, "cis-apple-ios-17-ipados-17-intune-1-0-0-3-9-1");
+  assert.notEqual(lockScreenMessage, undefined);
+  assert.notEqual(lockScreenMessage?.relutionMapping.status, "exact");
+  assert.equal(hasCandidate(lockScreenMessage, "apple-mobileconfig", "com.apple.shareddeviceconfiguration"), true);
+
+  const compliance = findCisRecommendationById(recommendations, "cis-apple-ios-17-ipados-17-intune-1-0-0-4-5");
+  assert.notEqual(compliance, undefined);
+  assert.equal(compliance?.relutionMapping.status, "partial");
+  assert.equal(hasSemanticConcept(compliance, "mdm_compliance"), true);
+  assert.equal(hasSemanticCandidate(compliance, "IOS_APP_COMPLIANCE"), true);
+  assert.equal(compliance?.relutionMapping.rulesetMappings.length, 0);
+  assertIosHardenedDevices(recommendations);
+}
+
+function assertIosHardenedDevices(recommendations: CisRecommendation[]): void {
+  const hardenedDevices = recommendations.filter((entry) => entry.platform === "IOS" && entry.title.includes("latest iOS device architecture"));
+  assert.equal(hardenedDevices.length, 4);
+  for (const entry of hardenedDevices) {
+    assert.equal(entry.relutionMapping.status, "partial", entry.id);
+    assert.equal(hasSemanticConcept(entry, "hardened_device_procurement"), true, entry.id);
+    assert.equal(hasSemanticCandidate(entry, "IOS_RESTRICTION"), true, entry.id);
+    assert.equal(hasSemanticCandidate(entry, "IOS_SECURED_SHARED_DEVICE"), true, entry.id);
+    assert.equal(hasSemanticCandidate(entry, "IOS_SHARED_DEVICE"), true, entry.id);
+    assert.equal(entry.relutionMapping.rulesetMappings.length, 0, entry.id);
+  }
+}
+
+function assertCisCoverageCounts(recommendations: CisRecommendation[]): void {
+  assert.equal(recommendations.filter((entry) => entry.platform === "WINDOWS" && entry.relutionMapping.status === "exact").length, 24);
+  assert.equal(recommendations.filter((entry) => entry.platform === "MACOS" && entry.relutionMapping.status === "exact").length, 52);
+  assert.equal(recommendations.filter((entry) => entry.platform === "IOS" && entry.relutionMapping.status === "exact").length, 346);
+  assert.equal(recommendations.filter((entry) => entry.platform === "ANDROID_ENTERPRISE" && entry.relutionMapping.status === "exact").length, 9);
+
+  const candidateCounts = recommendations.reduce(
+    (acc, recommendation) => {
+      if (recommendation.relutionMapping.candidates.length > 0) {
+        acc[recommendation.platform] = (acc[recommendation.platform] ?? 0) + 1;
+      }
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
+  assert.equal((candidateCounts.WINDOWS ?? 0) >= 502, true);
+  assert.equal((candidateCounts.MACOS ?? 0) >= 248, true);
+  assert.equal((candidateCounts.IOS ?? 0) > 491, true);
+  assert.equal((candidateCounts.ANDROID_ENTERPRISE ?? 0) >= 45, true);
+}
+
+function assertCisFallbackCounts(recommendations: CisRecommendation[]): void {
+  const computedFallbackCounts = recommendations.reduce(
+    (acc, recommendation) => {
+      for (const fallback of recommendation.fallbackTranslations) {
+        acc.total += 1;
+        acc.byPlatform[recommendation.platform] = (acc.byPlatform[recommendation.platform] ?? 0) + 1;
+        acc.byMethod[fallback.method] = (acc.byMethod[fallback.method] ?? 0) + 1;
+      }
+      return acc;
+    },
+    { total: 0, byPlatform: {} as Record<string, number>, byMethod: {} as Record<string, number> },
+  );
+  const summary = readJson<CisBaselineSummary>("example/cis-references/cis-relution-baseline.json");
+  assert.deepEqual(summary.helperFallbackCounts, computedFallbackCounts);
+}
+
+function assertExactNativeCis(
+  recommendations: CisRecommendation[],
+  benchmarkId: string,
+  recommendationId: string,
+  targetType: string,
+  path: string,
+  expected: unknown,
+): void {
+  const entry = findCisRecommendation(recommendations, benchmarkId, recommendationId);
+  assert.notEqual(entry, undefined);
+  assert.equal(entry?.relutionMapping.status, "exact");
+  assert.equal(hasNativeValue(entry, targetType, path, expected), true);
+}
+
+function assertExactSchemaCisById(recommendations: CisRecommendation[], id: string, path: string, expected: unknown): void {
+  const entry = findCisRecommendationById(recommendations, id);
+  assert.notEqual(entry, undefined);
+  assert.equal(entry?.relutionMapping.status, "exact");
+  assert.equal(hasSchemaValue(entry, "profile:com.apple.applicationaccess", path, expected), true);
+}
+
+function assertNoMappingFallback(entry: CisRecommendation | undefined): void {
+  assert.notEqual(entry, undefined);
+  assert.equal(entry?.relutionMapping.status, "none");
+  assert.equal(entry?.relutionMapping.candidates.length, 0);
+}
+
+function hasFallbackCommand(entry: CisRecommendation | undefined, method: string, role: string, command: string): boolean {
+  return entry?.fallbackTranslations.some((fallback) => fallback.method === method && fallback.role === role && fallback.commands.includes(command)) ?? false;
+}
+
+function hasGroupPolicyPath(entry: CisRecommendation | undefined, groupPolicyPath: string): boolean {
+  return entry?.fallbackTranslations.some((fallback) => fallback.method === "group-policy-path" && fallback.groupPolicyPaths?.includes(groupPolicyPath) === true) ?? false;
+}
+
+function hasProfileFallbackKey(entry: CisRecommendation | undefined, payloadType: string, key: string, value: string): boolean {
+  return entry?.fallbackTranslations.some((fallback) =>
+    fallback.method === "profile-method"
+    && fallback.profilePayloadType === payloadType
+    && fallback.profileKeys?.some((profileKey) => profileKey.key === key && profileKey.value === value) === true,
+  ) ?? false;
+}
+
+function hasSchemaMapping(entry: CisRecommendation | undefined, schemaId: string): boolean {
+  return entry?.relutionMapping.rulesetMappings.some((mapping) => mapping.kind === "apple-schema-profile" && mapping.schemaId === schemaId) ?? false;
+}
+
+function findCisRecommendation(recommendations: CisRecommendation[], benchmarkId: string, recommendationId: string): CisRecommendation | undefined {
+  return recommendations.find((entry) => entry.benchmarkId === benchmarkId && entry.recommendationId === recommendationId);
+}
+
+function findCisRecommendationById(recommendations: CisRecommendation[], id: string): CisRecommendation | undefined {
+  return recommendations.find((entry) => entry.id === id);
+}
+
 function readJson<T>(path: string): T {
   return JSON.parse(readFileSync(resolve(path), "utf8")) as T;
 }
@@ -570,10 +534,21 @@ function hasNativeValue(entry: CisRecommendation | undefined, type: string, path
 function valueAtPath(value: unknown, path: string): unknown {
   let current = value;
   for (const part of path.split(".")) {
-    if (current === null || typeof current !== "object" || !(part in current)) {
+    if (!isSafeObjectPathSegment(part)) {
       return undefined;
     }
-    current = (current as Record<string, unknown>)[part];
+    if (current === null || typeof current !== "object") {
+      return undefined;
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(current, part);
+    if (descriptor === undefined) {
+      return undefined;
+    }
+    current = descriptor.value;
   }
   return current;
+}
+
+function isSafeObjectPathSegment(part: string): boolean {
+  return part !== "__proto__" && part !== "constructor" && part !== "prototype";
 }

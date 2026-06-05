@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
-import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
+import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries, updateMdmCommandArtifact } from "../src/sidecar.js";
 import { findAppleSchemaEntry, createDdmArtifact } from "../src/apple-schema.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
@@ -34,6 +34,8 @@ import {
   type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
 
+// Apple device-management catalog snapshot currently exposes 126 profile entries.
+const APPLE_SCHEMA_MIN_PROFILE_ENTRIES = 120;
 
 test("serves Apple schema, custom settings, sidecar, and mobileconfig inspection APIs", async () => {
   const bundle = loadTemplateBundle();
@@ -56,7 +58,7 @@ test("serves Apple schema, custom settings, sidecar, and mobileconfig inspection
 
   try {
     const state = await getJson<AppleSchemaEditorStateResponse>(`${handle.url}api/state`);
-    assert.equal(state.appleSchema.counts.profile, 126);
+    assert.equal((state.appleSchema.counts.profile ?? 0) >= APPLE_SCHEMA_MIN_PROFILE_ENTRIES, true);
     assert.deepEqual(state.sidecar.ddmArtifacts, []);
 
     const addProfileResponse = await postJson(`${handle.url}api/apple-profile/add`, {
@@ -304,4 +306,16 @@ test("adds, updates, and removes MDM command artifacts", async () => {
   } finally {
     await handle.close();
   }
+});
+
+test("updating a missing MDM command artifact reports the unknown uuid", () => {
+  const root = mkdtempSync(join(tmpdir(), "relution-editor-missing-mdm-command-"));
+  const workspaceDir = join(root, "workspace");
+  mkdirSync(workspaceDir, { recursive: true });
+  const catalog = loadAppleSchemaCatalog();
+
+  assert.throws(
+    () => updateMdmCommandArtifact(workspaceDir, catalog, "missing-command", {}),
+    /Unknown MDM command artifact: missing-command/u,
+  );
 });

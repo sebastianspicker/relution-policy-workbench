@@ -1,1 +1,1 @@
-export const PROFILE_EDITOR_META_KEY = "relutionProfileEditor";
+export const PROFILE_EDITOR_META_PROPERTY = "relutionProfileEditor";

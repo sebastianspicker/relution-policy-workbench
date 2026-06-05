@@ -1,161 +1,315 @@
+"""Build BSI recommendation catalogs, baselines, and rulesets."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+from recommendation_mapping import (
+    MANAGEMENT_SUPPORT_CONCEPT_IDS,
+    android_relution_analog_mappings_for,
+    android_relution_candidates_for,
+    apple_mobileconfig_candidates_for,
+    apple_schema_analog_mappings_for,
+    candidate_from_mapping,
+    mapping_candidates,
+)
+
+from .curated_mapping_rules import MAPPING_RULES, extra_relution_mapping_metadata
+from .source_parsers import (
+    BASELINE_PATH,
+    BSI_DIR,
+    CHECKLIST_COMPARISON_PATH,
+    GS_PLUSPLUS_SYSTEMATICS_PATH,
+    PLATFORM_TARGETS,
+    README_PATH,
+    relative_repo_path,
+)
 
 
-def mapping_for(
-    platform: str,
-    requirement_id: str,
-    requirement: dict[str, Any],
-    field_index: dict[str, list[Any]],
-    apple_mobileconfig_evidence: dict[str, dict[str, Any]],
-    semantic_candidates: list[dict[str, Any]],
-) -> dict[str, Any]:
+def mapping_for(context: dict[str, Any]) -> dict[str, Any]:
+    """Build Relution mapping metadata for one BSI requirement context."""
+    platform = context["platform"]
+    requirement_id = context["requirementId"]
+    requirement = context["requirement"]
+    field_index = context["fieldIndex"]
+    apple_mobileconfig_evidence = context["appleMobileconfigEvidence"]
+    semantic_candidates = context["semanticCandidates"]
     mapping = MAPPING_RULES.get((platform, requirement_id))
-    inferred_candidates = []
-    android_exact_mappings = []
-    android_candidates = []
-    apple_exact_mappings = []
-    apple_mobileconfig_candidates = []
-    if requirement.get("status") != "retired":
-        extra_texts = (
-            str(requirement.get("requirementText", "")),
-            str(requirement.get("category", "")),
-        )
-        android_exact_mappings = android_relution_analog_mappings_for(
-            platform,
-            str(requirement.get("title", "")),
-            None,
-        )
-        android_candidates = android_relution_candidates_for(
-            platform,
-            str(requirement.get("title", "")),
-            extra_texts=extra_texts,
-        )
-        apple_exact_mappings = apple_schema_analog_mappings_for(
-            platform,
-            str(requirement.get("title", "")),
-            None,
-            extra_texts=extra_texts,
-        )
-        apple_mobileconfig_candidates = apple_mobileconfig_candidates_for(
-            platform,
-            str(requirement.get("title", "")),
-            extra_texts=extra_texts,
-            evidence_index=apple_mobileconfig_evidence,
-        )
-        inferred_candidates = mapping_candidates(
-            platform,
-            str(requirement.get("title", "")),
-            str(requirement.get("category", "")),
-            field_index,
-            None,
-            extra_texts=(str(requirement.get("requirementText", "")),),
-            limit=5,
-        )
+    inferred = bsi_inferred_mapping_parts(
+        platform, requirement, field_index, apple_mobileconfig_evidence
+    )
     if mapping is None:
-        if android_exact_mappings:
-            return {
-                "status": "exact",
-                "mergeableInImportableRuleset": True,
-                "candidates": merge_candidates([candidate_from_mapping(entry) for entry in android_exact_mappings], [*semantic_candidates, *android_candidates, *inferred_candidates]),
-                "rulesetMappings": android_exact_mappings,
-                "notes": ["Curated Android Enterprise analogs cover this enforceable BSI requirement through Relution native policy settings."],
-            }
-        if apple_exact_mappings:
-            return {
-                "status": "exact",
-                "mergeableInImportableRuleset": True,
-                "candidates": merge_candidates([candidate_from_mapping(entry) for entry in apple_exact_mappings], [*semantic_candidates, *apple_mobileconfig_candidates, *inferred_candidates]),
-                "rulesetMappings": apple_exact_mappings,
-                "notes": ["Curated Apple profile analogs cover this enforceable requirement through Relution APPLE_MOBILECONFIG-backed schema profiles."],
-            }
-        if android_candidates:
-            return {
-                "status": "partial",
-                "mergeableInImportableRuleset": False,
-                "candidates": merge_candidates(android_candidates, [*semantic_candidates, *inferred_candidates]),
-                "rulesetMappings": [],
-                "notes": ["Bilingual Android Enterprise setting matching found related Relution settings, but the BSI requirement is broader or lacks concrete enforceable values."],
-            }
-        if inferred_candidates:
-            return {
-                "status": "partial",
-                "mergeableInImportableRuleset": False,
-                "candidates": merge_candidates(inferred_candidates, [*semantic_candidates, *apple_mobileconfig_candidates, *android_candidates]),
-                "rulesetMappings": [],
-                "notes": ["Bilingual setting-name matching found related Relution/Apple settings, but the BSI requirement is broader or lacks a concrete enforceable value."],
-            }
-        if apple_mobileconfig_candidates:
-            return {
-                "status": "partial",
-                "mergeableInImportableRuleset": False,
-                "candidates": merge_candidates(apple_mobileconfig_candidates, semantic_candidates),
-                "rulesetMappings": [],
-                "notes": ["Relution can import a related Apple .mobileconfig payload, but the BSI requirement needs organization-specific values before it can be exact."],
-            }
-        if semantic_candidates:
-            return {
-                "status": "partial",
-                "mergeableInImportableRuleset": False,
-                "candidates": semantic_candidates,
-                "rulesetMappings": [],
-                "notes": ["BSI/GS++ concept matching found related Relution targets, but exact remediation requires concrete values and scoped policy decisions."],
-            }
-        return {
-            "status": "none",
-            "mergeableInImportableRuleset": False,
-            "candidates": [],
-            "rulesetMappings": [],
-            "notes": [],
-        }
-    if mapping["status"] != "exact" and android_exact_mappings:
-        return {
-            "status": "exact",
-            "mergeableInImportableRuleset": True,
-            "candidates": merge_candidates([*mapping["candidates"], *[candidate_from_mapping(entry) for entry in android_exact_mappings]], [*semantic_candidates, *android_candidates, *inferred_candidates]),
-            "rulesetMappings": android_exact_mappings,
-            "notes": ["Curated Android Enterprise analogs cover this enforceable BSI requirement through Relution native policy settings."],
-        }
-    if mapping["status"] != "exact" and apple_exact_mappings:
-        return {
-            "status": "exact",
-            "mergeableInImportableRuleset": True,
-            "candidates": merge_candidates([*mapping["candidates"], *[candidate_from_mapping(entry) for entry in apple_exact_mappings]], [*semantic_candidates, *apple_mobileconfig_candidates, *inferred_candidates]),
-            "rulesetMappings": apple_exact_mappings,
-            "notes": ["Curated Apple profile analogs cover this enforceable requirement through Relution APPLE_MOBILECONFIG-backed schema profiles."],
-        }
+        return bsi_mapping_without_curated_rule(inferred, semantic_candidates)
+    override = bsi_exact_override(mapping, inferred, semantic_candidates)
+    if override is not None:
+        return override
     notes = mapping["notes"]
     if mapping["status"] == "none" and semantic_candidates:
-        notes = ["BSI/GS++ concept matching found related Relution targets, but exact remediation requires concrete values and scoped policy decisions."]
+        notes = [
+            (
+                "BSI/GS++ concept matching found related Relution targets, but exact "
+                "remediation requires concrete values and scoped policy decisions."
+            )
+        ]
     return {
-        "status": "partial" if mapping["status"] == "none" and semantic_candidates else mapping["status"],
+        "status": "partial"
+        if mapping["status"] == "none" and semantic_candidates
+        else mapping["status"],
         "mergeableInImportableRuleset": mapping["mergeableInImportableRuleset"],
-        "candidates": merge_candidates(mapping["candidates"], [*semantic_candidates, *android_candidates, *apple_mobileconfig_candidates, *inferred_candidates]),
+        "candidates": merge_candidates(
+            mapping["candidates"],
+            [
+                *semantic_candidates,
+                *inferred["androidCandidates"],
+                *inferred["appleMobileconfigCandidates"],
+                *inferred["inferredCandidates"],
+            ],
+        ),
         "rulesetMappings": mapping["rulesetMappings"],
         "notes": notes,
         **extra_relution_mapping_metadata(mapping),
     }
 
 
-def candidate_from_mapping(mapping: dict[str, Any]) -> dict[str, Any]:
-    if mapping.get("kind") == "relution-native":
-        target = str(mapping.get("type", ""))
-    elif mapping.get("kind") == "apple-schema-profile":
-        target = str(mapping.get("schemaId", ""))
-    else:
-        target = str(mapping.get("payloadType", ""))
-    candidate: dict[str, Any] = {
-        "kind": mapping.get("kind", ""),
-        "target": target,
-        "fieldPaths": flatten_value_paths(mapping.get("values", {})),
+def bsi_inferred_mapping_parts(
+    platform: str,
+    requirement: dict[str, Any],
+    field_index: dict[str, list[Any]],
+    apple_mobileconfig_evidence: dict[str, dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Infer candidate and analog mapping evidence for an active BSI requirement."""
+    empty = {
+        "inferredCandidates": [],
+        "androidExactMappings": [],
+        "androidCandidates": [],
+        "appleExactMappings": [],
+        "appleMobileconfigCandidates": [],
     }
-    if isinstance(mapping.get("match"), dict):
-        candidate["match"] = mapping["match"]
-    return candidate
+    if requirement.get("status") == "retired":
+        return empty
+    title = str(requirement.get("title", ""))
+    extra_texts = (
+        str(requirement.get("requirementText", "")),
+        str(requirement.get("category", "")),
+    )
+    return {
+        "inferredCandidates": mapping_candidates(
+            platform,
+            title,
+            str(requirement.get("category", "")),
+            field_index,
+            {"extraTexts": (extra_texts[0],), "limit": 5},
+        ),
+        "androidExactMappings": android_relution_analog_mappings_for(
+            platform, title, None
+        ),
+        "androidCandidates": android_relution_candidates_for(
+            platform, title, extra_texts=extra_texts
+        ),
+        "appleExactMappings": apple_schema_analog_mappings_for(
+            platform, title, None, extra_texts=extra_texts
+        ),
+        "appleMobileconfigCandidates": apple_mobileconfig_candidates_for(
+            platform,
+            title,
+            extra_texts=extra_texts,
+            evidence_index=apple_mobileconfig_evidence,
+        ),
+    }
 
 
-def merge_candidates(existing: list[dict[str, Any]], inferred: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def bsi_mapping_without_curated_rule(
+    inferred: dict[str, list[dict[str, Any]]], semantic_candidates: list[dict[str, Any]]
+) -> dict[str, Any]:
+    """Choose inferred exact or partial metadata when no curated rule exists."""
+    if inferred["androidExactMappings"]:
+        return bsi_exact_mapping(
+            inferred["androidExactMappings"],
+            [
+                *semantic_candidates,
+                *inferred["androidCandidates"],
+                *inferred["inferredCandidates"],
+            ],
+            (
+                "Curated Android Enterprise analogs cover this enforceable BSI requirement "
+                "through Relution native policy settings."
+            ),
+        )
+    if inferred["appleExactMappings"]:
+        return bsi_exact_mapping(
+            inferred["appleExactMappings"],
+            [
+                *semantic_candidates,
+                *inferred["appleMobileconfigCandidates"],
+                *inferred["inferredCandidates"],
+            ],
+            (
+                "Curated Apple profile analogs cover this enforceable requirement through "
+                "Relution APPLE_MOBILECONFIG-backed schema profiles."
+            ),
+        )
+    partial = bsi_partial_mapping(inferred, semantic_candidates)
+    if partial is not None:
+        return partial
+    return {
+        "status": "none",
+        "mergeableInImportableRuleset": False,
+        "candidates": [],
+        "rulesetMappings": [],
+        "notes": [],
+    }
+
+
+def bsi_exact_override(
+    mapping: dict[str, Any],
+    inferred: dict[str, list[dict[str, Any]]],
+    semantic_candidates: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    """Promote non-exact curated metadata only when inferred exact evidence exists."""
+    if mapping["status"] == "exact":
+        return None
+    if inferred["androidExactMappings"]:
+        candidates = [
+            *mapping["candidates"],
+            *[
+                candidate_from_mapping(entry)
+                for entry in inferred["androidExactMappings"]
+            ],
+        ]
+        return bsi_exact_mapping(
+            inferred["androidExactMappings"],
+            [
+                *semantic_candidates,
+                *inferred["androidCandidates"],
+                *inferred["inferredCandidates"],
+            ],
+            (
+                "Curated Android Enterprise analogs cover this enforceable BSI requirement "
+                "through Relution native policy settings."
+            ),
+            candidates,
+        )
+    if inferred["appleExactMappings"]:
+        candidates = [
+            *mapping["candidates"],
+            *[
+                candidate_from_mapping(entry)
+                for entry in inferred["appleExactMappings"]
+            ],
+        ]
+        return bsi_exact_mapping(
+            inferred["appleExactMappings"],
+            [
+                *semantic_candidates,
+                *inferred["appleMobileconfigCandidates"],
+                *inferred["inferredCandidates"],
+            ],
+            (
+                "Curated Apple profile analogs cover this enforceable requirement through "
+                "Relution APPLE_MOBILECONFIG-backed schema profiles."
+            ),
+            candidates,
+        )
+    return None
+
+
+def bsi_exact_mapping(
+    exact_mappings: list[dict[str, Any]],
+    inferred_candidates: list[dict[str, Any]],
+    note: str,
+    base_candidates: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Return importable exact mapping metadata with merged review candidates."""
+    candidates = (
+        base_candidates
+        if base_candidates is not None
+        else [candidate_from_mapping(entry) for entry in exact_mappings]
+    )
+    return {
+        "status": "exact",
+        "mergeableInImportableRuleset": True,
+        "candidates": merge_candidates(candidates, inferred_candidates),
+        "rulesetMappings": exact_mappings,
+        "notes": [note],
+    }
+
+
+def bsi_partial_mapping(
+    inferred: dict[str, list[dict[str, Any]]], semantic_candidates: list[dict[str, Any]]
+) -> dict[str, Any] | None:
+    """Return partial metadata when related targets exist without exact values."""
+    if inferred["androidCandidates"]:
+        return bsi_partial_response(
+            merge_candidates(
+                inferred["androidCandidates"],
+                [*semantic_candidates, *inferred["inferredCandidates"]],
+            ),
+            (
+                "Bilingual Android Enterprise setting matching found related Relution settings, "
+                "but the BSI requirement is broader or lacks concrete enforceable values."
+            ),
+        )
+    if inferred["inferredCandidates"]:
+        candidates = merge_candidates(
+            inferred["inferredCandidates"],
+            [
+                *semantic_candidates,
+                *inferred["appleMobileconfigCandidates"],
+                *inferred["androidCandidates"],
+            ],
+        )
+        return bsi_partial_response(
+            candidates,
+            (
+                "Bilingual setting-name matching found related Relution/Apple settings, but the "
+                "BSI requirement is broader or lacks a concrete enforceable value."
+            ),
+        )
+    if inferred["appleMobileconfigCandidates"]:
+        return bsi_partial_response(
+            merge_candidates(
+                inferred["appleMobileconfigCandidates"], semantic_candidates
+            ),
+            (
+                "Relution can import a related Apple .mobileconfig payload, but the BSI "
+                "requirement needs organization-specific values before it can be exact."
+            ),
+        )
+    if semantic_candidates:
+        return bsi_partial_response(
+            semantic_candidates,
+            (
+                "BSI/GS++ concept matching found related Relution targets, but exact "
+                "remediation requires concrete values and scoped policy decisions."
+            ),
+        )
+    return None
+
+
+def bsi_partial_response(candidates: list[dict[str, Any]], note: str) -> dict[str, Any]:
+    """Build a non-importable partial mapping response with review candidates."""
+    return {
+        "status": "partial",
+        "mergeableInImportableRuleset": False,
+        "candidates": candidates,
+        "rulesetMappings": [],
+        "notes": [note],
+    }
+
+
+def merge_candidates(
+    existing: list[dict[str, Any]], inferred: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Merge candidate rows by kind and target while preserving useful field paths."""
     merged: list[dict[str, Any]] = []
     seen: dict[tuple[str, str], dict[str, Any]] = {}
-    ordered_existing = sorted(existing, key=candidate_sort_key) if any("semanticConceptId" in candidate for candidate in existing) else existing
+    ordered_existing = (
+        sorted(existing, key=candidate_sort_key)
+        if any("semanticConceptId" in candidate for candidate in existing)
+        else existing
+    )
     for candidate in [*ordered_existing, *sorted(inferred, key=candidate_sort_key)]:
         key = (str(candidate.get("kind", "")), str(candidate.get("target", "")))
         if key in seen:
@@ -173,8 +327,11 @@ def merge_candidates(existing: list[dict[str, Any]], inferred: list[dict[str, An
 
 
 def candidate_sort_key(candidate: dict[str, Any]) -> tuple[int, int, str, str]:
+    """Sort stronger curated and semantic candidates ahead of weak name matches."""
     match = candidate.get("match", {})
-    compatibility = str(match.get("valueCompatibility", "")) if isinstance(match, dict) else ""
+    compatibility = (
+        str(match.get("valueCompatibility", "")) if isinstance(match, dict) else ""
+    )
     score = int(match.get("score", 0)) if isinstance(match, dict) else 0
     concept_id = str(candidate.get("semanticConceptId", ""))
     if compatibility in {"curated-analog", "curated-android-analog"}:
@@ -183,14 +340,20 @@ def candidate_sort_key(candidate: dict[str, Any]) -> tuple[int, int, str, str]:
         band = 3 if concept_id in MANAGEMENT_SUPPORT_CONCEPT_IDS else 2
     else:
         band = 1
-    return (band, -score, str(candidate.get("kind", "")), str(candidate.get("target", "")))
+    return (
+        band,
+        -score,
+        str(candidate.get("kind", "")),
+        str(candidate.get("target", "")),
+    )
 
 
-def merge_candidate_field_paths(existing: dict[str, Any], duplicate: dict[str, Any]) -> None:
+def merge_candidate_field_paths(
+    existing: dict[str, Any], duplicate: dict[str, Any]
+) -> None:
+    """Append unique field paths from a duplicate candidate into the stored row."""
     paths = [
-        str(path)
-        for path in existing.get("fieldPaths", [])
-        if isinstance(path, str)
+        str(path) for path in existing.get("fieldPaths", []) if isinstance(path, str)
     ]
     seen = set(paths)
     for path in duplicate.get("fieldPaths", []):
@@ -202,9 +365,14 @@ def merge_candidate_field_paths(existing: dict[str, Any], duplicate: dict[str, A
 
 
 def build_ruleset(recommendations: list[dict[str, Any]]) -> dict[str, Any]:
+    """Build the importable BSI Relution ruleset with informational partial rules."""
     policies = []
     for platform in PLATFORM_TARGETS:
-        platform_recommendations = [entry for entry in recommendations if entry["platform"] == platform.platform and entry["status"] == "active"]
+        platform_recommendations = [
+            entry
+            for entry in recommendations
+            if entry["platform"] == platform.platform and entry["status"] == "active"
+        ]
         policies.append(
             {
                 "platform": platform.platform,
@@ -213,7 +381,7 @@ def build_ruleset(recommendations: list[dict[str, Any]]) -> dict[str, Any]:
                 "rules": [
                     {
                         "id": entry["id"],
-                        "title": f'{entry["requirementId"]} {entry["title"]}',
+                        "title": f"{entry['requirementId']} {entry['title']}",
                         "informational": entry["relutionMapping"]["status"] != "exact",
                         "reason": entry["reason"],
                         "section": entry["category"],
@@ -245,26 +413,41 @@ def update_baseline_summary(
     plusplus_systematics: dict[str, Any],
     checklist_comparison: dict[str, Any],
 ) -> None:
+    """Update the BSI baseline summary with recommendation and source counts."""
     baseline = json.loads(BASELINE_PATH.read_text(encoding="utf8"))
     counts_by_platform: dict[str, int] = {}
     for recommendation in recommendations:
-        counts_by_platform[recommendation["platform"]] = counts_by_platform.get(recommendation["platform"], 0) + 1
-    baseline["recommendationCatalogPath"] = "example/bsi-references/bsi-recommendations.json"
-    baseline["importableRulesetPath"] = "example/bsi-references/bsi-relution-ruleset.json"
+        counts_by_platform[recommendation["platform"]] = (
+            counts_by_platform.get(recommendation["platform"], 0) + 1
+        )
+    baseline["recommendationCatalogPath"] = (
+        "example/bsi-references/bsi-recommendations.json"
+    )
+    baseline["importableRulesetPath"] = (
+        "example/bsi-references/bsi-relution-ruleset.json"
+    )
     baseline["recommendationCounts"] = {
         "total": len(recommendations),
         "active": sum(1 for entry in recommendations if entry["status"] == "active"),
         "retired": sum(1 for entry in recommendations if entry["status"] == "retired"),
         "byPlatform": counts_by_platform,
     }
-    baseline["downloadCount"] = len(json.loads((BSI_DIR / "downloads" / "manifest.json").read_text(encoding="utf8")))
+    baseline["downloadCount"] = len(
+        json.loads((BSI_DIR / "downloads" / "manifest.json").read_text(encoding="utf8"))
+    )
     baseline["grundschutzKompendiumChecklists"] = {
         "comparisonPath": relative_repo_path(CHECKLIST_COMPARISON_PATH),
         "individualWorkbookCount": checklist_comparison["individualWorkbookCount"],
-        "individualRequirementCount": checklist_comparison["individualRequirementCount"],
-        "policyRelevantRequirementCount": checklist_comparison["policyRelevantRequirementCount"],
+        "individualRequirementCount": checklist_comparison[
+            "individualRequirementCount"
+        ],
+        "policyRelevantRequirementCount": checklist_comparison[
+            "policyRelevantRequirementCount"
+        ],
         "sourceDirectory": checklist_comparison["sourceDirectory"],
-        "consolidatedThreatWorkbookPath": checklist_comparison["consolidatedThreatWorkbookPath"],
+        "consolidatedThreatWorkbookPath": checklist_comparison[
+            "consolidatedThreatWorkbookPath"
+        ],
     }
     baseline["grundschutzPlusPlus"] = {
         "systematicsPath": relative_repo_path(GS_PLUSPLUS_SYSTEMATICS_PATH),
@@ -277,14 +460,19 @@ def update_baseline_summary(
         "status": plusplus_systematics["methodology"]["status"],
         "controlCount": plusplus_systematics["counts"]["controls"],
         "practiceGroupCount": plusplus_systematics["counts"]["practiceGroups"],
-        "policyRelevantControlCount": len(plusplus_systematics["policyRelevantControlIds"]),
-        "modalVerbDefinitions": plusplus_systematics["methodology"]["modalVerbDefinitions"],
+        "policyRelevantControlCount": len(
+            plusplus_systematics["policyRelevantControlIds"]
+        ),
+        "modalVerbDefinitions": plusplus_systematics["methodology"][
+            "modalVerbDefinitions"
+        ],
         "policyEditorUse": plusplus_systematics["methodology"]["policyEditorUse"],
     }
     write_json(BASELINE_PATH, baseline)
 
 
 def update_readme() -> None:
+    """Ensure the BSI README mentions generated recommendation and ruleset artifacts."""
     readme = README_PATH.read_text(encoding="utf8")
     if "bsi-recommendations.json" in readme and "bsi-relution-ruleset.json" in readme:
         return
@@ -294,145 +482,21 @@ def update_readme() -> None:
 - `tools/harvest_bsi_grundschutz.py`: reproducible extractor for the local BSI XML/XLSX/text corpus.
 """.strip()
     readme = readme.replace(
-        "- `bsi-relution-baseline.json`: consolidated 2023 baseline plus 2025 errata/checklist layer, normalized for Relution-oriented consumption",
-        "- `bsi-relution-baseline.json`: consolidated 2023 baseline plus 2025 errata/checklist layer, normalized for Relution-oriented consumption\n"
+        (
+            "- `bsi-relution-baseline.json`: consolidated 2023 baseline plus 2025 "
+            "errata/checklist layer, normalized for Relution-oriented consumption"
+        ),
+        (
+            "- `bsi-relution-baseline.json`: consolidated 2023 baseline plus 2025 "
+            "errata/checklist layer, normalized for Relution-oriented consumption\n"
+        )
         + insertion,
     )
     README_PATH.write_text(readme, encoding="utf8")
 
 
-def collect_direct_blocks(section: ET.Element) -> list[str]:
-    blocks: list[str] = []
-    for child in section:
-        tag = local_name(child.tag)
-        if tag == "title":
-            continue
-        if tag == "para":
-            text = normalize_space("".join(child.itertext()))
-            if text:
-                blocks.append(text)
-            continue
-        if tag in {"itemizedlist", "orderedlist"}:
-            for item in child.findall("db:listitem", DOCBOOK_NS):
-                text = normalize_space("".join(item.itertext()))
-                if text:
-                    blocks.append(f"- {text}")
-    return blocks
-
-
-def first_part(control: dict[str, Any], name: str) -> dict[str, Any]:
-    for part in control.get("parts", []):
-        if isinstance(part, dict) and part.get("name") == name:
-            return part
-    return {}
-
-
-def prop_value(props: Any, name: str) -> str | None:
-    values = prop_values(props, name)
-    return values[0] if values else None
-
-
-def prop_values(props: Any, name: str) -> list[str]:
-    if not isinstance(props, list):
-        return []
-    return [
-        normalize_space(str(prop.get("value", "")))
-        for prop in props
-        if isinstance(prop, dict) and prop.get("name") == name and normalize_space(str(prop.get("value", "")))
-    ]
-
-
-def prop_remark(props: Any, name: str) -> str:
-    if not isinstance(props, list):
-        return ""
-    for prop in props:
-        if isinstance(prop, dict) and prop.get("name") == name:
-            return normalize_space(str(prop.get("remarks", "")))
-    return ""
-
-
-def split_values(values: list[str]) -> list[str]:
-    split = []
-    for value in values:
-        split.extend(normalize_space(part) for part in value.split(",") if normalize_space(part))
-    return unique_preserving_order(split)
-
-
-def count_values(values: Any) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for value in values:
-        if value is None:
-            continue
-        key = str(value)
-        counts[key] = counts.get(key, 0) + 1
-    return dict(sorted(counts.items()))
-
-
-def natural_control_sort_key(control_id: str) -> tuple[Any, ...]:
-    parts: list[Any] = []
-    for part in re.split(r"(\d+)", control_id):
-        if part.isdigit():
-            parts.append(int(part))
-        elif part:
-            parts.append(part)
-    return tuple(parts)
-
-
-def normalize_for_match(text: str) -> str:
-    normalized = text.lower()
-    normalized = normalized.replace("ä", "ae").replace("ö", "oe").replace("ü", "ue").replace("ß", "ss")
-    normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
-    return normalize_space(normalized)
-
-
-def token_set(text: str) -> set[str]:
-    return {
-        token
-        for token in normalize_for_match(text).split()
-        if len(token) >= 5 and token not in GS_PLUSPLUS_STOPWORDS
-    }
-
-
-def shorten(text: str, max_length: int) -> str:
-    normalized = normalize_space(text)
-    if len(normalized) <= max_length:
-        return normalized
-    return normalized[: max_length - 1].rstrip() + "…"
-
-
-def relative_repo_path(path: Path) -> str:
-    return path.resolve().relative_to(REPO_ROOT).as_posix()
-
-
-def local_name(tag: str) -> str:
-    return tag.split("}", 1)[1] if "}" in tag else tag
-
-
-def normalize_space(text: str) -> str:
-    return " ".join(text.split())
-
-
-def slugify(value: str) -> str:
-    slug = value.lower().replace(".", "-").replace("_", "-")
-    slug = re.sub(r"[^a-z0-9-]+", "-", slug)
-    slug = re.sub(r"-{2,}", "-", slug)
-    return slug.strip("-")
-
-
-def unique_preserving_order(values: list[str]) -> list[str]:
-    seen: set[str] = set()
-    ordered: list[str] = []
-    for value in values:
-        if value in seen:
-            continue
-        seen.add(value)
-        ordered.append(value)
-    return ordered
-
-
 def write_json(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf8")
-
-
-if __name__ == "__main__":
-    main()
+    """Write stable UTF-8 JSON for generated BSI artifacts."""
+    path.write_text(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf8"
+    )

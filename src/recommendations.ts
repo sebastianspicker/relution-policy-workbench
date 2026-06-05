@@ -16,16 +16,13 @@ import {
   type RecommendationSourceSummary,
   type RecommendationUnifiedAnalysis,
 } from "./recommendation-types.js";
+import { asRecord, uniqueStrings } from "./utils/json-guards.js";
 
 interface RecommendationSourceFiles {
   label: string;
   recommendationsPath: string;
   rulesetPath: string;
   settingBundleCatalogPath: string;
-}
-
-export interface RecommendationCatalogOptions {
-  rootDir?: string;
 }
 
 const DEFAULT_RECOMMENDATION_ROOT = fileURLToPath(new URL("../../", import.meta.url));
@@ -58,27 +55,27 @@ const SOURCE_FILES: Record<RecommendationSource, RecommendationSourceFiles> = {
   },
 };
 
-const catalogCache = new Map<string, RecommendationCatalogResponse>();
-const coverageCache = new Map<string, RecommendationCoverageMatrix>();
-const semanticIndexCache = new Map<string, RecommendationSemanticIndex>();
-const unifiedAnalysisCache = new Map<string, RecommendationUnifiedAnalysis>();
-const settingsCatalogCache = new Map<string, RecommendationSettingBundleCatalog>();
+const catalogCache: Partial<Record<RecommendationSource, RecommendationCatalogResponse>> = {};
+const settingsCatalogCache: Partial<Record<RecommendationSource, RecommendationSettingBundleCatalog>> = {};
+let coverageCache: RecommendationCoverageMatrix | undefined;
+let semanticIndexCache: RecommendationSemanticIndex | undefined;
+let unifiedAnalysisCache: RecommendationUnifiedAnalysis | undefined;
 
 export function isRecommendationSource(value: string): value is RecommendationSource {
   return RECOMMENDATION_SOURCES.includes(value as RecommendationSource);
 }
 
-export function listRecommendationCatalogs(options: RecommendationCatalogOptions = {}): RecommendationIndexResponse {
+export function listRecommendationCatalogs(options: { rootDir?: string } = {}): RecommendationIndexResponse {
   return {
     sources: RECOMMENDATION_SOURCES.map((source) => toSummary(loadRecommendationCatalog(source, options))),
   };
 }
 
-export function loadRecommendationCatalog(source: RecommendationSource, options: RecommendationCatalogOptions = {}): RecommendationCatalogResponse {
+export function loadRecommendationCatalog(source: RecommendationSource, options: { rootDir?: string } = {}): RecommendationCatalogResponse {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
-  const cacheKey = `${rootDir}:${source}`;
-  const cached = catalogCache.get(cacheKey);
-  if (cached !== undefined) {
+  const useCache = rootDir === DEFAULT_RECOMMENDATION_ROOT;
+  const cached = catalogCache[source];
+  if (useCache && cached !== undefined) {
     return cached;
   }
 
@@ -86,8 +83,8 @@ export function loadRecommendationCatalog(source: RecommendationSource, options:
   try {
     const recommendations = readRecommendations(resolve(rootDir, files.recommendationsPath));
     const ruleset = readRuleset(resolve(rootDir, files.rulesetPath));
-    const displayPlatforms = uniqueStrings(recommendations.map((entry) => entry.platform));
-    const importPlatforms = uniqueStrings(ruleset.policies.map((policy) => policy.platform));
+    const displayPlatforms = uniqueStrings(recommendations.map((entry) => entry.platform), { sort: true });
+    const importPlatforms = uniqueStrings(ruleset.policies.map((policy) => policy.platform), { sort: true });
     const catalog: RecommendationCatalogResponse = {
       source,
       label: files.label,
@@ -101,7 +98,9 @@ export function loadRecommendationCatalog(source: RecommendationSource, options:
       ruleset,
       ...(ruleset.verifiedAsOf === undefined ? {} : { verifiedAsOf: ruleset.verifiedAsOf }),
     };
-    catalogCache.set(cacheKey, catalog);
+    if (useCache) {
+      catalogCache[source] = catalog;
+    }
     return catalog;
   } catch (error) {
     const unavailable: RecommendationCatalogResponse = {
@@ -116,58 +115,83 @@ export function loadRecommendationCatalog(source: RecommendationSource, options:
       error: error instanceof Error ? error.message : String(error),
       recommendations: [],
     };
-    catalogCache.set(cacheKey, unavailable);
+    if (useCache) {
+      catalogCache[source] = unavailable;
+    }
     return unavailable;
   }
 }
 
-export function loadRecommendationCoverage(options: RecommendationCatalogOptions = {}): RecommendationCoverageMatrix {
+export function loadRecommendationCoverage(options: { rootDir?: string } = {}): RecommendationCoverageMatrix {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT && coverageCache !== undefined) {
+    return coverageCache;
+  }
   const path = resolve(rootDir, COVERAGE_PATH);
-  return loadJsonCatalog(coverageCache, rootDir, path, "Recommendation coverage matrix", (record) =>
+  const coverage = readJsonCatalog<RecommendationCoverageMatrix>(path, "Recommendation coverage matrix", (record) =>
     Array.isArray(record.rows) && asRecord(record.summary) !== undefined,
   );
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT) {
+    coverageCache = coverage;
+  }
+  return coverage;
 }
 
-export function loadRecommendationSemanticIndex(options: RecommendationCatalogOptions = {}): RecommendationSemanticIndex {
+export function loadRecommendationSemanticIndex(options: { rootDir?: string } = {}): RecommendationSemanticIndex {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT && semanticIndexCache !== undefined) {
+    return semanticIndexCache;
+  }
   const path = resolve(rootDir, SEMANTIC_INDEX_PATH);
-  return loadJsonCatalog(semanticIndexCache, rootDir, path, "Recommendation semantic index", (record) =>
+  const semanticIndex = readJsonCatalog<RecommendationSemanticIndex>(path, "Recommendation semantic index", (record) =>
     Array.isArray(record.concepts) && Array.isArray(record.relutionTargets) && Array.isArray(record.recommendations),
   );
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT) {
+    semanticIndexCache = semanticIndex;
+  }
+  return semanticIndex;
 }
 
-export function loadUnifiedRecommendationAnalysis(options: RecommendationCatalogOptions = {}): RecommendationUnifiedAnalysis {
+export function loadUnifiedRecommendationAnalysis(options: { rootDir?: string } = {}): RecommendationUnifiedAnalysis {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT && unifiedAnalysisCache !== undefined) {
+    return unifiedAnalysisCache;
+  }
   const path = resolve(rootDir, UNIFIED_ANALYSIS_PATH);
-  return loadJsonCatalog(unifiedAnalysisCache, rootDir, path, "Unified recommendation analysis", (record) =>
+  const unifiedAnalysis = readJsonCatalog<RecommendationUnifiedAnalysis>(path, "Unified recommendation analysis", (record) =>
     Array.isArray(record.commonGroups) && Array.isArray(record.contradictions) && Array.isArray(record.differences),
   );
+  if (rootDir === DEFAULT_RECOMMENDATION_ROOT) {
+    unifiedAnalysisCache = unifiedAnalysis;
+  }
+  return unifiedAnalysis;
 }
 
 export function loadRecommendationSettingBundleCatalog(
   source: RecommendationSource,
-  options: RecommendationCatalogOptions = {},
+  options: { rootDir?: string } = {},
 ): RecommendationSettingBundleCatalog {
   const rootDir = options.rootDir ?? DEFAULT_RECOMMENDATION_ROOT;
-  const cacheKey = `${rootDir}:${source}`;
+  const useCache = rootDir === DEFAULT_RECOMMENDATION_ROOT;
+  const cached = settingsCatalogCache[source];
+  if (useCache && cached !== undefined) {
+    return cached;
+  }
   const path = resolve(rootDir, SOURCE_FILES[source].settingBundleCatalogPath);
-  return loadJsonCatalog(settingsCatalogCache, cacheKey, path, "Recommendation setting bundle catalog", (record) =>
+  const catalog = readJsonCatalog<RecommendationSettingBundleCatalog>(path, "Recommendation setting bundle catalog", (record) =>
     Array.isArray(record.bundles) && Array.isArray(record.variantGroups) && Array.isArray(record.nonImportableRecommendations),
   );
+  if (useCache) {
+    settingsCatalogCache[source] = catalog;
+  }
+  return catalog;
 }
 
-function loadJsonCatalog<T>(
-  cache: Map<string, T>,
-  cacheKey: string,
+function readJsonCatalog<T>(
   path: string,
   label: string,
   isValid: (record: Record<string, unknown>) => boolean,
 ): T {
-  const cached = cache.get(cacheKey);
-  if (cached !== undefined) {
-    return cached;
-  }
   if (!existsSync(path)) {
     throw new Error(`${label} not found: ${path}`);
   }
@@ -176,9 +200,7 @@ function loadJsonCatalog<T>(
   if (record === undefined || !isValid(record)) {
     throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
   }
-  const catalog = parsed as T;
-  cache.set(cacheKey, catalog);
-  return catalog;
+  return parsed as T;
 }
 
 function toSummary(catalog: RecommendationCatalogResponse): RecommendationSourceSummary {
@@ -269,12 +291,4 @@ function createDisplayToImportPlatform(
     }
   }
   return mapping;
-}
-
-function uniqueStrings(values: Array<string | undefined>): string[] {
-  return [...new Set(values.filter((value): value is string => typeof value === "string" && value.length > 0))].sort();
-}
-
-function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }

@@ -83,10 +83,28 @@ function inspectorPanelId(tab: InspectorTab): string {
 }
 
 function ValidationView({ controller: c }: { readonly controller: EditorController }): JSX.Element {
+  const schemaCompatibilityIssueCount = c.state.validation.schemaCompatibilityIssueCount ?? 0;
+  const schemaCompatibilityIssues = c.state.validation.schemaCompatibilityIssues ?? [];
   return (
     <div className="inspector-content">
       <h2>Validation</h2>
-      {c.state.validation.ok ? <p className="ok">Workspace valid</p> : null}
+      {c.state.validation.ok ? (
+        <p className={schemaCompatibilityIssueCount > 0 ? "warning" : "ok"}>
+          {schemaCompatibilityIssueCount > 0
+            ? `Validation degraded: ${schemaCompatibilityIssueCount} regex ${schemaCompatibilityIssueCount === 1 ? "constraint" : "constraints"} removed`
+            : "Workspace valid"}
+        </p>
+      ) : null}
+      {schemaCompatibilityIssues.length > 0 ? (
+        <ul className="validation-warning-list">
+          {schemaCompatibilityIssues.map((issue) => (
+            <li key={`${issue.path}-${issue.pattern}`}>
+              <strong>{issue.path}</strong>
+              <span>pattern removed</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
       {c.isDirty ? <p className="warning">Unsaved workspace changes are being validated locally and will be saved before build.</p> : null}
       {c.state.validation.errors.map((error) => (
         <p className="error" key={`${error.path}-${error.message}`}>

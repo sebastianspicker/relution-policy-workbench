@@ -1,34 +1,71 @@
 #!/usr/bin/env python3
-"""Build checked-in Relution recommendation and baseline artifacts.
+"""Compatibility launcher and export facade for Relution import artifact builds."""
 
-This file is the stable CLI entry point. The implementation lives in split
-modules under `_build_relution_import_artifacts_modules/`, loaded into this
-namespace so existing command behavior and script-level helper sharing remain
-unchanged.
-"""
-
-from pathlib import Path
 import sys
 
+from _build_relution_import_artifacts_modules.artifact_io import write_settings_files
+from _build_relution_import_artifacts_modules.artifact_pipeline import (
+    SourceConfig,
+    build_coverage_matrix,
+    build_semantic_index,
+    build_unified_recommendation_analysis,
+    exact_leaf_difference_is_hard,
+    normalize_recommendations,
+    semantic_support_level,
+)
+from _build_relution_import_artifacts_modules.mapping_review_artifacts import (
+    build_source_change_rows,
+    classify_mapping_update,
+    classify_source_change,
+    ensure_manual_mapping_promotions_file,
+    manual_promotion_ruleset_mapping,
+    manual_promotions_by_recommendation,
+    source_text_hash,
+    validate_manual_mapping_promotions,
+)
+from _build_relution_import_artifacts_modules.orchestration import (
+    build_source_artifacts,
+    main,
+)
+from _build_relution_import_artifacts_modules.relution_mapping_updates import (
+    classify_recommendation_mapping_change,
+    relution_mapping_snapshot,
+)
+from _build_relution_import_artifacts_modules.ruleset_builder import (
+    importable_native_mappings,
+)
+from _build_relution_import_artifacts_modules.semantic_review_candidates import (
+    detect_mapping_language,
+    extracted_action,
+)
+
 sys.dont_write_bytecode = True
-from _module_loader import load_tool_modules
 
-_MODULE_DIR = Path(__file__).resolve().parent / "_build_relution_import_artifacts_modules"
-_MODULES = [
-    "artifact_pipeline.py",
-    "ruleset_builder.py",
-    "bsi_mandatory_ledger.py",
-    "baseline_templates.py",
-    "tiered_baseline_templates.py",
-    "artifact_io.py",
-    "mapping_review_artifacts.py",
-    "relution_mapping_updates.py",
-    "semantic_review_candidates.py",
+__all__ = [
+    "SourceConfig",
+    "build_coverage_matrix",
+    "build_semantic_index",
+    "build_source_artifacts",
+    "build_source_change_rows",
+    "build_unified_recommendation_analysis",
+    "classify_mapping_update",
+    "classify_recommendation_mapping_change",
+    "classify_source_change",
+    "detect_mapping_language",
+    "ensure_manual_mapping_promotions_file",
+    "exact_leaf_difference_is_hard",
+    "extracted_action",
+    "importable_native_mappings",
+    "main",
+    "manual_promotion_ruleset_mapping",
+    "manual_promotions_by_recommendation",
+    "normalize_recommendations",
+    "relution_mapping_snapshot",
+    "semantic_support_level",
+    "source_text_hash",
+    "validate_manual_mapping_promotions",
+    "write_settings_files",
 ]
-
-load_tool_modules(globals(), _MODULE_DIR, _MODULES)
-
-del load_tool_modules, _MODULES, _MODULE_DIR
 
 if __name__ == "__main__":
     main()

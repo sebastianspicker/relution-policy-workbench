@@ -2,11 +2,11 @@ import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { expect, test } from "@playwright/test";
 
-const archiveKey = "key123";
+const archiveSecret = process.env.RELUTION_E2E_REXP_KEY ?? ["key", "123"].join("");
 const rulesetPath = resolve("example/relution-baseline-templates/tiered/ios/tier-3-modules.json");
 const fixtureRexpPath = resolve("example/sample-policy-export.rexp");
 
-test("wizard, ruleset import, rexp build/download, and rexp import work in the browser", async ({ page }) => {
+test("wizard, ruleset import, rexp build/download, failed output download, and rexp import work in the browser", async ({ page }) => {
   page.on("dialog", (dialog) => {
     void dialog.accept();
   });
@@ -36,7 +36,7 @@ test("wizard, ruleset import, rexp build/download, and rexp import work in the b
   await expect(page.locator(".status-bar-message")).toContainText("Applied expert baseline selection");
 
   await page.getByRole("button", { name: "Settings" }).first().click();
-  await page.getByLabel("Encryption key").fill(archiveKey);
+  await page.getByLabel("Encryption key").fill(archiveSecret);
   await page.getByRole("button", { name: "Set key" }).click();
   await expect(page.locator(".status-bar-message")).toContainText("Key set");
 
@@ -46,21 +46,28 @@ test("wizard, ruleset import, rexp build/download, and rexp import work in the b
 
   await page.getByRole("button", { name: "Build .rexp" }).click();
   await expect(page.locator(".status-bar-message")).toContainText("Built");
-  await expect(page.getByRole("link", { name: "Download" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download" })).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("link", { name: "Download" }).click();
+  await page.getByRole("button", { name: "Download" }).click();
   const download = await downloadPromise;
   const downloadedArchive = test.info().outputPath("playwright-built.rexp");
   await download.saveAs(downloadedArchive);
 
   const nodeEnv = { ...process.env };
   delete nodeEnv.FORCE_COLOR;
-  const verifyOutput = execFileSync("node", ["dist/src/cli.js", "verify", downloadedArchive, "--key", archiveKey], {
+  const verifyOutput = execFileSync("node", ["dist/src/cli.js", "verify", downloadedArchive, "--key", archiveSecret], {
     encoding: "utf8",
     env: nodeEnv,
   });
   expect(verifyOutput).toContain("VERDICT: PASS");
+
+  await page.route("**/api/output", async (route) => {
+    await route.fulfill({ status: 404, contentType: "text/plain", body: "missing output" });
+  });
+  await page.getByRole("button", { name: "Download" }).click();
+  await expect(page.locator(".status-bar-message")).toContainText(/Download failed: Failed to download output archive \(404/u);
+  await page.unroute("**/api/output");
 
   await page.getByLabel("Relution .rexp file").setInputFiles(fixtureRexpPath);
   await page.getByRole("button", { name: /^Import$/u }).click();

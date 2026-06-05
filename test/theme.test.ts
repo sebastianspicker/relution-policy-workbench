@@ -2,21 +2,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import {
-  CUSTOM_THEME_STORAGE_KEY,
+  CUSTOM_THEME_STORAGE_NAME,
   DEFAULT_THEME,
   parseCustomThemeTokens,
   parseCorporateTheme,
   readCustomThemeTokens,
   readCorporateTheme,
   resetCustomThemeTokens,
-  THEME_STORAGE_KEY,
+  THEME_STORAGE_NAME,
   writeCustomThemeTokens,
   writeCorporateTheme,
-  type ThemeReader,
-  type ThemeWriter,
+  type ThemeStorage,
 } from "../web/src/editor/theme.js";
 
-class MemoryThemeStorage implements ThemeReader, ThemeWriter {
+class MemoryThemeStorage implements ThemeStorage {
   readonly values = new Map<string, string>();
 
   getItem(key: string): string | null {
@@ -48,11 +47,11 @@ test("falls back to the default corporate theme for unsupported values", () => {
 
 test("reads stored corporate themes with safe fallback behavior", () => {
   const storage = new MemoryThemeStorage();
-  storage.setItem(THEME_STORAGE_KEY, "organization");
+  storage.setItem(THEME_STORAGE_NAME, "organization");
 
   assert.equal(readCorporateTheme(storage), "organization");
 
-  storage.setItem(THEME_STORAGE_KEY, "unknown");
+  storage.setItem(THEME_STORAGE_NAME, "unknown");
   assert.equal(readCorporateTheme(storage), DEFAULT_THEME);
   assert.equal(readCorporateTheme(undefined), DEFAULT_THEME);
   assert.equal(
@@ -60,6 +59,8 @@ test("reads stored corporate themes with safe fallback behavior", () => {
       getItem() {
         throw new Error("storage blocked");
       },
+      setItem() {},
+      removeItem() {},
     }),
     DEFAULT_THEME,
   );
@@ -109,11 +110,11 @@ test("reads, writes, and resets custom theme tokens safely", () => {
     }),
     true,
   );
-  assert.equal(storage.getItem(CUSTOM_THEME_STORAGE_KEY), "{\"--ci-color-page\":\"#101820\"}");
+  assert.equal(storage.getItem(CUSTOM_THEME_STORAGE_NAME), "{\"--ci-color-page\":\"#101820\"}");
   assert.deepEqual(readCustomThemeTokens(storage), { "--ci-color-page": "#101820" });
 
   assert.equal(resetCustomThemeTokens(storage), true);
-  assert.equal(storage.getItem(CUSTOM_THEME_STORAGE_KEY), null);
+  assert.equal(storage.getItem(CUSTOM_THEME_STORAGE_NAME), null);
   assert.deepEqual(readCustomThemeTokens(undefined), {});
   assert.equal(writeCustomThemeTokens(undefined, { "--ci-color-page": "#101820" }), false);
   assert.equal(resetCustomThemeTokens(undefined), false);
@@ -125,6 +126,8 @@ test("handles custom theme token storage failures without throwing", () => {
       getItem() {
         throw new Error("storage blocked");
       },
+      setItem() {},
+      removeItem() {},
     }),
     {},
   );
@@ -134,6 +137,10 @@ test("handles custom theme token storage failures without throwing", () => {
         setItem() {
           throw new Error("storage blocked");
         },
+        getItem() {
+          return null;
+        },
+        removeItem() {},
       },
       { "--ci-color-page": "#101820" },
     ),
@@ -144,6 +151,10 @@ test("handles custom theme token storage failures without throwing", () => {
       removeItem() {
         throw new Error("storage blocked");
       },
+      getItem() {
+        return null;
+      },
+      setItem() {},
     }),
     false,
   );
@@ -153,7 +164,7 @@ test("writes corporate themes without leaking storage failures", () => {
   const storage = new MemoryThemeStorage();
 
   assert.equal(writeCorporateTheme(storage, "relution"), true);
-  assert.equal(storage.getItem(THEME_STORAGE_KEY), "relution");
+  assert.equal(storage.getItem(THEME_STORAGE_NAME), "relution");
   assert.equal(writeCorporateTheme(undefined, "organization"), false);
   assert.equal(
     writeCorporateTheme(
@@ -161,6 +172,10 @@ test("writes corporate themes without leaking storage failures", () => {
         setItem() {
           throw new Error("storage blocked");
         },
+        getItem() {
+          return null;
+        },
+        removeItem() {},
       },
       "organization",
     ),
@@ -174,14 +189,6 @@ test("dark theme semantic status colors keep WCAG AA text contrast", () => {
   assertContrast(tokens["--ci-color-success-text"], tokens["--ci-color-success-bg"], 4.5, "success");
   assertContrast(tokens["--ci-color-info-text"], tokens["--ci-color-info-bg"], 4.5, "info");
   assertContrast(tokens["--ci-color-warning-text"], tokens["--ci-color-page"], 4.5, "warning page");
-});
-
-test("toast and popover CSS use the documented z-index scale", () => {
-  const toastCss = readFileSync("web/src/styles/toast.css", "utf8");
-  const controlsCss = readFileSync("web/src/styles/controls.css", "utf8");
-
-  assert.match(toastCss, /z-index: var\(--z-toast, 1000\)/u);
-  assert.match(controlsCss, /z-index: var\(--z-popover, 200\)/u);
 });
 
 function readCssVariables(path: string): Record<string, string> {

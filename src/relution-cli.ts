@@ -6,6 +6,7 @@ import {
   queryRelutionDevices,
   testRelutionConnection,
   type RelutionConnectionInput,
+  type RelutionDeviceQueryResult,
   type RelutionDeviceQueryInput,
   type RelutionDeviceSortField,
   type RelutionProtocol,
@@ -21,6 +22,9 @@ export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void
   const action = args.positionals[0];
   if (action === "test") {
     const result = await testRelutionConnection(connectionFromArgs(args));
+    if (!result.ok) {
+      throw new Error(`Relution API connection failed: ${result.reason}`);
+    }
     printResult(args, result, `Relution API connection OK: ${result.baseUrl}`);
     return;
   }
@@ -32,6 +36,7 @@ export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void
   if (action === "assess") {
     const connection = connectionFromArgs(args);
     const devices = await queryRelutionDevices(connection, queryFromArgs(args));
+    warnIfDeviceQueryTruncated(devices);
     const report = assessRelutionDevices(connection.baseUrl, devices.devices);
     const workspace = optionalString(args, "workspace");
     const output = workspace === undefined ? { report } : { report, files: writeRelutionReport(workspace, report) };
@@ -93,52 +98,61 @@ function connectionFromArgs(args: RelutionCliArgs): ReturnType<typeof normalizeR
   const protocol = optionalProtocol(args);
   const port = optionalInteger(args, "port");
   const basePath = optionalString(args, "base-path");
-  assignIfDefined(input, "protocol", protocol);
-  assignIfDefined(input, "port", port);
-  assignIfDefined(input, "basePath", basePath);
+  if (protocol !== undefined) {
+    input.protocol = protocol;
+  }
+  if (port !== undefined) {
+    input.port = port;
+  }
+  if (basePath !== undefined) {
+    input.basePath = basePath;
+  }
   return normalizeRelutionConnection(input);
 }
 
 function queryFromArgs(args: RelutionCliArgs): RelutionDeviceQueryInput {
   const query: RelutionDeviceQueryInput = {};
-  assignNumber(query, "limit", optionalInteger(args, "limit"));
-  assignNumber(query, "offset", optionalInteger(args, "offset"));
-  assignStrings(query, "platforms", optionalCsv(args, "platform"));
-  assignStrings(query, "statuses", optionalCsv(args, "status"));
-  assignStrings(query, "ownerships", optionalCsv(args, "ownership"));
+  const limit = optionalInteger(args, "limit");
+  const offset = optionalInteger(args, "offset");
+  const platforms = optionalCsv(args, "platform");
+  const statuses = optionalCsv(args, "status");
+  const ownerships = optionalCsv(args, "ownership");
   const search = optionalString(args, "search");
   const sortField = optionalSortField(args);
   const sortAscending = optionalBoolean(args, "sort-ascending");
-  assignIfDefined(query, "search", search);
-  assignIfDefined(query, "sortField", sortField);
-  assignIfDefined(query, "sortAscending", sortAscending);
+  if (limit !== undefined) {
+    query.limit = limit;
+  }
+  if (offset !== undefined) {
+    query.offset = offset;
+  }
+  if (platforms !== undefined) {
+    query.platforms = platforms;
+  }
+  if (statuses !== undefined) {
+    query.statuses = statuses;
+  }
+  if (ownerships !== undefined) {
+    query.ownerships = ownerships;
+  }
+  if (search !== undefined) {
+    query.search = search;
+  }
+  if (sortField !== undefined) {
+    query.sortField = sortField;
+  }
+  if (sortAscending !== undefined) {
+    query.sortAscending = sortAscending;
+  }
   return query;
 }
 
-function assignIfDefined<Target extends object, Key extends keyof Target>(
-  target: Target,
-  key: Key,
-  value: Target[Key] | undefined,
-): void {
-  if (value !== undefined) {
-    target[key] = value;
+function warnIfDeviceQueryTruncated(result: RelutionDeviceQueryResult): void {
+  if (!result.truncated) {
+    return;
   }
-}
-
-function assignNumber(target: RelutionDeviceQueryInput, key: "limit" | "offset", value: number | undefined): void {
-  if (value !== undefined) {
-    target[key] = value;
-  }
-}
-
-function assignStrings(
-  target: RelutionDeviceQueryInput,
-  key: "platforms" | "statuses" | "ownerships",
-  value: string[] | undefined,
-): void {
-  if (value !== undefined) {
-    target[key] = value;
-  }
+  const total = result.total === undefined ? "an unknown total" : String(result.total);
+  console.error(`Warning: showing ${String(result.count)} of ${total} enrolled devices; compliance results are incomplete.`);
 }
 
 function optionalProtocol(args: RelutionCliArgs): RelutionProtocol | undefined {

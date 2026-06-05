@@ -74,6 +74,10 @@ const BUILT_IN_MAPPINGS: Record<string, readonly Mapping[]> = {
   "bsi-android-disable-camera": [{ kind: "relution-native", type: "ANDROID_ENTERPRISE_DISABLE_CAMERAS", values: { cameraDisabled: true } }],
 };
 
+export function hasBuiltInRulesetMapping(ruleId: string): boolean {
+  return builtInRulesetMappings(ruleId).length > 0;
+}
+
 export function importRulesetWorkspace(
   input: unknown,
   bundle: RelutionTemplateBundle,
@@ -163,7 +167,7 @@ function createPolicy(policy: RulesetPolicy, context: ImportContext, report: Rul
   const configurations: JsonRecord[] = [];
   const seenSingleTypes = new Set<string>();
   for (const rule of policy.rules) {
-    const mappings = rule.mappings.length > 0 ? rule.mappings : BUILT_IN_MAPPINGS[rule.id.toLowerCase()] ?? [];
+    const mappings = rule.mappings.length > 0 ? rule.mappings : builtInRulesetMappings(rule.id);
     if (mappings.length === 0) {
       if (!rule.informational) {
         report.unresolved.push({ policyName: policy.name, ruleId: rule.id, title: rule.title, suggestions: suggestions(rule, policy.platform, context) });
@@ -209,6 +213,10 @@ function createPolicy(policy: RulesetPolicy, context: ImportContext, report: Rul
       }],
     },
   };
+}
+
+function builtInRulesetMappings(ruleId: string): readonly Mapping[] {
+  return BUILT_IN_MAPPINGS[ruleId.toLowerCase()] ?? [];
 }
 
 function configurationFromMapping(
@@ -326,16 +334,14 @@ function tokens(...values: string[]): string[] {
 }
 
 function createConfigurationEnvelope(details: JsonRecord, context: ImportContext): JsonRecord {
-  if (typeof details.uuid !== "string" || details.uuid.length === 0) {
-    details.uuid = context.uuidFactory();
-  }
+  const detailsUuid = typeof details.uuid === "string" && details.uuid.length > 0 ? details.uuid : context.uuidFactory();
   return {
     uuid: context.uuidFactory(),
     createdBy: "local",
     creationDate: context.now,
     modifiedBy: "local",
     modificationDate: context.now,
-    details,
+    details: { ...details, uuid: detailsUuid },
   };
 }
 

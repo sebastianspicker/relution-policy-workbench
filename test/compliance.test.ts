@@ -10,7 +10,7 @@ import type { RecommendationCatalogResponse, RecommendationRecord, Recommendatio
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../src/templates.js";
 import type { PolicyWorkspace } from "../src/workspace.js";
 
-test("buildComplianceReport marks exact native mappings compliant and exact gaps", () => {
+test("buildComplianceReport: exact native mapping yields one compliant result and one remediable gap", () => {
   const artifacts = createArtifacts({
     source: "bsi",
     recommendations: [
@@ -71,7 +71,7 @@ test("buildComplianceReport marks exact native mappings compliant and exact gaps
   assert.deepEqual(gap.remediationOptions.map((option) => option.id), ["native-bundle:bsi-native-multi"]);
 });
 
-test("buildComplianceReport treats stricter numeric values as compliant for at-least constraints", () => {
+test("buildComplianceReport: stricter numeric value satisfies at-least constraint", () => {
   const artifacts = createArtifacts({
     source: "cis",
     recommendations: [
@@ -102,7 +102,7 @@ test("buildComplianceReport treats stricter numeric values as compliant for at-l
   assert.equal(result.mappingResults[0]?.status, "compliant");
 });
 
-test("buildComplianceReport rejects infinite numeric constraint values", () => {
+test("buildComplianceReport: infinite numeric constraint value reports an exact gap", () => {
   const artifacts = createArtifacts({
     source: "cis",
     recommendations: [
@@ -134,7 +134,7 @@ test("buildComplianceReport rejects infinite numeric constraint values", () => {
   assert.equal(result.mappingResults[0]?.status, "mismatch");
 });
 
-test("Windows Custom CSP exact mappings are evaluated and applied as multi-instance settings", () => {
+test("applyComplianceRemediationToWorkspace: Windows Custom CSP bundle adds the missing matching setting", () => {
   const customCspValues = {
     enabled: true,
     name: "PreventEnablingLockScreenCamera",
@@ -203,7 +203,7 @@ test("Windows Custom CSP exact mappings are evaluated and applied as multi-insta
   assert.equal(resultById(remediated.report, "vendor", "vendor-custom-csp").status, "compliant");
 });
 
-test("buildComplianceReport marks variant-backed native remediations as choice-required", () => {
+test("buildComplianceReport: variant-backed native mapping requires an explicit remediation choice", () => {
   const artifacts = createArtifacts({
     source: "vendor",
     recommendations: [
@@ -282,7 +282,7 @@ test("buildComplianceReport marks variant-backed native remediations as choice-r
   ]);
 });
 
-test("applyComplianceRemediationToWorkspace creates a missing native configuration from a bundle", () => {
+test("applyComplianceRemediationToWorkspace: native bundle creates the missing configuration and closes the gap", () => {
   const artifacts = createArtifacts({
     source: "bsi",
     recommendations: [
@@ -328,7 +328,7 @@ test("applyComplianceRemediationToWorkspace creates a missing native configurati
   assert.equal(result.status, "compliant");
 });
 
-test("applyComplianceRemediationToWorkspace creates a missing Apple schema profile from exact mappings", () => {
+test("applyComplianceRemediationToWorkspace: Apple schema exact mapping creates the missing profile and closes the gap", () => {
   const appleEntry = createAppleApplicationAccessEntry();
   const artifacts = createArtifacts({
     source: "cis",
@@ -526,7 +526,7 @@ function createAppleSchemaRecommendation(options: {
     defaultValue: false,
     references: [],
     recommendedValue: true,
-    helperFallbacks: [],
+    fallbackTranslations: [],
     relutionMapping: {
       status: "exact",
       mergeableInImportableRuleset: true,
@@ -540,7 +540,6 @@ function createAppleSchemaRecommendation(options: {
       importableVia: ["ruleset-import"],
       blockingReasons: [],
     },
-    fallbackTranslations: [],
     familySourceId: "cis-ios-family",
     additionalInformation: "",
     assessmentStatus: "Automated",

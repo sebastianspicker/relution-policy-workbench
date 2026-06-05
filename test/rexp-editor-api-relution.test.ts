@@ -77,7 +77,7 @@ test("editor Relution API session queries devices and writes local reports", asy
     if (String(input).startsWith("https://zammad.example.test/")) {
       assert.equal((init?.headers as Record<string, string>)["Authorization"], "Token token=zammad-token");
       if (String(input).endsWith("/api/v1/users/me")) {
-        return new Response(JSON.stringify({ id: 1 }));
+        return new Response(JSON.stringify({ id: 1, login: "agent@example.test" }));
       }
       assert.match(String(init?.body), /MDM non-compliance/u);
       return new Response(JSON.stringify({ id: 42, number: "240042" }), { status: 201 });
@@ -158,7 +158,7 @@ test("editor Relution API session queries devices and writes local reports", asy
 });
 
 async function getJson<T>(baseUrl: string, path: string): Promise<T> {
-  const response = await fetch(new URL(path, baseUrl));
+  const response = await fetch(localApiUrl(baseUrl, path));
   const text = await response.text();
   assert.equal(response.ok, true, text);
   return JSON.parse(text) as T;
@@ -172,10 +172,25 @@ async function postJson<T>(baseUrl: string, path: string, body: unknown): Promis
 }
 
 async function postRaw(baseUrl: string, path: string, body: unknown): Promise<Response> {
-  const response = await fetch(new URL(path, baseUrl), {
+  const response = await fetch(localApiUrl(baseUrl, path), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
   return response;
+}
+
+function localApiUrl(baseUrl: string, path: string): URL {
+  if (!path.startsWith("api/") && !path.startsWith("/api/")) {
+    throw new Error(`Unexpected local API path: ${path}`);
+  }
+  const base = new URL(baseUrl);
+  if (base.hostname !== "127.0.0.1" && base.hostname !== "localhost") {
+    throw new Error(`Unexpected local test host: ${base.hostname}`);
+  }
+  const url = new URL(path, base);
+  if (url.origin !== base.origin) {
+    throw new Error(`Local API path escaped test server origin: ${path}`);
+  }
+  return url;
 }

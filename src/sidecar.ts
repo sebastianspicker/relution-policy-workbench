@@ -12,6 +12,7 @@ import {
 import { inspectMobileConfigText } from "./plist.js";
 import type { PolicyWorkspace } from "./workspace.js";
 import { assertNoSymlinkPath } from "./utils/path-safety.js";
+import type { JsonRecord } from "./utils/json-guards.js";
 
 export interface EditorSidecarState {
   version: 1;
@@ -41,8 +42,6 @@ export interface CustomManifestEntry {
   schema: Record<string, unknown>;
 }
 
-type JsonRecord = Record<string, unknown>;
-
 const SIDECAR_FILE = "editor-sidecar.json";
 
 export function loadEditorSidecar(workspaceDir: string): EditorSidecarState {
@@ -52,15 +51,18 @@ export function loadEditorSidecar(workspaceDir: string): EditorSidecarState {
   }
   const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
   if (!isRecord(parsed) || parsed.version !== 1) {
-    return emptySidecar();
+    throw new Error("Malformed editor-sidecar.json: expected version 1 sidecar object");
+  }
+  if (parsed.appleSchemaRevision !== undefined && typeof parsed.appleSchemaRevision !== "string") {
+    throw new Error("Malformed editor-sidecar.json: expected appleSchemaRevision string");
   }
   return {
     version: 1,
-    ...(typeof parsed.appleSchemaRevision === "string" ? { appleSchemaRevision: parsed.appleSchemaRevision } : {}),
-    mobileConfigRestore: Array.isArray(parsed.mobileConfigRestore) ? parsed.mobileConfigRestore.filter(isMobileConfigRestoreEntry) : [],
-    ddmArtifacts: Array.isArray(parsed.ddmArtifacts) ? parsed.ddmArtifacts.filter(isDdmArtifact) : [],
-    mdmCommandArtifacts: Array.isArray(parsed.mdmCommandArtifacts) ? parsed.mdmCommandArtifacts.filter(isMdmCommandArtifact) : [],
-    customManifests: Array.isArray(parsed.customManifests) ? parsed.customManifests.filter(isCustomManifestEntry) : [],
+    ...(parsed.appleSchemaRevision === undefined ? {} : { appleSchemaRevision: parsed.appleSchemaRevision }),
+    mobileConfigRestore: requireSidecarArray(parsed, "mobileConfigRestore", isMobileConfigRestoreEntry),
+    ddmArtifacts: requireSidecarArray(parsed, "ddmArtifacts", isDdmArtifact),
+    mdmCommandArtifacts: requireSidecarArray(parsed, "mdmCommandArtifacts", isMdmCommandArtifact),
+    customManifests: requireSidecarArray(parsed, "customManifests", isCustomManifestEntry),
   };
 }
 
@@ -108,26 +110,32 @@ export function replaceEditorSidecarFromWorkspace(
   return next;
 }
 
-export function addDdmArtifact(workspaceDir: string, artifact: DdmArtifact, appleSchemaRevision?: string): EditorSidecarState {
+function updateSidecar(
+  workspaceDir: string,
+  appleSchemaRevision: string | undefined,
+  update: (sidecar: EditorSidecarState) => EditorSidecarState,
+): EditorSidecarState {
   const sidecar = loadEditorSidecar(workspaceDir);
   const next = {
-    ...sidecar,
+    ...update(sidecar),
     ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
-    ddmArtifacts: [...sidecar.ddmArtifacts, artifact],
   };
   saveEditorSidecar(workspaceDir, next);
   return next;
 }
 
-export function addMdmCommandArtifact(workspaceDir: string, artifact: MdmCommandArtifact, appleSchemaRevision?: string): EditorSidecarState {
-  const sidecar = loadEditorSidecar(workspaceDir);
-  const next = {
+export function addDdmArtifact(workspaceDir: string, artifact: DdmArtifact, appleSchemaRevision?: string): EditorSidecarState {
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => ({
     ...sidecar,
-    ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
+    ddmArtifacts: [...sidecar.ddmArtifacts, artifact],
+  }));
+}
+
+export function addMdmCommandArtifact(workspaceDir: string, artifact: MdmCommandArtifact, appleSchemaRevision?: string): EditorSidecarState {
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => ({
+    ...sidecar,
     mdmCommandArtifacts: [...sidecar.mdmCommandArtifacts, artifact],
-  };
-  saveEditorSidecar(workspaceDir, next);
-  return next;
+  }));
 }
 
 export function updateDdmArtifact(
@@ -137,28 +145,23 @@ export function updateDdmArtifact(
   values: AppleSchemaValues,
   appleSchemaRevision?: string,
 ): EditorSidecarState {
-  const sidecar = loadEditorSidecar(workspaceDir);
-  const index = sidecar.ddmArtifacts.findIndex((artifact) => artifact.uuid === uuid);
-  if (index === -1) {
-    throw new Error(`Unknown DDM artifact: ${uuid}`);
-  }
-  const existing = sidecar.ddmArtifacts[index]!;
-  const entry = findAppleSchemaEntry(catalog, existing.schemaId);
-  if (entry === undefined) {
-    throw new Error(`Unknown Apple schema entry: ${existing.schemaId}`);
-  }
-  if (!entry.kind.startsWith("ddm-") || entry.kind === "ddm-status") {
-    throw new Error(`Apple schema entry is not a DDM authoring declaration: ${entry.id}`);
-  }
-  const ddmArtifacts = [...sidecar.ddmArtifacts];
-  ddmArtifacts[index] = { ...createDdmArtifact(entry, values), uuid: existing.uuid, schemaId: existing.schemaId };
-  const next = {
-    ...sidecar,
-    ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
-    ddmArtifacts,
-  };
-  saveEditorSidecar(workspaceDir, next);
-  return next;
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => {
+    const index = sidecar.ddmArtifacts.findIndex((artifact) => artifact.uuid === uuid);
+    if (index === -1) {
+      throw new Error(`Unknown DDM artifact: ${uuid}`);
+    }
+    const existing = sidecar.ddmArtifacts[index]!;
+    const entry = findAppleSchemaEntry(catalog, existing.schemaId);
+    if (entry === undefined) {
+      throw new Error(`Unknown Apple schema entry: ${existing.schemaId}`);
+    }
+    if (!entry.kind.startsWith("ddm-") || entry.kind === "ddm-status") {
+      throw new Error(`Apple schema entry is not a DDM authoring declaration: ${entry.id}`);
+    }
+    const ddmArtifacts = [...sidecar.ddmArtifacts];
+    ddmArtifacts[index] = { ...createDdmArtifact(entry, values), uuid: existing.uuid, schemaId: existing.schemaId };
+    return { ...sidecar, ddmArtifacts };
+  });
 }
 
 export function updateMdmCommandArtifact(
@@ -168,59 +171,47 @@ export function updateMdmCommandArtifact(
   values: AppleSchemaValues,
   appleSchemaRevision?: string,
 ): EditorSidecarState {
-  const sidecar = loadEditorSidecar(workspaceDir);
-  const index = sidecar.mdmCommandArtifacts.findIndex((artifact) => artifact.uuid === uuid);
-  if (index === -1) {
-    throw new Error(`Unknown MDM command artifact: ${uuid}`);
-  }
-  const existing = sidecar.mdmCommandArtifacts[index];
-  if (existing === undefined) {
-    throw new Error(`Unknown MDM command artifact: ${uuid}`);
-  }
-  const entry = findAppleSchemaEntry(catalog, existing.schemaId);
-  if (entry === undefined) {
-    throw new Error(`Unknown Apple schema entry: ${existing.schemaId}`);
-  }
-  if (entry.kind !== "mdm-command") {
-    throw new Error(`Apple schema entry is not an MDM command: ${entry.id}`);
-  }
-  const mdmCommandArtifacts = [...sidecar.mdmCommandArtifacts];
-  mdmCommandArtifacts[index] = { ...createMdmCommandArtifact(entry, values), uuid: existing.uuid, schemaId: existing.schemaId };
-  const next = {
-    ...sidecar,
-    ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
-    mdmCommandArtifacts,
-  };
-  saveEditorSidecar(workspaceDir, next);
-  return next;
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => {
+    const index = sidecar.mdmCommandArtifacts.findIndex((artifact) => artifact.uuid === uuid);
+    if (index === -1) {
+      throw new Error(`Unknown MDM command artifact: ${uuid}`);
+    }
+    const existing = sidecar.mdmCommandArtifacts[index]!;
+    const entry = findAppleSchemaEntry(catalog, existing.schemaId);
+    if (entry === undefined) {
+      throw new Error(`Unknown Apple schema entry: ${existing.schemaId}`);
+    }
+    if (entry.kind !== "mdm-command") {
+      throw new Error(`Apple schema entry is not an MDM command: ${entry.id}`);
+    }
+    const mdmCommandArtifacts = [...sidecar.mdmCommandArtifacts];
+    mdmCommandArtifacts[index] = { ...createMdmCommandArtifact(entry, values), uuid: existing.uuid, schemaId: existing.schemaId };
+    return { ...sidecar, mdmCommandArtifacts };
+  });
 }
 
 export function removeDdmArtifact(workspaceDir: string, uuid: string, appleSchemaRevision?: string): EditorSidecarState {
-  const sidecar = loadEditorSidecar(workspaceDir);
-  if (!sidecar.ddmArtifacts.some((artifact) => artifact.uuid === uuid)) {
-    throw new Error(`Unknown DDM artifact: ${uuid}`);
-  }
-  const next = {
-    ...sidecar,
-    ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
-    ddmArtifacts: sidecar.ddmArtifacts.filter((artifact) => artifact.uuid !== uuid),
-  };
-  saveEditorSidecar(workspaceDir, next);
-  return next;
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => {
+    if (!sidecar.ddmArtifacts.some((artifact) => artifact.uuid === uuid)) {
+      throw new Error(`Unknown DDM artifact: ${uuid}`);
+    }
+    return {
+      ...sidecar,
+      ddmArtifacts: sidecar.ddmArtifacts.filter((artifact) => artifact.uuid !== uuid),
+    };
+  });
 }
 
 export function removeMdmCommandArtifact(workspaceDir: string, uuid: string, appleSchemaRevision?: string): EditorSidecarState {
-  const sidecar = loadEditorSidecar(workspaceDir);
-  if (!sidecar.mdmCommandArtifacts.some((artifact) => artifact.uuid === uuid)) {
-    throw new Error(`Unknown MDM command artifact: ${uuid}`);
-  }
-  const next = {
-    ...sidecar,
-    ...(appleSchemaRevision === undefined ? {} : { appleSchemaRevision }),
-    mdmCommandArtifacts: sidecar.mdmCommandArtifacts.filter((artifact) => artifact.uuid !== uuid),
-  };
-  saveEditorSidecar(workspaceDir, next);
-  return next;
+  return updateSidecar(workspaceDir, appleSchemaRevision, (sidecar) => {
+    if (!sidecar.mdmCommandArtifacts.some((artifact) => artifact.uuid === uuid)) {
+      throw new Error(`Unknown MDM command artifact: ${uuid}`);
+    }
+    return {
+      ...sidecar,
+      mdmCommandArtifacts: sidecar.mdmCommandArtifacts.filter((artifact) => artifact.uuid !== uuid),
+    };
+  });
 }
 
 export function reconcileMobileConfigRestoreEntries(workspace: PolicyWorkspace, sidecar: EditorSidecarState): PolicyWorkspace {
@@ -245,36 +236,63 @@ export function reconcileMobileConfigRestoreEntries(workspace: PolicyWorkspace, 
 function collectMobileConfigRestoreEntries(workspace: PolicyWorkspace): MobileConfigRestoreEntry[] {
   const entries: MobileConfigRestoreEntry[] = [];
   for (const policy of workspace.policies) {
-    const policyName = typeof policy.document.name === "string" ? policy.document.name : policy.path;
-    const platform = typeof policy.document.platform === "string" ? policy.document.platform : "UNKNOWN";
-    const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
-    for (const [versionIndex, version] of versions.entries()) {
-      const versionRecord = isRecord(version) ? version : undefined;
-      const configurations = Array.isArray(versionRecord?.configurations) ? versionRecord.configurations : [];
-      for (const configuration of configurations) {
-        const configurationRecord = isRecord(configuration) ? configuration : undefined;
-        const details = isRecord(configurationRecord?.details) ? configurationRecord.details : undefined;
-        if (details?.type !== "APPLE_MOBILECONFIG") {
-          continue;
-        }
-        const rawContent = typeof details.rawContent === "string" ? details.rawContent : "";
-        const inspection = inspectMobileConfigText(rawContent);
-        entries.push({
-          policyPath: policy.path,
-          policyName,
-          platform,
-          configurationUuid: typeof configurationRecord?.uuid === "string" ? configurationRecord.uuid : "",
-          ...(typeof versionRecord?.uuid === "string" ? { versionUuid: versionRecord.uuid } : {}),
-          versionIndex,
-          payloadType: typeof details.secondLevelPayloadType === "string" ? details.secondLevelPayloadType : inspection.secondLevelPayloadType,
-          displayName: typeof details.displayName === "string" ? details.displayName : inspection.displayName,
-          signatureState: typeof details.mobileConfigSignatureState === "string" ? details.mobileConfigSignatureState : inspection.signatureState,
-          configuration: structuredClone(configurationRecord ?? {}) as Record<string, unknown>,
-        });
-      }
-    }
+    entries.push(...mobileConfigRestoreEntriesForPolicy(policy));
   }
   return entries;
+}
+
+function mobileConfigRestoreEntriesForPolicy(policy: PolicyWorkspace["policies"][number]): MobileConfigRestoreEntry[] {
+  const entries: MobileConfigRestoreEntry[] = [];
+  const policyName = typeof policy.document.name === "string" ? policy.document.name : policy.path;
+  const platform = typeof policy.document.platform === "string" ? policy.document.platform : "UNKNOWN";
+  const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
+  for (const [versionIndex, version] of versions.entries()) {
+    entries.push(...mobileConfigRestoreEntriesForVersion(policy.path, policyName, platform, version, versionIndex));
+  }
+  return entries;
+}
+
+function mobileConfigRestoreEntriesForVersion(
+  policyPath: string,
+  policyName: string,
+  platform: string,
+  version: unknown,
+  versionIndex: number,
+): MobileConfigRestoreEntry[] {
+  const versionRecord = isRecord(version) ? version : undefined;
+  const configurations = Array.isArray(versionRecord?.configurations) ? versionRecord.configurations : [];
+  return configurations.flatMap((configuration) =>
+    mobileConfigRestoreEntryForConfiguration(policyPath, policyName, platform, versionRecord, versionIndex, configuration),
+  );
+}
+
+function mobileConfigRestoreEntryForConfiguration(
+  policyPath: string,
+  policyName: string,
+  platform: string,
+  versionRecord: JsonRecord | undefined,
+  versionIndex: number,
+  configuration: unknown,
+): MobileConfigRestoreEntry[] {
+  const configurationRecord = isRecord(configuration) ? configuration : undefined;
+  const details = isRecord(configurationRecord?.details) ? configurationRecord.details : undefined;
+  if (details?.type !== "APPLE_MOBILECONFIG") {
+    return [];
+  }
+  const rawContent = typeof details.rawContent === "string" ? details.rawContent : "";
+  const inspection = inspectMobileConfigText(rawContent);
+  return [{
+    policyPath,
+    policyName,
+    platform,
+    configurationUuid: typeof configurationRecord?.uuid === "string" ? configurationRecord.uuid : "",
+    ...(typeof versionRecord?.uuid === "string" ? { versionUuid: versionRecord.uuid } : {}),
+    versionIndex,
+    payloadType: typeof details.secondLevelPayloadType === "string" ? details.secondLevelPayloadType : inspection.secondLevelPayloadType,
+    displayName: typeof details.displayName === "string" ? details.displayName : inspection.displayName,
+    signatureState: typeof details.mobileConfigSignatureState === "string" ? details.mobileConfigSignatureState : inspection.signatureState,
+    configuration: structuredClone(configurationRecord ?? {}) as Record<string, unknown>,
+  }];
 }
 
 function workspaceHasConfiguration(policy: JsonRecord, entry: MobileConfigRestoreEntry): boolean {
@@ -346,6 +364,23 @@ function isMdmCommandArtifact(value: unknown): value is MdmCommandArtifact {
 
 function isCustomManifestEntry(value: unknown): value is CustomManifestEntry {
   return isRecord(value) && typeof value.uuid === "string" && typeof value.name === "string" && isRecord(value.schema);
+}
+
+function requireSidecarArray<T>(
+  record: JsonRecord,
+  key: string,
+  predicate: (value: unknown) => value is T,
+): T[] {
+  const value = record[key];
+  if (!Array.isArray(value)) {
+    throw new Error(`Malformed editor-sidecar.json: expected ${key} array`);
+  }
+  return value.map((entry, index) => {
+    if (!predicate(entry)) {
+      throw new Error(`Malformed editor-sidecar.json: invalid ${key}[${String(index)}]`);
+    }
+    return entry;
+  });
 }
 
 function isRecord(value: unknown): value is JsonRecord {
