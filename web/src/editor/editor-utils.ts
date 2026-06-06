@@ -14,7 +14,7 @@ export const CUSTOM_SETTINGS_ADD_VALUE = "custom-settings";
 const NETWORK_EDITOR_TOKEN_STORAGE_NAME = "relutionEditorToken";
 
 export async function loadState(): Promise<AppState> {
-  const response = await fetch("/api/state", { headers: networkEditorAuthHeaders() });
+  const response = await editorApiFetch("/api/state");
   const state = await readJsonResponse<AppState>(response);
   if (!response.ok) {
     throw new Error(`Failed to load editor state: ${JSON.stringify(state)}`);
@@ -22,11 +22,22 @@ export async function loadState(): Promise<AppState> {
   return state;
 }
 
-export async function postJson(url: string, body: unknown): Promise<Response> {
+export async function editorApiFetch(url: string, init: RequestInit = {}): Promise<Response> {
   const fetchImpl = window.fetch.bind(window);
+  const headers = new Headers(networkEditorAuthHeaders());
+  new Headers(init.headers).forEach((value, key) => {
+    headers.set(key, value);
+  });
   return await fetchImpl(editorApiUrl(url), {
+    ...init,
+    headers,
+  });
+}
+
+export async function postJson(url: string, body: unknown): Promise<Response> {
+  return await editorApiFetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json", ...networkEditorAuthHeaders() },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
 }
