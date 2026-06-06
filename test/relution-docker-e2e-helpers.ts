@@ -86,6 +86,21 @@ const password = process.env.RELUTION_E2E_PASSWORD ?? "relution-e2e-admin";
 export const baseUrl = process.env.RELUTION_E2E_BASE_URL ?? `http://127.0.0.1:${dockerPort}`;
 export const archiveSecret = process.env.RELUTION_E2E_REXP_KEY ?? ["key", "123"].join("");
 
+export function relutionE2eApiUrl(
+  segments: readonly string[],
+  options: {
+    readonly baseUrlValue?: string;
+    readonly allowRemoteBaseUrl?: boolean;
+  } = {},
+): URL {
+  const parsedBase = relutionE2eBaseUrl(options.baseUrlValue ?? baseUrl, options.allowRemoteBaseUrl ?? process.env.RELUTION_E2E_ALLOW_REMOTE_BASE_URL === "1");
+  const basePath = parsedBase.pathname === "/" ? "" : parsedBase.pathname.replace(/\/$/u, "");
+  parsedBase.pathname = `${basePath}/${segments.map((segment) => encodeURIComponent(segment)).join("/")}`;
+  parsedBase.search = "";
+  parsedBase.hash = "";
+  return parsedBase;
+}
+
 export async function waitForRelution(): Promise<void> {
   const deadline = Date.now() + 480_000;
   let lastError = "";
@@ -113,7 +128,7 @@ export async function importPolicy(path: string): Promise<PolicyImportReport> {
   const form = new FormData();
   form.set("encryptionKey", archiveSecret);
   form.set("file", new Blob([bytes]), path.split("/").at(-1) ?? "policy.rexp");
-  const response = await fetch(`${baseUrl}/api/management/v1/devices/policies/import`, {
+  const response = await fetch(relutionManagementApiUrl("policies", "import"), {
     method: "POST",
     headers: authHeaders(),
     body: form,
@@ -131,7 +146,7 @@ export async function importBaselineTemplate(path: string, label: string): Promi
 }
 
 export async function publishFirstPolicyVersion(policyUuid: string): Promise<string> {
-  const versionsResponse = await fetch(`${baseUrl}/api/management/v1/devices/policies/${policyUuid}/versions`, {
+  const versionsResponse = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions"), {
     headers: authHeaders(),
   });
   const versionsBody = await versionsResponse.text();
@@ -141,7 +156,7 @@ export async function publishFirstPolicyVersion(policyUuid: string): Promise<str
   if (versionUuid === undefined) {
     throw new Error(`Imported policy has no version UUID: ${versionsBody}`);
   }
-  const publishResponse = await fetch(`${baseUrl}/api/management/v1/devices/policies/${policyUuid}/versions/${versionUuid}/publish`, {
+  const publishResponse = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid, "publish"), {
     method: "POST",
     headers: {
       ...authHeaders(),
@@ -186,7 +201,7 @@ export async function waitForPublishedConfigurationsWithTypes(
 }
 
 export async function exportPolicy(policyUuid: string): Promise<Blob> {
-  const response = await fetch(`${baseUrl}/api/management/v1/devices/policies/export`, {
+  const response = await fetch(relutionManagementApiUrl("policies", "export"), {
     method: "POST",
     headers: {
       ...authHeaders(),
@@ -324,7 +339,7 @@ export async function delay(milliseconds: number): Promise<void> {
 }
 
 async function fetchPolicyVersion(policyUuid: string, versionUuid: string): Promise<PolicyVersion | undefined> {
-  const response = await fetch(`${baseUrl}/api/management/v1/devices/policies/${policyUuid}/versions/${versionUuid}`, {
+  const response = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid), {
     headers: authHeaders(),
   });
   const body = await response.text();
@@ -333,12 +348,33 @@ async function fetchPolicyVersion(policyUuid: string, versionUuid: string): Prom
 }
 
 async function fetchPolicyVersionConfigurations(policyUuid: string, versionUuid: string): Promise<PolicyConfiguration[]> {
-  const response = await fetch(`${baseUrl}/api/management/v1/devices/policies/${policyUuid}/versions/${versionUuid}/configurations`, {
+  const response = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid, "configurations"), {
     headers: authHeaders(),
   });
   const body = await response.text();
   assert.equal(response.ok, true, body);
   return (JSON.parse(body) as PolicyConfigurationWrapper).results ?? [];
+}
+
+function relutionManagementApiUrl(...segments: string[]): URL {
+  return relutionE2eApiUrl(["api", "management", "v1", "devices", ...segments]);
+}
+
+function relutionE2eBaseUrl(value: string, allowRemoteBaseUrl: boolean): URL {
+  const parsed = new URL(value);
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`Relution E2E base URL must use http or https: ${value}`);
+  }
+  if (!allowRemoteBaseUrl && !isLoopbackHost(parsed.hostname)) {
+    throw new Error(
+      `Relution E2E base URL must be loopback unless RELUTION_E2E_ALLOW_REMOTE_BASE_URL=1 is set: ${parsed.hostname}`,
+    );
+  }
+  return parsed;
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return hostname === "127.0.0.1" || hostname === "localhost" || hostname === "::1" || hostname === "[::1]";
 }
 
 function authHeaders(): Record<string, string> {

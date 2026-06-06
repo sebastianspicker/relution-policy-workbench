@@ -9,6 +9,7 @@ import { packPlainDirectory, inspectRexp, verifyRexp } from "../src/rexp.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { saveWorkspace } from "../src/workspace.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
+import { localEditorApiUrl } from "./local-e2e-api-url.js";
 import {
   archiveSecret,
   baseUrl,
@@ -157,7 +158,7 @@ async function probeDashboardWithMockDevices(options: {
 }
 
 async function postJson<T>(baseUrlValue: string, path: string, body: unknown): Promise<T> {
-  const response = await fetch(new URL(path, baseUrlValue), {
+  const response = await fetch(localEditorApiUrl(baseUrlValue, path), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
