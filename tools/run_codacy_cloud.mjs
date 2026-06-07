@@ -16,6 +16,12 @@ const configPath = ".codacy/generated/remote.config.json";
 const localConfigPath = ".codacy/codacy.config.json";
 const generatedDir = ".codacy/generated";
 const pylintHome = join(generatedDir, "pylint-cache");
+const policyExcludes = [
+  "AGENTS.md",
+  "private/**",
+  "node_modules/**",
+  "docs/archive/**",
+];
 
 function cleanPythonCaches() {
   for (const root of ["test", "tools"]) {
@@ -62,6 +68,11 @@ function normalizeRepositoryConfigPaths(path) {
       tool.localConfigurationFile = "pyproject.toml";
     }
   }
+  const excludes = new Set(config.exclude ?? []);
+  for (const exclude of policyExcludes) {
+    excludes.add(exclude);
+  }
+  config.exclude = [...excludes];
   writeJson(path, config);
   return config;
 }

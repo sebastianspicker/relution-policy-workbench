@@ -3,7 +3,7 @@ import test from "node:test";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { groupConfigurationOptions, optionMatches, type ConfigurationOption } from "../web/src/editor/AddConfigurationControl.js";
-import { readJsonResponse } from "../web/src/editor/editor-utils.js";
+import { editorApiFetch, readJsonResponse } from "../web/src/editor/editor-utils.js";
 import { mergeSettingDetails, parseSettingDetailsJson } from "../web/src/editor/json-template-import.js";
 import { policyMatches } from "../web/src/editor/PolicyNavigator.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
@@ -24,6 +24,37 @@ test("reports HTML responses when the editor API is missing", async () => {
   });
 
   await assert.rejects(readJsonResponse(response), /Expected JSON.*doctype html/u);
+});
+
+test("editor API fetch is constrained to same-origin API paths", async () => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const calls: unknown[] = [];
+  const fetch = async (input: unknown) => {
+    calls.push(input);
+    return new Response("{}");
+  };
+  Object.defineProperty(globalThis, "window", {
+    configurable: true,
+    value: {
+      fetch,
+      location: { origin: "http://127.0.0.1:8787", hash: "", pathname: "/", search: "" },
+      sessionStorage: { getItem: () => undefined, setItem: () => undefined },
+      history: { replaceState: () => undefined },
+    },
+  });
+  try {
+    await editorApiFetch("/api/state");
+    assert.equal((calls[0] as URL).href, "http://127.0.0.1:8787/api/state");
+    await assert.rejects(editorApiFetch("https://example.invalid/api/state"), /outside same-origin/u);
+    await assert.rejects(editorApiFetch("//example.invalid/api/state"), /outside same-origin/u);
+    await assert.rejects(editorApiFetch("/not-api/state"), /outside same-origin/u);
+  } finally {
+    if (previousWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window;
+    } else {
+      Object.defineProperty(globalThis, "window", previousWindow);
+    }
+  }
 });
 
 test("filters configuration options by group and search text", () => {

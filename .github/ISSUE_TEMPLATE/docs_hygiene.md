@@ -16,6 +16,7 @@ assignees: ""
 - [ ] GitHub templates or workflows
 - [ ] `.gitignore` or generated/local artifact boundary
 - [ ] Archive/status/ledger cleanup
+- [ ] Codacy/GitHub analysis exclusion boundary
 - [ ] Other:
 
 ## Current Evidence
@@ -32,5 +33,6 @@ assignees: ""
 
 - Public summary needed:
 - Local-only packet or ledger to ignore:
+- Excluded analysis/remediation path involved:
 - Superseded material to retire:
 - Ignore-boundary proof expected:

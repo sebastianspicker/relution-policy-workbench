@@ -32,6 +32,8 @@
 - Local workspace/archive impact:
 - Security or network exposure impact:
 - Codacy/local analysis impact:
+- Excluded analysis/remediation paths touched (`AGENTS.md`, `private/`,
+  `node_modules/`, `docs/archive/`): no / yes, details:
 - Codacy Cloud closure claimed: no / yes, evidence:
 
 ## Notes

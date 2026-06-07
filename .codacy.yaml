@@ -5,6 +5,7 @@ exclude_paths:
   - "coverage/**"
   - "dist/**"
   - "dist-web/**"
+  - "AGENTS.md"
   - "data/**/*.json"
   - "example/**/*.json"
   - "web/src/editor/types.ts"

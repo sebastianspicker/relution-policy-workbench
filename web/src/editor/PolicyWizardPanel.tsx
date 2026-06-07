@@ -10,7 +10,7 @@ import type {
   BaselineTemplateTier,
 } from "../../../src/baseline-templates.js";
 import { RECOMMENDATION_SOURCES } from "../../../src/recommendation-types.js";
-import { networkEditorAuthHeaders, readJsonResponse } from "./editor-utils.js";
+import { editorApiFetch, readJsonResponse } from "./editor-utils.js";
 import {
   buildExpertRuleset,
   effectiveMappings,
@@ -116,7 +116,7 @@ function useBaselineTemplateOptions(
   const [loadError, setLoadError] = useState<string | undefined>();
   useEffect(() => {
     let cancelled = false;
-    void fetch("/api/baseline-templates", { headers: networkEditorAuthHeaders() }).then(async (response) => {
+    void editorApiFetch("/api/baseline-templates").then(async (response) => {
       const result = await readJsonResponse<BaselineTemplateOptionsResponse>(response);
       if (cancelled) return;
       if (!response.ok) {
@@ -162,7 +162,7 @@ function useBaselineExpertOptions(
     setExpertOptions(undefined);
     setExpertError(undefined);
     const params = new URLSearchParams({ platform, shape });
-    void fetch(`/api/baseline-templates/expert?${params.toString()}`, { headers: networkEditorAuthHeaders() }).then(async (response) => {
+    void editorApiFetch(`/api/baseline-templates/expert?${params.toString()}`).then(async (response) => {
       const result = await readJsonResponse<BaselineExpertOptionsResponse>(response);
       if (cancelled) return;
       if (!response.ok) {
