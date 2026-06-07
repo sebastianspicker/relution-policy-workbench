@@ -1,6 +1,8 @@
 # Relution Policy Workbench
 
 [![CI](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml)
+[![Codacy Badge](https://app.codacy.com/project/badge/Grade/2b252ae795c0494ea6ec252b1cb1cd3f)](https://app.codacy.com/gh/sebastianspicker/relution-policy-workbench/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Local Relution `.rexp` policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.
 
