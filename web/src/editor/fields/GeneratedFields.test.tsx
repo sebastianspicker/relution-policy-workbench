@@ -7,28 +7,17 @@ describe("GeneratedFields", () => {
     const onChange = vi.fn();
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "mode",
-              label: "Mode",
-              kind: "string",
-              required: false,
-              nullable: true,
-              enumValues: ["AUTO", "MANUAL"],
-              enumLabels: { AUTO: "Auto", MANUAL: "Manual" },
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "mode",
+            label: "Mode",
+            kind: "string",
+            required: false,
+            nullable: true,
+            enumValues: ["AUTO", "MANUAL"],
+            enumLabels: { AUTO: "Auto", MANUAL: "Manual" },
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", mode: "AUTO" }}
         onChange={onChange}
       />,
@@ -40,28 +29,7 @@ describe("GeneratedFields", () => {
   it("renders field-scoped JSON editors for opaque object settings instead of raw JSON-only fallback", () => {
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "nested",
-              label: "Nested",
-              kind: "object",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([createNestedObjectField()])}
         details={{ type: "TEST", uuid: "DETAIL-1", nested: { mode: "guided" } }}
         onChange={() => {}}
       />,
@@ -71,28 +39,7 @@ describe("GeneratedFields", () => {
   });
 
   it("preserves unsaved object JSON drafts when parent details change", () => {
-    const template = {
-      type: "TEST",
-      label: "Test",
-      schemaName: "TestSchema",
-      platforms: ["IOS"],
-      enrollmentTypes: [],
-      multiConfig: false,
-      portalHidden: false,
-      placeholders: [],
-      required: [],
-      fields: [
-        {
-          path: "nested",
-          label: "Nested",
-          kind: "object",
-          required: false,
-          nullable: false,
-          enumValues: [],
-          enumLabels: {},
-        },
-      ],
-    } satisfies ConfigurationTemplate;
+    const template = createTemplate([createNestedObjectField()]);
     const { rerender } = render(
       <GeneratedFields template={template} details={{ type: "TEST", uuid: "DETAIL-1", nested: { mode: "initial" } }} onChange={() => {}} />,
     );
@@ -109,28 +56,7 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "nested",
-              label: "Nested",
-              kind: "object",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([createNestedObjectField()])}
         details={{ type: "TEST", uuid: "DETAIL-1", nested: { mode: "guided" } }}
         onChange={onChange}
       />,
@@ -151,29 +77,18 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "whitelistedApps",
-              label: "Whitelisted Apps",
-              kind: "array",
-              itemKind: "object",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "whitelistedApps",
+            label: "Whitelisted Apps",
+            kind: "array",
+            itemKind: "object",
+            required: false,
+            nullable: false,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{
           type: "TEST",
           uuid: "DETAIL-1",
@@ -200,29 +115,18 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "levels",
-              label: "Levels",
-              kind: "array",
-              itemKind: "number",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "levels",
+            label: "Levels",
+            kind: "array",
+            itemKind: "number",
+            required: false,
+            nullable: false,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", levels: [1, 2] }}
         onChange={onChange}
       />,
@@ -242,28 +146,17 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "priority",
-              label: "Priority",
-              kind: "integer",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "priority",
+            label: "Priority",
+            kind: "integer",
+            required: false,
+            nullable: false,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", priority: 1 }}
         onChange={onChange}
       />,
@@ -279,29 +172,18 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "levels",
-              label: "Levels",
-              kind: "array",
-              itemKind: "integer",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "levels",
+            label: "Levels",
+            kind: "array",
+            itemKind: "integer",
+            required: false,
+            nullable: false,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", levels: [1, 2] }}
         onChange={onChange}
       />,
@@ -395,28 +277,17 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "nickname",
-              label: "Nickname",
-              kind: "string",
-              required: false,
-              nullable: false,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "nickname",
+            label: "Nickname",
+            kind: "string",
+            required: false,
+            nullable: false,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", nickname: "alpha" }}
         onChange={onChange}
       />,
@@ -432,28 +303,17 @@ describe("GeneratedFields", () => {
 
     render(
       <GeneratedFields
-        template={{
-          type: "TEST",
-          label: "Test",
-          schemaName: "TestSchema",
-          platforms: ["IOS"],
-          enrollmentTypes: [],
-          multiConfig: false,
-          portalHidden: false,
-          placeholders: [],
-          required: [],
-          fields: [
-            {
-              path: "threshold",
-              label: "Threshold",
-              kind: "number",
-              required: true,
-              nullable: true,
-              enumValues: [],
-              enumLabels: {},
-            },
-          ],
-        }}
+        template={createTemplate([
+          {
+            path: "threshold",
+            label: "Threshold",
+            kind: "number",
+            required: true,
+            nullable: true,
+            enumValues: [],
+            enumLabels: {},
+          },
+        ])}
         details={{ type: "TEST", uuid: "DETAIL-1", threshold: 42 }}
         onChange={onChange}
       />,
@@ -560,6 +420,33 @@ describe("GeneratedFields", () => {
     });
   });
 });
+
+function createTemplate(fields: ConfigurationTemplate["fields"]): ConfigurationTemplate {
+  return {
+    type: "TEST",
+    label: "Test",
+    schemaName: "TestSchema",
+    platforms: ["IOS"],
+    enrollmentTypes: [],
+    multiConfig: false,
+    portalHidden: false,
+    placeholders: [],
+    required: [],
+    fields,
+  };
+}
+
+function createNestedObjectField(): ConfigurationTemplate["fields"][number] {
+  return {
+    path: "nested",
+    label: "Nested",
+    kind: "object",
+    required: false,
+    nullable: false,
+    enumValues: [],
+    enumLabels: {},
+  };
+}
 
 function createDnsTemplate() {
   return {

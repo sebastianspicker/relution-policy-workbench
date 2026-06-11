@@ -1,16 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyComplianceRemediationToWorkspace, buildComplianceReport, type ComplianceSourceCatalogs } from "../src/compliance.js";
-import type { AppleSchemaCatalog } from "../src/apple-schema.js";
 import type { RecommendationCatalogResponse, RecommendationRecord, RecommendationSettingBundleCatalog } from "../src/recommendation-types.js";
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../src/templates.js";
-import type { PolicyWorkspace } from "../src/workspace.js";
+import {
+  createTestAppleSchemaCatalog,
+  createTestPolicyWorkspace,
+  createTestTemplateBundle,
+} from "./compliance-fixtures.js";
 
 test("applyComplianceRemediationToWorkspace: rebuilt report for applied workspace keeps the closed gap count", () => {
   const workspace = createWorkspace();
   const catalogs = createArtifacts();
   const bundle = createBundle();
-  const appleSchema = createAppleSchemaCatalog();
+  const appleSchema = createTestAppleSchemaCatalog();
   const selection = { policyIndex: 0, versionIndex: 0 };
   const sources = ["bsi" as const];
 
@@ -120,21 +123,8 @@ function createNativeRecommendation(): RecommendationRecord {
   } as unknown as RecommendationRecord;
 }
 
-function createWorkspace(): PolicyWorkspace {
-  return {
-    metadata: {},
-    report: {},
-    policies: [
-      {
-        path: "policies/policy_test.json",
-        document: {
-          name: "IOS policy",
-          platform: "IOS",
-          versions: [{ configurations: [] }],
-        },
-      },
-    ],
-  };
+function createWorkspace() {
+  return createTestPolicyWorkspace();
 }
 
 function createBundle(): RelutionTemplateBundle {
@@ -152,48 +142,5 @@ function createBundle(): RelutionTemplateBundle {
       fields: [],
     },
   ];
-  return {
-    serverVersion: "26.1.1",
-    sourceImage: "relution/server:26.1.1",
-    sourceImageDigest: "sha256:test",
-    generatedAt: "2026-04-24T00:00:00.000Z",
-    refreshDiagnostics: {
-      runtimeMetadata: {
-        source: "reflected",
-        reflectedCount: templates.length,
-        configurationTypeCount: templates.length,
-      },
-      iosSystemAppsLoaded: false,
-      springConfigurationMetadataLoaded: false,
-    },
-    platforms: ["IOS"],
-    enrollmentTypes: [],
-    configurationTypes: templates,
-    schemas: {},
-    iosSystemApps: {},
-    springConfigurationMetadata: {},
-  };
-}
-
-function createAppleSchemaCatalog(): AppleSchemaCatalog {
-  return {
-    version: 1,
-    source: {
-      repository: "apple/device-management",
-      revision: "test",
-      generatedAt: "2026-04-24T00:00:00.000Z",
-    },
-    counts: {
-      profile: 0,
-      "ddm-configuration": 0,
-      "ddm-asset": 0,
-      "ddm-activation": 0,
-      "ddm-management": 0,
-      "ddm-status": 0,
-      "mdm-command": 0,
-      "mdm-checkin": 0,
-      "ddm-protocol": 0,
-    },
-    entries: [],
-  };
+  return createTestTemplateBundle({ configurationTypes: templates });
 }

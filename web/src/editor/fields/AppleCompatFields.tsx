@@ -89,90 +89,13 @@ function AppleCompatFieldInput(props: {
   if (props.field.kind === "object-list") {
     return <AppleCompatObjectListInput field={props.field} value={props.value} onChange={props.onChange} />;
   }
-  if (props.field.options !== undefined) {
-    return (
-      <div className="field">
-        <AppleCompatFieldCaption field={props.field} />
-        <select value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)}>
-          {props.field.options.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-      </div>
-    );
-  }
-  if (props.field.kind === "boolean") {
-    return (
-      <div className="field checkbox-field">
-        <div className="field-label-row">
-          <label className="checkbox-control">
-            <input type="checkbox" checked={props.value === true} onChange={(event) => props.onChange(event.target.checked)} />
-            <span className="field-label">{props.field.label}</span>
-          </label>
-          <InfoButton label={props.field.label} description={props.field.description} source="Apple profile payload" facts={appleCompatFieldFacts(props.field)} />
-        </div>
-        <code className="field-path">{props.field.id}</code>
-      </div>
-    );
-  }
-  if (props.field.kind === "key-value-list") {
-    return (
-      <div className="field field-wide">
-        <AppleCompatFieldCaption field={props.field} />
-        <KeyValueListInput value={props.value} onChange={props.onChange} />
-      </div>
-    );
-  }
-  if (props.field.kind === "integer" || props.field.kind === "number") {
-    return (
-      <div className="field">
-        <AppleCompatFieldCaption field={props.field} />
-        <input
-          type="number"
-          step={props.field.kind === "number" ? "any" : "1"}
-          value={props.value === undefined ? "" : String(props.value)}
-          onChange={(event) => {
-            if (event.target.value.length === 0) {
-              props.onChange(undefined);
-              return;
-            }
-            if (props.field.kind === "integer") {
-              const parsed = parseIntegerValue(event.target.value);
-              if (parsed === undefined) {
-                return;
-              }
-              props.onChange(parsed);
-              return;
-            }
-            const parsed = Number(event.target.value);
-            if (Number.isFinite(parsed)) {
-              props.onChange(parsed);
-            }
-          }}
-        />
-      </div>
-    );
-  }
-  if (props.field.kind === "textarea" || props.field.kind === "list" || props.field.kind === "json") {
-    return (
-      <div className="field">
-        <AppleCompatFieldCaption field={props.field} />
-        <textarea
-          className={props.field.kind === "json" ? "compact-code-textarea" : "compact-textarea"}
-          value={textAreaValue(props.value)}
-          onChange={(event) => props.onChange(event.target.value)}
-        />
-      </div>
-    );
-  }
-  return (
-    <div className="field">
-      <AppleCompatFieldCaption field={props.field} />
-      <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
-    </div>
-  );
+  return renderAppleCompatScalarInput({
+    field: props.field,
+    value: props.value,
+    onChange: props.onChange,
+    containerClass: "field",
+    wideContainerClass: "field field-wide",
+  });
 }
 
 function AppleCompatObjectListInput(props: {
@@ -223,9 +146,25 @@ function AppleCompatObjectFieldInput(props: {
   value: unknown;
   onChange: (value: unknown) => void;
 }): JSX.Element {
+  return renderAppleCompatScalarInput({
+    field: props.field,
+    value: props.value,
+    onChange: props.onChange,
+    containerClass: "nested-field",
+    wideContainerClass: "nested-field nested-field-wide",
+  });
+}
+
+function renderAppleCompatScalarInput(props: {
+  field: AppleCompatField | AppleCompatObjectField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+  containerClass: string;
+  wideContainerClass: string;
+}): JSX.Element {
   if (props.field.options !== undefined) {
     return (
-      <div className="nested-field">
+      <div className={props.containerClass}>
         <AppleCompatFieldCaption field={props.field} />
         <select value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)}>
           {props.field.options.map((value) => (
@@ -239,7 +178,7 @@ function AppleCompatObjectFieldInput(props: {
   }
   if (props.field.kind === "boolean") {
     return (
-      <div className="nested-field checkbox-field">
+      <div className={`${props.containerClass} checkbox-field`}>
         <div className="field-label-row">
           <label className="checkbox-control">
             <input type="checkbox" checked={props.value === true} onChange={(event) => props.onChange(event.target.checked)} />
@@ -251,47 +190,31 @@ function AppleCompatObjectFieldInput(props: {
       </div>
     );
   }
-  if (props.field.kind === "integer" || props.field.kind === "number") {
-    return (
-      <div className="nested-field">
-        <AppleCompatFieldCaption field={props.field} />
-        <input
-          type="number"
-          step={props.field.kind === "number" ? "any" : "1"}
-          value={props.value === undefined ? "" : String(props.value)}
-          onChange={(event) => {
-            if (event.target.value.length === 0) {
-              props.onChange(undefined);
-              return;
-            }
-            if (props.field.kind === "integer") {
-              const parsed = parseIntegerValue(event.target.value);
-              if (parsed === undefined) {
-                return;
-              }
-              props.onChange(parsed);
-              return;
-            }
-            const parsed = Number(event.target.value);
-            if (Number.isFinite(parsed)) {
-              props.onChange(parsed);
-            }
-          }}
-        />
-      </div>
-    );
-  }
   if (props.field.kind === "key-value-list") {
     return (
-      <div className="nested-field nested-field-wide">
+      <div className={props.wideContainerClass}>
         <AppleCompatFieldCaption field={props.field} />
         <KeyValueListInput value={props.value} onChange={props.onChange} />
       </div>
     );
   }
+  if (props.field.kind === "integer" || props.field.kind === "number") {
+    const numberKind = props.field.kind === "integer" ? "integer" : "number";
+    return (
+      <div className={props.containerClass}>
+        <AppleCompatFieldCaption field={props.field} />
+        <input
+          type="number"
+          step={numberKind === "number" ? "any" : "1"}
+          value={props.value === undefined ? "" : String(props.value)}
+          onChange={(event) => handleAppleCompatNumberChange(numberKind, event.target.value, props.onChange)}
+        />
+      </div>
+    );
+  }
   if (props.field.kind === "textarea" || props.field.kind === "list" || props.field.kind === "json") {
     return (
-      <div className="nested-field nested-field-wide">
+      <div className={props.wideContainerClass}>
         <AppleCompatFieldCaption field={props.field} />
         <textarea
           className={props.field.kind === "json" ? "compact-code-textarea" : "compact-textarea"}
@@ -302,11 +225,33 @@ function AppleCompatObjectFieldInput(props: {
     );
   }
   return (
-    <div className="nested-field">
+    <div className={props.containerClass}>
       <AppleCompatFieldCaption field={props.field} />
       <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
     </div>
   );
+}
+
+function handleAppleCompatNumberChange(
+  kind: "integer" | "number",
+  rawValue: string,
+  onChange: (value: unknown) => void,
+): void {
+  if (rawValue.length === 0) {
+    onChange(undefined);
+    return;
+  }
+  if (kind === "integer") {
+    const parsed = parseIntegerValue(rawValue);
+    if (parsed !== undefined) {
+      onChange(parsed);
+    }
+    return;
+  }
+  const parsed = Number(rawValue);
+  if (Number.isFinite(parsed)) {
+    onChange(parsed);
+  }
 }
 
 function KeyValueListInput(props: { value: unknown; onChange: (value: unknown) => void }): JSX.Element {

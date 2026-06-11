@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { applyComplianceRemediationToWorkspace, buildComplianceReport, type ComplianceSourceCatalogs } from "../src/compliance.js";
-import type { AppleSchemaCatalog } from "../src/apple-schema.js";
 import type { RecommendationCatalogResponse, RecommendationRecord } from "../src/recommendation-types.js";
-import type { RelutionTemplateBundle } from "../src/templates.js";
-import type { PolicyWorkspace } from "../src/workspace.js";
+import {
+  createTestAppleSchemaCatalog,
+  createTestPolicyWorkspace,
+  createTestTemplateBundle,
+} from "./compliance-fixtures.js";
 
 test("buildComplianceReport exposes degraded source status when setting bundles are unavailable", () => {
   const report = buildComplianceReport({
@@ -17,8 +19,8 @@ test("buildComplianceReport exposes degraded source status when setting bundles 
         settingBundleCatalogError: "missing settings catalog fixture",
       } satisfies ComplianceSourceCatalogs,
     },
-    bundle: createBundle(),
-    appleSchema: createAppleSchemaCatalog(),
+    bundle: createTestTemplateBundle(),
+    appleSchema: createTestAppleSchemaCatalog(),
   });
 
   assert.deepEqual(report.sourceStatuses, [
@@ -57,8 +59,8 @@ test("applyComplianceRemediationToWorkspace rejects degraded native remediations
           settingBundleCatalogError: "missing settings catalog fixture",
         } satisfies ComplianceSourceCatalogs,
       },
-      bundle: createBundle(),
-      appleSchema: createAppleSchemaCatalog(),
+      bundle: createTestTemplateBundle(),
+      appleSchema: createTestAppleSchemaCatalog(),
       source: "bsi",
       recommendationId: "bsi-native-gap",
       remediationId: "recommendation:bsi:bsi-native-gap",
@@ -87,8 +89,8 @@ test("buildComplianceReport exposes loaded source status when all artifacts are 
         },
       } satisfies ComplianceSourceCatalogs,
     },
-    bundle: createBundle(),
-    appleSchema: createAppleSchemaCatalog(),
+    bundle: createTestTemplateBundle(),
+    appleSchema: createTestAppleSchemaCatalog(),
   });
 
   assert.deepEqual(report.sourceStatuses, [
@@ -134,66 +136,6 @@ function createRecommendationCatalog(): RecommendationCatalogResponse {
   };
 }
 
-function createWorkspace(): PolicyWorkspace {
-  return {
-    metadata: {},
-    report: {},
-    policies: [
-      {
-        path: "policies/policy_test.json",
-        document: {
-          name: "IOS policy",
-          platform: "IOS",
-          versions: [{ configurations: [] }],
-        },
-      },
-    ],
-  };
-}
-
-function createBundle(): RelutionTemplateBundle {
-  return {
-    serverVersion: "26.1.1",
-    sourceImage: "relution/server:26.1.1",
-    sourceImageDigest: "sha256:test",
-    generatedAt: "2026-04-24T00:00:00.000Z",
-    refreshDiagnostics: {
-      runtimeMetadata: {
-        source: "reflected",
-        reflectedCount: 0,
-        configurationTypeCount: 0,
-      },
-      iosSystemAppsLoaded: false,
-      springConfigurationMetadataLoaded: false,
-    },
-    platforms: ["IOS"],
-    enrollmentTypes: [],
-    configurationTypes: [],
-    schemas: {},
-    iosSystemApps: {},
-    springConfigurationMetadata: {},
-  };
-}
-
-function createAppleSchemaCatalog(): AppleSchemaCatalog {
-  return {
-    version: 1,
-    source: {
-      repository: "apple/device-management",
-      revision: "test",
-      generatedAt: "2026-04-24T00:00:00.000Z",
-    },
-    counts: {
-      profile: 0,
-      "ddm-configuration": 0,
-      "ddm-asset": 0,
-      "ddm-activation": 0,
-      "ddm-management": 0,
-      "ddm-status": 0,
-      "mdm-command": 0,
-      "mdm-checkin": 0,
-      "ddm-protocol": 0,
-    },
-    entries: [],
-  };
+function createWorkspace() {
+  return createTestPolicyWorkspace();
 }
