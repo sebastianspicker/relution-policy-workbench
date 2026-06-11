@@ -8,24 +8,7 @@ import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { extractRexp } from "../src/rexp.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
-
-type JsonRecord = Record<string, unknown>;
-
-type SourceEntry = {
-  id: string;
-  url: string;
-};
-
-type DownloadManifestEntry = {
-  id: string;
-  url: string;
-  localPath: string;
-  headersPath: string;
-  textPath: string;
-  contentType: string;
-  sizeBytes: number;
-  sha256: string;
-};
+import type { DownloadManifestEntry, ImportableRuleset, JsonRecord, SourceEntry } from "./reference-test-helpers.js";
 
 type VendorSummary = {
   verifiedAsOf: string;
@@ -92,25 +75,6 @@ type WindowsRexpEvidence = {
     policyName: string;
     locUri: string;
   }>;
-};
-
-type RulesetPolicy = {
-  platform: string;
-  name: string;
-  rules: Array<{
-    id: string;
-    title: string;
-    informational?: boolean;
-    mappings?: JsonRecord[];
-    reason?: string;
-    sourceIds?: string[];
-  }>;
-};
-
-type ImportableRuleset = {
-  version: number;
-  name: string;
-  policies: RulesetPolicy[];
 };
 
 test("download manifest covers every referenced vendor source", () => {

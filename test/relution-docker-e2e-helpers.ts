@@ -128,7 +128,7 @@ export async function importPolicy(path: string): Promise<PolicyImportReport> {
   const form = new FormData();
   form.set("encryptionKey", archiveSecret);
   form.set("file", new Blob([bytes]), path.split("/").at(-1) ?? "policy.rexp");
-  const response = await fetch(relutionManagementApiUrl("policies", "import"), {
+  const response = await fetchRelutionManagementApi(["policies", "import"], {
     method: "POST",
     headers: authHeaders(),
     body: form,
@@ -146,7 +146,7 @@ export async function importBaselineTemplate(path: string, label: string): Promi
 }
 
 export async function publishFirstPolicyVersion(policyUuid: string): Promise<string> {
-  const versionsResponse = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions"), {
+  const versionsResponse = await fetchRelutionManagementApi(["policies", policyUuid, "versions"], {
     headers: authHeaders(),
   });
   const versionsBody = await versionsResponse.text();
@@ -156,7 +156,7 @@ export async function publishFirstPolicyVersion(policyUuid: string): Promise<str
   if (versionUuid === undefined) {
     throw new Error(`Imported policy has no version UUID: ${versionsBody}`);
   }
-  const publishResponse = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid, "publish"), {
+  const publishResponse = await fetchRelutionManagementApi(["policies", policyUuid, "versions", versionUuid, "publish"], {
     method: "POST",
     headers: {
       ...authHeaders(),
@@ -201,7 +201,7 @@ export async function waitForPublishedConfigurationsWithTypes(
 }
 
 export async function exportPolicy(policyUuid: string): Promise<Blob> {
-  const response = await fetch(relutionManagementApiUrl("policies", "export"), {
+  const response = await fetchRelutionManagementApi(["policies", "export"], {
     method: "POST",
     headers: {
       ...authHeaders(),
@@ -339,7 +339,7 @@ export async function delay(milliseconds: number): Promise<void> {
 }
 
 async function fetchPolicyVersion(policyUuid: string, versionUuid: string): Promise<PolicyVersion | undefined> {
-  const response = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid), {
+  const response = await fetchRelutionManagementApi(["policies", policyUuid, "versions", versionUuid], {
     headers: authHeaders(),
   });
   const body = await response.text();
@@ -348,12 +348,16 @@ async function fetchPolicyVersion(policyUuid: string, versionUuid: string): Prom
 }
 
 async function fetchPolicyVersionConfigurations(policyUuid: string, versionUuid: string): Promise<PolicyConfiguration[]> {
-  const response = await fetch(relutionManagementApiUrl("policies", policyUuid, "versions", versionUuid, "configurations"), {
+  const response = await fetchRelutionManagementApi(["policies", policyUuid, "versions", versionUuid, "configurations"], {
     headers: authHeaders(),
   });
   const body = await response.text();
   assert.equal(response.ok, true, body);
   return (JSON.parse(body) as PolicyConfigurationWrapper).results ?? [];
+}
+
+async function fetchRelutionManagementApi(segments: readonly string[], init?: RequestInit): Promise<Response> {
+  return fetch(relutionManagementApiUrl(...segments), init);
 }
 
 function relutionManagementApiUrl(...segments: string[]): URL {

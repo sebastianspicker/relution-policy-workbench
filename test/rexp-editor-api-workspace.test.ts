@@ -1,17 +1,15 @@
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
+import { startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
-import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
-import { findAppleSchemaEntry, createDdmArtifact } from "../src/apple-schema.js";
+import { loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import {
   addAppleCompatConfigurationToWorkspace,
-  addConfigurationToWorkspace,
   addPolicyToWorkspace,
   createNewWorkspace,
   loadWorkspace,
@@ -19,16 +17,11 @@ import {
 } from "../src/workspace.js";
 import {
   configurationTypes,
-  configurationTypesForPolicy,
   fixture,
-  getJson,
   password,
   postJson,
   requirePolicyPath,
   startTestEditor,
-  type AddPolicyResponse,
-  type AppleSchemaEditorStateResponse,
-  type EditorStateResponse,
   type ReconcileResponse,
   type SidecarResponse,
   type WorkspaceValidateOnlyResponse,

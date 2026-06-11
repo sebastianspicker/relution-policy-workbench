@@ -1,4 +1,5 @@
 import { buildMobileConfig, plistValueFromUnknown, type PlistDataValue, type PlistValue } from "./plist.js";
+import { omitPayloadShell, parsePayloadBodyJson, unknownPayloadOverrides } from "./apple-payload-json.js";
 import { PROFILE_EDITOR_META_PROPERTY } from "./profile-editor-meta.js";
 import type { JsonRecord } from "./utils/json-guards.js";
 
@@ -104,8 +105,6 @@ const CUSTOM_SETTINGS_PROFILE_ENTRY: Omit<AppleSchemaEntry, "title" | "fields"> 
   },
   deprecated: false,
 };
-const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "PayloadType", "PayloadUUID", "PayloadVersion"]);
-
 export function appleSchemaEntriesForPlatform(
   catalog: AppleSchemaCatalog,
   platform: string,
@@ -558,34 +557,6 @@ function jsonValueFromPayload(value: unknown): unknown {
     return output;
   }
   return value;
-}
-
-function parsePayloadBodyJson(value: string): JsonRecord {
-  const parsed = JSON.parse(value.length === 0 ? "{}" : value) as unknown;
-  if (!isRecord(parsed)) {
-    throw new Error("Payload JSON must be an object");
-  }
-  return omitPayloadShell(parsed);
-}
-
-function omitPayloadShell(record: JsonRecord): JsonRecord {
-  const output: JsonRecord = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (!PAYLOAD_SHELL_KEYS.has(key)) {
-      output[key] = value;
-    }
-  }
-  return output;
-}
-
-function unknownPayloadOverrides(record: JsonRecord, knownKeys: Set<string>): JsonRecord {
-  const output: JsonRecord = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (!knownKeys.has(key)) {
-      output[key] = value;
-    }
-  }
-  return output;
 }
 
 function hasOwn(record: JsonRecord, key: string): boolean {

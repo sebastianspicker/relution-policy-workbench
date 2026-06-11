@@ -1,5 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HttpError, badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { HttpError, assignOptionalHttpConnectionFields, badRequest, optionalRecord, optionalString, readJsonBody, requireString } from "./editor-server-helpers.js";
 import { requireRuntimeConnection, sendJson } from "./editor-routes-utils.js";
 import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
 import {
@@ -69,29 +69,8 @@ function parseZammadConnectionInput(body: Record<string, unknown>): ZammadConnec
     group: requireString(body, "group"),
     customer: requireString(body, "customer"),
   };
-  assignOptionalConnectionFields(input, body);
+  assignOptionalHttpConnectionFields(input, body);
   return input;
-}
-
-function assignOptionalConnectionFields(input: ZammadConnectionInput, body: Record<string, unknown>): void {
-  const protocol = optionalString(body, "protocol");
-  if (protocol !== undefined) {
-    input.protocol = requireConnectionProtocol(protocol);
-  }
-  if (body.port !== undefined) {
-    input.port = requireNumber(body, "port");
-  }
-  const basePath = optionalString(body, "basePath");
-  if (basePath !== undefined) {
-    input.basePath = basePath;
-  }
-}
-
-function requireConnectionProtocol(protocol: string): "http" | "https" {
-  if (protocol !== "http" && protocol !== "https") {
-    throw badRequest(`Unsupported protocol: ${protocol}`);
-  }
-  return protocol;
 }
 
 async function requireOutboundConnection(runtime: ZammadEditorRuntime, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {

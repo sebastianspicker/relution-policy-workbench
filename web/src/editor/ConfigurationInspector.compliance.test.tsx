@@ -1,23 +1,11 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CompliancePanel } from "./CompliancePanel.js";
-import { createEditorControllerStub } from "./useEditorController.test-helpers.js";
+import { createBsiPasscodeRecommendation, createEditorControllerStub } from "./useEditorController.test-helpers.js";
 
 describe("ConfigurationInspector compliance", () => {
   it("renders the compliance viewer and exact remediation action", () => {
     const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
       policy: {
         path: "policies/policy_test.json",
         document: {
@@ -56,48 +44,7 @@ describe("ConfigurationInspector compliance", () => {
             id: "bsi:bsi-ios-passcode",
             source: "bsi",
             recommendationId: "bsi-ios-passcode",
-            recommendation: {
-              id: "bsi-ios-passcode",
-              platform: "IOS",
-              osFamily: "IOS",
-              policyName: "iOS BSI Grundschutz",
-              moduleId: "SYS.1",
-              moduleTitle: "Mobile baseline",
-              moduleRole: "baseline",
-              sourceIds: ["source-1"],
-              supportingSourceIds: [],
-              category: "Basis-Anforderungen",
-              requirementId: "SYS.1.A1",
-              title: "Use a strong passcode",
-              status: "active",
-              protectionLevel: "B",
-              actors: [],
-              paragraphs: ["Use a strong passcode."],
-              requirementText: "Use a strong passcode.",
-              reason: "Because weak passcodes are weak.",
-              descriptionContext: [],
-              checklistThreatIds: [],
-              checklistThreatTitles: [],
-              moduleThreatContext: [],
-              errata: [],
-              relutionMapping: {
-                status: "exact",
-                mergeableInImportableRuleset: true,
-                candidates: [],
-                rulesetMappings: [],
-                notes: [],
-              },
-              fallbackTranslations: [
-                {
-                  id: "fallback-audit",
-                  role: "audit",
-                  method: "terminal",
-                  title: "Terminal fallback",
-                  rawText: "Run a terminal profile check.",
-                  commands: ["profiles show -type configuration"],
-                },
-              ],
-            },
+            recommendation: createBsiPasscodeRecommendation(),
             status: "exact-gap",
             mappingResults: [
               {
@@ -127,8 +74,6 @@ describe("ConfigurationInspector compliance", () => {
       },
       complianceLoading: false,
       complianceError: undefined,
-      toggleComplianceSource: vi.fn(),
-      refreshCompliance: vi.fn(async () => {}),
       applyComplianceRemediation: vi.fn(async () => {}),
     });
 

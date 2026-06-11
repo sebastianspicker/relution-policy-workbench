@@ -3,7 +3,7 @@ import { useState, type JSX } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { ConfigurationInspector } from "./ConfigurationInspector.js";
 import { RecommendationsPanel } from "./RecommendationsPanel.js";
-import { createAppState, createEditorControllerStub } from "./useEditorController.test-helpers.js";
+import { createAppState, createBsiPasscodeRecommendation, createEditorControllerStub } from "./useEditorController.test-helpers.js";
 import type { InspectorTab } from "./types.js";
 
 describe("ConfigurationInspector", () => {
@@ -217,29 +217,7 @@ describe("ConfigurationInspector", () => {
         displayToImportPlatform: { IOS: "IOS" },
         recommendations: [
           {
-            id: "bsi-ios-passcode",
-            platform: "IOS",
-            osFamily: "IOS",
-            policyName: "iOS BSI Grundschutz",
-            moduleId: "SYS.1",
-            moduleTitle: "Mobile baseline",
-            moduleRole: "baseline",
-            sourceIds: ["source-1"],
-            supportingSourceIds: [],
-            category: "Basis-Anforderungen",
-            requirementId: "SYS.1.A1",
-            title: "Use a strong passcode",
-            status: "active",
-            protectionLevel: "B",
-            actors: [],
-            paragraphs: ["Use a strong passcode."],
-            requirementText: "Use a strong passcode.",
-            reason: "Because weak passcodes are weak.",
-            descriptionContext: [],
-            checklistThreatIds: [],
-            checklistThreatTitles: [],
-            moduleThreatContext: [],
-            errata: [],
+            ...createBsiPasscodeRecommendation(),
             relutionMapping: {
               status: "exact",
               mergeableInImportableRuleset: true,
@@ -519,18 +497,6 @@ describe("ConfigurationInspector", () => {
 
   it("expands CIS fallback methods by default when there is no exact Relution mapping", () => {
     const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
       recommendationSource: "cis",
       recommendationIndex: {
         sources: [

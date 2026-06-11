@@ -47,6 +47,41 @@ export interface RelutionDeviceQueryInput {
   sortAscending?: boolean;
 }
 
+export type RelutionDeviceQueryOptions = {
+  [Key in keyof RelutionDeviceQueryInput]?: RelutionDeviceQueryInput[Key] | undefined;
+};
+
+export function applyRelutionDeviceQueryOptions(
+  query: RelutionDeviceQueryInput,
+  options: RelutionDeviceQueryOptions,
+): RelutionDeviceQueryInput {
+  if (options.limit !== undefined) {
+    query.limit = options.limit;
+  }
+  if (options.offset !== undefined) {
+    query.offset = options.offset;
+  }
+  if (options.platforms !== undefined) {
+    query.platforms = options.platforms;
+  }
+  if (options.statuses !== undefined) {
+    query.statuses = options.statuses;
+  }
+  if (options.ownerships !== undefined) {
+    query.ownerships = options.ownerships;
+  }
+  if (options.search !== undefined) {
+    query.search = options.search;
+  }
+  if (options.sortField !== undefined) {
+    query.sortField = options.sortField;
+  }
+  if (options.sortAscending !== undefined) {
+    query.sortAscending = options.sortAscending;
+  }
+  return query;
+}
+
 export type RelutionDeviceSortField = "lastConnectionDate" | "name" | "platform" | "status" | "policyStatus";
 
 export interface RelutionDeviceQueryResult {

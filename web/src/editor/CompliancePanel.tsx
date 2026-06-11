@@ -1,14 +1,13 @@
 import { useEffect, useState, type JSX } from "react";
 import type {
   BsiRecommendationRecord,
-  CisRecommendationRecord,
   RecommendationRecord,
   RecommendationSource,
-  VendorRecommendationRecord,
 } from "../../../src/recommendation-types.js";
 import type { ComplianceRecommendationResult, ComplianceStatus } from "../../../src/compliance.js";
 import { secondaryRecommendationId } from "./recommendation-record-utils.js";
 import { FallbackTranslationsSection } from "./FallbackTranslationsSection.js";
+import { CisRecommendationSummaryDetail, VendorRecommendationDetail } from "./RecommendationDetails.js";
 import type { EditorController } from "./types.js";
 
 const ALL_STATUSES = "ALL";
@@ -161,8 +160,8 @@ function ComplianceDetail(props: {
         {SOURCE_LABELS[props.result.source]} | {secondaryRecommendationId(props.result.source, props.result.recommendation)} | {props.result.recommendation.platform}
       </p>
       {props.result.source === "bsi" ? <BsiDetail recommendation={props.result.recommendation} /> : null}
-      {props.result.source === "cis" ? <CisDetail recommendation={props.result.recommendation} /> : null}
-      {props.result.source === "vendor" ? <VendorDetail recommendation={props.result.recommendation} /> : null}
+      {props.result.source === "cis" ? <CisRecommendationSummaryDetail recommendation={props.result.recommendation} /> : null}
+      {props.result.source === "vendor" ? <VendorRecommendationDetail recommendation={props.result.recommendation} /> : null}
       <FallbackTranslationsSection recommendation={props.result.recommendation} />
       <section className="preview-block">
         <h4>Compliance</h4>
@@ -212,39 +211,6 @@ function BsiDetail({ recommendation }: { readonly recommendation: Recommendation
         <summary>Reason</summary>
         <p>{item.reason}</p>
       </details>
-    </>
-  );
-}
-
-function CisDetail({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element {
-  const item = recommendation as CisRecommendationRecord;
-  return (
-    <>
-      <p>{item.benchmarkTitle} | v{item.benchmarkVersion} | {item.recommendationId}</p>
-      <p>{String(item.recommendedValue)} | default {String(item.defaultValue)}</p>
-      {item.profileApplicability.length > 0 ? <p>{item.profileApplicability.join(", ")}</p> : null}
-      <details className="preview-block" open>
-        <summary>Description</summary>
-        <p>{item.description}</p>
-      </details>
-      <details className="preview-block">
-        <summary>Rationale</summary>
-        <p>{item.rationale}</p>
-      </details>
-    </>
-  );
-}
-
-function VendorDetail({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element {
-  const item = recommendation as VendorRecommendationRecord;
-  return (
-    <>
-      <p>{item.section} | recommended {String(item.recommendedValue)}</p>
-      <details className="preview-block" open>
-        <summary>Reason</summary>
-        <p>{item.reason}</p>
-      </details>
-      {item.sourceIds.length > 0 ? <p>Sources: {item.sourceIds.join(", ")}</p> : null}
     </>
   );
 }

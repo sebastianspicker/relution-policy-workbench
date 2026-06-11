@@ -4,7 +4,7 @@ import {
   buildComplianceReport,
   type ComplianceSourceCatalogs,
 } from "../src/compliance.js";
-import type { AppleSchemaCatalog } from "../src/apple-schema.js";
+import { createTestAppleSchemaCatalog } from "./compliance-fixtures.js";
 import type {
   RecommendationCatalogResponse,
   RecommendationRecord,
@@ -33,7 +33,7 @@ test("buildComplianceReport treats array contains-all constraints as compliant f
       ],
     ),
     bundle: createBundle(),
-    appleSchema: createAppleSchemaCatalog(),
+    appleSchema: createTestAppleSchemaCatalog(),
   });
 
   const result = report.results.find((entry) => entry.recommendationId === "cis-android-keyguard-notifications");
@@ -67,7 +67,7 @@ for (const scenario of [
         ],
       ),
       bundle: createBundle(),
-      appleSchema: createAppleSchemaCatalog(),
+      appleSchema: createTestAppleSchemaCatalog(),
     });
 
     const result = report.results.find((entry) => entry.recommendationId === "cis-android-keyguard-notifications");
@@ -217,28 +217,5 @@ function createBundle(): RelutionTemplateBundle {
     schemas: {},
     iosSystemApps: {},
     springConfigurationMetadata: {},
-  };
-}
-
-function createAppleSchemaCatalog(): AppleSchemaCatalog {
-  return {
-    version: 1,
-    source: {
-      repository: "apple/device-management",
-      revision: "test",
-      generatedAt: "2026-04-24T00:00:00.000Z",
-    },
-    counts: {
-      profile: 0,
-      "ddm-configuration": 0,
-      "ddm-asset": 0,
-      "ddm-activation": 0,
-      "ddm-management": 0,
-      "ddm-status": 0,
-      "mdm-command": 0,
-      "mdm-checkin": 0,
-      "ddm-protocol": 0,
-    },
-    entries: [],
   };
 }

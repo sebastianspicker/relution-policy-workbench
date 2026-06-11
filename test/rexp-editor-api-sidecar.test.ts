@@ -1,37 +1,28 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import test from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
-import { inspectRexp, verifyRexp } from "../src/rexp.js";
-import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries, updateMdmCommandArtifact } from "../src/sidecar.js";
-import { findAppleSchemaEntry, createDdmArtifact } from "../src/apple-schema.js";
+import { startEditorServer } from "../src/editor-server.js";
+import { verifyRexp } from "../src/rexp.js";
+import { loadEditorSidecar, updateMdmCommandArtifact } from "../src/sidecar.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import {
-  addAppleCompatConfigurationToWorkspace,
   addConfigurationToWorkspace,
-  addPolicyToWorkspace,
   createNewWorkspace,
   loadWorkspace,
-  type PolicyWorkspace,
 } from "../src/workspace.js";
 import {
   configurationTypes,
-  configurationTypesForPolicy,
-  fixture,
   getJson,
   password,
   postJson,
   requirePolicyPath,
   startTestEditor,
-  type AddPolicyResponse,
   type AppleSchemaEditorStateResponse,
-  type EditorStateResponse,
   type ReconcileResponse,
   type SidecarResponse,
-  type WorkspaceValidateOnlyResponse,
   type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
 
