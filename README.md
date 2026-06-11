@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml/badge.svg)](https://github.com/sebastianspicker/relution-policy-workbench/actions/workflows/ci.yml)
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/2b252ae795c0494ea6ec252b1cb1cd3f)](https://app.codacy.com/gh/sebastianspicker/relution-policy-workbench/dashboard?utm_source=gh&utm_medium=referral&utm_content=&utm_campaign=Badge_grade)
-[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sebastianspicker/relution-policy-workbench/badge)](https://www.bestpractices.dev/en/projects/13162/choose/edit?osps_ac_01_01_status=Met&osps_ac_01_01_justification=GitHub+enforced)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/sebastianspicker/relution-policy-workbench/badge)](https://securityscorecards.dev/viewer/?uri=github.com/sebastianspicker/relution-policy-workbench)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13162/badge)](https://www.bestpractices.dev/projects/13162)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Local Relution `.rexp` policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.

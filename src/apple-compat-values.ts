@@ -1,10 +1,9 @@
 import type { AppleCompatField, AppleCompatObjectField, AppleCompatSetting, JsonRecord } from "./apple-compat-types.js";
 import { asRecord } from "./utils/json-guards.js";
 import { PROFILE_EDITOR_META_PROPERTY, PROFILE_IDENTIFIER_PREFIX } from "./apple-compat-types.js";
+import { omitPayloadShell, parsePayloadBodyJson, parsePayloadKeysJson, tryParsePayloadKeysJson, unknownPayloadOverrides } from "./apple-payload-json.js";
 import { APPLE_COMPAT_SETTINGS } from "./apple-compat-settings.js";
 import { buildMobileConfig, jsonPayloadKeys, plistValueFromUnknown, type PlistValue } from "./plist.js";
-
-const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "PayloadType", "PayloadUUID", "PayloadVersion"]);
 
 export interface AppleCompatCreateOptions {
   uuidFactory?: () => string;
@@ -552,62 +551,6 @@ function keyValueRecord(value: unknown): JsonRecord {
     }
   }
   return output;
-}
-
-function parsePayloadKeysJson(value: unknown, label = "payload keys"): JsonRecord {
-  const text = typeof value === "string" ? value : "{}";
-  const parsed = parseJsonWithContext(text, label);
-  const record = asRecord(parsed);
-  if (record === undefined) {
-    throw new Error(`${label} JSON must be an object`);
-  }
-  return record;
-}
-
-function parsePayloadBodyJson(value: string, label = "payload body"): JsonRecord {
-  const parsed = parseJsonWithContext(value.length === 0 ? "{}" : value, label);
-  const record = asRecord(parsed);
-  if (record === undefined) {
-    throw new Error(`${label} JSON must be an object`);
-  }
-  return omitPayloadShell(record);
-}
-
-function omitPayloadShell(record: JsonRecord): JsonRecord {
-  const output: JsonRecord = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (!PAYLOAD_SHELL_KEYS.has(key)) {
-      output[key] = value;
-    }
-  }
-  return output;
-}
-
-function unknownPayloadOverrides(record: JsonRecord, knownKeys: Set<string>): JsonRecord {
-  const output: JsonRecord = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (!knownKeys.has(key)) {
-      output[key] = value;
-    }
-  }
-  return output;
-}
-
-function tryParsePayloadKeysJson(value: unknown): JsonRecord | undefined {
-  try {
-    return parsePayloadKeysJson(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function parseJsonWithContext(text: string, label: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Could not parse ${label} JSON: ${message}`);
-  }
 }
 
 function listValue(value: unknown): string[] {

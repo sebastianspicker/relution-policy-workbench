@@ -11,28 +11,7 @@ import { writeZip } from "../src/zip.js";
 
 test("records template bundle provenance when runtime metadata falls back to heuristics", () => {
   const bundle = createTemplateBundle({
-    openApi: {
-      components: {
-        schemas: {
-          Platform: { type: "string", enum: ["UNKNOWN", "IOS"] },
-          EnrollmentType: { type: "string", enum: [] },
-          ConfigurationDetails: {
-            discriminator: {
-              mapping: {
-                IOS_TEST: "#/components/schemas/IosTestDetails",
-              },
-            },
-          },
-          IosTestDetails: {
-            type: "object",
-            properties: {
-              type: { type: "string" },
-              enabled: { type: "boolean" },
-            },
-          },
-        },
-      },
-    },
+    openApi: minimalRelutionOpenApi(),
     iosSystemApps: {},
     springConfigurationMetadata: {},
     runtimeMetadata: [],
@@ -189,29 +168,33 @@ function writeMinimalRelutionJar(path: string): void {
     writeZip([
       {
         name: "BOOT-INF/classes/openapi.json",
-        data: Buffer.from(JSON.stringify({
-          components: {
-            schemas: {
-              Platform: { type: "string", enum: ["UNKNOWN", "IOS"] },
-              EnrollmentType: { type: "string", enum: [] },
-              ConfigurationDetails: {
-                discriminator: {
-                  mapping: {
-                    IOS_TEST: "#/components/schemas/IosTestDetails",
-                  },
-                },
-              },
-              IosTestDetails: {
-                type: "object",
-                properties: {
-                  type: { type: "string" },
-                  enabled: { type: "boolean" },
-                },
-              },
-            },
-          },
-        })),
+        data: Buffer.from(JSON.stringify(minimalRelutionOpenApi())),
       },
     ]),
   );
+}
+
+function minimalRelutionOpenApi(): Record<string, unknown> {
+  return {
+    components: {
+      schemas: {
+        Platform: { type: "string", enum: ["UNKNOWN", "IOS"] },
+        EnrollmentType: { type: "string", enum: [] },
+        ConfigurationDetails: {
+          discriminator: {
+            mapping: {
+              IOS_TEST: "#/components/schemas/IosTestDetails",
+            },
+          },
+        },
+        IosTestDetails: {
+          type: "object",
+          properties: {
+            type: { type: "string" },
+            enabled: { type: "boolean" },
+          },
+        },
+      },
+    },
+  };
 }

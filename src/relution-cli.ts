@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import {
+  applyRelutionDeviceQueryOptions,
   assessRelutionDevices,
   auditRelutionDevices,
   normalizeRelutionConnection,
@@ -120,31 +121,7 @@ function queryFromArgs(args: RelutionCliArgs): RelutionDeviceQueryInput {
   const search = optionalString(args, "search");
   const sortField = optionalSortField(args);
   const sortAscending = optionalBoolean(args, "sort-ascending");
-  if (limit !== undefined) {
-    query.limit = limit;
-  }
-  if (offset !== undefined) {
-    query.offset = offset;
-  }
-  if (platforms !== undefined) {
-    query.platforms = platforms;
-  }
-  if (statuses !== undefined) {
-    query.statuses = statuses;
-  }
-  if (ownerships !== undefined) {
-    query.ownerships = ownerships;
-  }
-  if (search !== undefined) {
-    query.search = search;
-  }
-  if (sortField !== undefined) {
-    query.sortField = sortField;
-  }
-  if (sortAscending !== undefined) {
-    query.sortAscending = sortAscending;
-  }
-  return query;
+  return applyRelutionDeviceQueryOptions(query, { limit, offset, platforms, statuses, ownerships, search, sortField, sortAscending });
 }
 
 function warnIfDeviceQueryTruncated(result: RelutionDeviceQueryResult): void {

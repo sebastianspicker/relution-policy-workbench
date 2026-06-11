@@ -13,24 +13,7 @@ afterEach(() => {
 
 describe("useEditorController history", () => {
   it("sets beforeunload returnValue when the workspace is dirty", async () => {
-    installFetchMock();
-    const { result } = renderHook(() => useEditorController());
-    await waitForReady(result.current, result);
-
-    await act(async () => {
-      currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
-    });
-
-    await act(async () => {
-      const controller = currentReady(result).controller;
-      controller.updateSelectedConfiguration({
-        ...(controller.configuration ?? {}),
-        details: {
-          ...(controller.details ?? {}),
-          name: "Dirty name",
-        },
-      });
-    });
+    await renderDirtySelectedConfiguration("Dirty name");
 
     const event = new Event("beforeunload", { cancelable: true }) as BeforeUnloadEvent;
     Object.defineProperty(event, "returnValue", { configurable: true, writable: true, value: undefined });
@@ -41,24 +24,7 @@ describe("useEditorController history", () => {
   });
 
   it("clears the dirty beforeunload warning after undo restores a clean workspace", async () => {
-    installFetchMock();
-    const { result } = renderHook(() => useEditorController());
-    await waitForReady(result.current, result);
-
-    await act(async () => {
-      currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
-    });
-
-    await act(async () => {
-      const controller = currentReady(result).controller;
-      controller.updateSelectedConfiguration({
-        ...(controller.configuration ?? {}),
-        details: {
-          ...(controller.details ?? {}),
-          name: "Dirty name",
-        },
-      });
-    });
+    const result = await renderDirtySelectedConfiguration("Dirty name");
 
     await act(async () => {
       currentReady(result).controller.undoWorkspace();
@@ -141,3 +107,26 @@ describe("useEditorController history", () => {
     expect(currentReady(result).controller.state.workspace.policies.length).toBe(0);
   });
 });
+
+async function renderDirtySelectedConfiguration(name: string) {
+  installFetchMock();
+  const { result } = renderHook(() => useEditorController());
+  await waitForReady(result.current, result);
+
+  await act(async () => {
+    currentReady(result).controller.setSelection({ policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
+  });
+
+  await act(async () => {
+    const controller = currentReady(result).controller;
+    controller.updateSelectedConfiguration({
+      ...(controller.configuration ?? {}),
+      details: {
+        ...(controller.details ?? {}),
+        name,
+      },
+    });
+  });
+
+  return result;
+}

@@ -5,22 +5,7 @@ import { resolve } from "node:path";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
-
-type SourceEntry = {
-  id: string;
-  url: string;
-};
-
-type DownloadManifestEntry = {
-  id: string;
-  url: string;
-  localPath: string;
-  headersPath: string;
-  textPath: string;
-  contentType: string;
-  sizeBytes: number;
-  sha256: string;
-};
+import { valueAtPath, type DownloadManifestEntry, type ImportableRuleset, type JsonRecord, type SourceEntry } from "./reference-test-helpers.js";
 
 type CisBaselineSummary = {
   verifiedAsOf: string;
@@ -53,8 +38,6 @@ type CisBaselineSummary = {
     byMethod: Record<string, number>;
   };
 };
-
-type JsonRecord = Record<string, unknown>;
 
 type CisHelperFallback = {
   id: string;
@@ -111,25 +94,6 @@ type CisRecommendation = {
     }>;
     rulesetMappings: JsonRecord[];
   };
-};
-
-type RulesetPolicy = {
-  platform: string;
-  name: string;
-  rules: Array<{
-    id: string;
-    title: string;
-    informational?: boolean;
-    mappings?: JsonRecord[];
-    reason?: string;
-    sourceIds?: string[];
-  }>;
-};
-
-type ImportableRuleset = {
-  version: number;
-  name: string;
-  policies: RulesetPolicy[];
 };
 
 type AppleMobileconfigEvidence = {
@@ -529,26 +493,4 @@ function hasNativeValue(entry: CisRecommendation | undefined, type: string, path
     && mapping.type === type
     && JSON.stringify(valueAtPath(mapping.values, path)) === JSON.stringify(expected),
   ) ?? false;
-}
-
-function valueAtPath(value: unknown, path: string): unknown {
-  let current = value;
-  for (const part of path.split(".")) {
-    if (!isSafeObjectPathSegment(part)) {
-      return undefined;
-    }
-    if (current === null || typeof current !== "object") {
-      return undefined;
-    }
-    const descriptor = Object.getOwnPropertyDescriptor(current, part);
-    if (descriptor === undefined) {
-      return undefined;
-    }
-    current = descriptor.value;
-  }
-  return current;
-}
-
-function isSafeObjectPathSegment(part: string): boolean {
-  return part !== "__proto__" && part !== "constructor" && part !== "prototype";
 }

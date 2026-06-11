@@ -1,4 +1,4 @@
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ServerResponse } from "node:http";
@@ -6,7 +6,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { readZip, writeZip } from "../src/zip.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
+import { startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
 import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
 import { findAppleSchemaEntry, createDdmArtifact } from "../src/apple-schema.js";
@@ -21,21 +21,13 @@ import {
   type PolicyWorkspace,
 } from "../src/workspace.js";
 import {
-  configurationTypes,
-  configurationTypesForPolicy,
   fixture,
   getJson,
   password,
   postJson,
   requirePolicyPath,
   startTestEditor,
-  type AddPolicyResponse,
-  type AppleSchemaEditorStateResponse,
   type EditorStateResponse,
-  type ReconcileResponse,
-  type SidecarResponse,
-  type WorkspaceValidateOnlyResponse,
-  type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
 
 type KeyUpdateResponse = { keySet: boolean; validated: boolean; reason?: string };

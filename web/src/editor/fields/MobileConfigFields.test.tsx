@@ -15,21 +15,7 @@ describe("MobileConfigFields", () => {
 
     fireEvent.change(textarea!, {
       target: {
-        value: [
-          '<?xml version="1.0" encoding="UTF-8"?>',
-          "<plist version=\"1.0\">",
-          "<dict>",
-          "<key>PayloadType</key>",
-          "<string>Configuration</string>",
-          "<key>PayloadContent</key>",
-          "<array>",
-          "<dict>",
-          "<key>PayloadType</key>",
-          "<string>com.apple.associated-domains</string>",
-          "</array>",
-          "</dict>",
-          "</plist>",
-        ].join("\n"),
+        value: brokenMobileConfigXml(),
       },
     });
 
@@ -73,23 +59,7 @@ describe("MobileConfigFields", () => {
     fireEvent.change(input, {
       target: {
         files: [
-          new File([
-            [
-              '<?xml version="1.0" encoding="UTF-8"?>',
-              '<plist version="1.0">',
-              "<dict>",
-              "<key>PayloadType</key>",
-              "<string>Configuration</string>",
-              "<key>PayloadContent</key>",
-              "<array>",
-              "<dict>",
-              "<key>PayloadType</key>",
-              "<string>com.apple.associated-domains</string>",
-              "</array>",
-              "</dict>",
-              "</plist>",
-            ].join("\n"),
-          ], "broken.mobileconfig", { type: "application/xml" }),
+          new File([brokenMobileConfigXml()], "broken.mobileconfig", { type: "application/xml" }),
         ],
       },
     });
@@ -151,3 +121,21 @@ describe("MobileConfigFields", () => {
     expect(screen.queryByText("unreadable.mobileconfig")).toBeNull();
   });
 });
+
+function brokenMobileConfigXml(): string {
+  return [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<plist version="1.0">',
+    "<dict>",
+    "<key>PayloadType</key>",
+    "<string>Configuration</string>",
+    "<key>PayloadContent</key>",
+    "<array>",
+    "<dict>",
+    "<key>PayloadType</key>",
+    "<string>com.apple.associated-domains</string>",
+    "</array>",
+    "</dict>",
+    "</plist>",
+  ].join("\n");
+}

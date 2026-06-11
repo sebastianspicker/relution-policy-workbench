@@ -158,7 +158,7 @@ async function probeDashboardWithMockDevices(options: {
 }
 
 async function postJson<T>(baseUrlValue: string, path: string, body: unknown): Promise<T> {
-  const response = await fetch(localEditorApiUrl(baseUrlValue, path), {
+  const response = await fetchLocalEditorApi(baseUrlValue, path, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
@@ -166,6 +166,15 @@ async function postJson<T>(baseUrlValue: string, path: string, body: unknown): P
   const text = await response.text();
   assert.equal(response.ok, true, text);
   return JSON.parse(text) as T;
+}
+
+async function fetchLocalEditorApi(baseUrlValue: string, path: string, init?: RequestInit): Promise<Response> {
+  const request = new Request(localEditorApiUrl(baseUrlValue, path), init);
+  return fetchRequest(request);
+}
+
+async function fetchRequest(request: Request): Promise<Response> {
+  return globalThis.fetch(request);
 }
 
 function requireExportablePolicy(template: BaselineTemplate): BaselineTemplate["policies"][number] {

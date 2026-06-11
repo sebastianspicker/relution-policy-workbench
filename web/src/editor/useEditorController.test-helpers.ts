@@ -2,7 +2,7 @@ import { waitFor } from "@testing-library/react";
 import { expect, vi } from "vitest";
 import type { AppleCompatReport } from "../../../src/apple-compat.js";
 import type { AppleSchemaCatalog } from "../../../src/apple-schema.js";
-import type { RecommendationCatalogResponse, RecommendationIndexResponse } from "../../../src/recommendation-types.js";
+import type { BsiRecommendationRecord, RecommendationCatalogResponse, RecommendationIndexResponse } from "../../../src/recommendation-types.js";
 import type { EditorSidecarState } from "../../../src/sidecar.js";
 import type { ConfigurationTemplate, RelutionTemplateBundle } from "../../../src/templates.js";
 import type { PolicyWorkspace, WorkspaceValidationResult } from "../../../src/workspace.js";
@@ -520,6 +520,51 @@ export function createRecommendationIndex(): RecommendationIndexResponse {
   };
 }
 
+export function createBsiPasscodeRecommendation(): BsiRecommendationRecord {
+  return {
+    id: "bsi-ios-passcode",
+    platform: "IOS",
+    osFamily: "IOS",
+    policyName: "iOS BSI Grundschutz",
+    moduleId: "SYS.1",
+    moduleTitle: "Mobile baseline",
+    moduleRole: "baseline",
+    sourceIds: ["source-1"],
+    supportingSourceIds: [],
+    category: "Basis-Anforderungen",
+    requirementId: "SYS.1.A1",
+    title: "Use a strong passcode",
+    status: "active",
+    protectionLevel: "B",
+    actors: [],
+    paragraphs: ["Use a strong passcode."],
+    requirementText: "Use a strong passcode.",
+    reason: "Because weak passcodes are weak.",
+    descriptionContext: [],
+    checklistThreatIds: [],
+    checklistThreatTitles: [],
+    moduleThreatContext: [],
+    errata: [],
+    relutionMapping: {
+      status: "exact",
+      mergeableInImportableRuleset: true,
+      candidates: [],
+      rulesetMappings: [],
+      notes: [],
+    },
+    fallbackTranslations: [
+      {
+        id: "fallback-audit",
+        role: "audit",
+        method: "terminal",
+        title: "Terminal fallback",
+        rawText: "Run a terminal profile check.",
+        commands: ["profiles show -type configuration"],
+      },
+    ],
+  };
+}
+
 export function createRecommendationCatalog(
   overrides: Partial<RecommendationCatalogResponse> = {},
 ): RecommendationCatalogResponse {
@@ -534,29 +579,7 @@ export function createRecommendationCatalog(
     displayToImportPlatform: { IOS: "IOS", MACOS: "MACOS" },
     recommendations: [
       {
-        id: "bsi-ios-passcode",
-        platform: "IOS",
-        osFamily: "IOS",
-        policyName: "iOS BSI Grundschutz",
-        moduleId: "SYS.1",
-        moduleTitle: "Mobile baseline",
-        moduleRole: "baseline",
-        sourceIds: ["source-1"],
-        supportingSourceIds: [],
-        category: "Basis-Anforderungen",
-        requirementId: "SYS.1.A1",
-        title: "Use a strong passcode",
-        status: "active",
-        protectionLevel: "B",
-        actors: [],
-        paragraphs: ["Use a strong passcode."],
-        requirementText: "Use a strong passcode.",
-        reason: "Because weak passcodes are weak.",
-        descriptionContext: [],
-        checklistThreatIds: [],
-        checklistThreatTitles: [],
-        moduleThreatContext: [],
-        errata: [],
+        ...createBsiPasscodeRecommendation(),
         relutionMapping: {
           status: "exact",
           mergeableInImportableRuleset: true,

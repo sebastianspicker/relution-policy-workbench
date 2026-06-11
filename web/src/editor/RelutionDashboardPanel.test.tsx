@@ -16,57 +16,7 @@ describe("RelutionDashboardPanel", () => {
       }
       if (url === "/api/relution/devices/audit") {
         auditBodies.push(requestJson(init));
-        const query = {
-          baseUrl: "https://relution.example.test",
-          count: 1,
-          total: 2,
-          truncated: true,
-          devices: [
-            {
-              uuid: "DEVICE-1",
-              name: "Campus iPad",
-              platform: "IOS",
-              status: "COMPLIANT",
-              policyStatus: "APPLIED",
-              assignedPolicies: ["Other Policy"],
-              inactiveDays: 95,
-              raw: {},
-            },
-          ],
-        };
-        return jsonResponse({
-          query,
-          report: {
-            generatedAt: "2026-04-26T10:00:00.000Z",
-            baseUrl: "https://relution.example.test",
-            summary: {
-              totalDevices: 1,
-              compliant: 0,
-              issue: 1,
-              notCheckable: 0,
-              missingPolicy: 1,
-              inactiveWarning: 0,
-              inactiveProblem: 1,
-              byPlatform: { IOS: 1 },
-              byStatus: { COMPLIANT: 1 },
-              byPolicyStatus: { APPLIED: 1 },
-            },
-            devices: [
-              {
-                status: "issue",
-                device: query.devices[0],
-                issues: [
-                  {
-                    id: "missing-policy",
-                    severity: "problem",
-                    message: "Missing expected policies: Baseline iOS.",
-                    evidence: { missingPolicies: "Baseline iOS" },
-                  },
-                ],
-              },
-            ],
-          },
-        });
+        return jsonResponse(campusIpadAuditResponse({ total: 2, truncated: true, inactiveDays: 95, inactiveProblem: 1 }));
       }
       if (url === "/api/relution/reports/compliance") {
         return jsonResponse({ jsonPath: "/tmp/report.json", markdownPath: "/tmp/report.md" });
@@ -273,54 +223,7 @@ describe("RelutionDashboardPanel", () => {
         return jsonResponse({ configured: true, baseUrl: "https://relution.example.test", tokenConfigured: true, mode: "read-only" });
       }
       if (url === "/api/relution/devices/audit") {
-        const query = {
-          baseUrl: "https://relution.example.test",
-          count: 1,
-          devices: [
-            {
-              uuid: "DEVICE-1",
-              name: "Campus iPad",
-              platform: "IOS",
-              status: "COMPLIANT",
-              policyStatus: "APPLIED",
-              assignedPolicies: ["Other Policy"],
-              raw: {},
-            },
-          ],
-        };
-        return jsonResponse({
-          query,
-          report: {
-            generatedAt: "2026-04-26T10:00:00.000Z",
-            baseUrl: "https://relution.example.test",
-            summary: {
-              totalDevices: 1,
-              compliant: 0,
-              issue: 1,
-              notCheckable: 0,
-              missingPolicy: 1,
-              inactiveWarning: 0,
-              inactiveProblem: 0,
-              byPlatform: { IOS: 1 },
-              byStatus: { COMPLIANT: 1 },
-              byPolicyStatus: { APPLIED: 1 },
-            },
-            devices: [
-              {
-                status: "issue",
-                device: query.devices[0],
-                issues: [
-                  {
-                    id: "missing-policy",
-                    severity: "problem",
-                    message: "Missing expected policies: Baseline iOS.",
-                    evidence: { missingPolicies: "Baseline iOS" },
-                  },
-                ],
-              },
-            ],
-          },
-        });
+        return jsonResponse(campusIpadAuditResponse());
       }
       if (url === "/api/zammad/session") {
         return jsonResponse({ configured: true, baseUrl: "https://zammad.example.test", tokenConfigured: true, group: "IT", customer: "it@example.test" });
@@ -362,6 +265,64 @@ function jsonResponse(body: unknown): Response {
     status: 200,
     headers: { "content-type": "application/json" },
   });
+}
+
+function campusIpadAuditResponse(options: {
+  readonly total?: number;
+  readonly truncated?: boolean;
+  readonly inactiveDays?: number;
+  readonly inactiveProblem?: number;
+} = {}): unknown {
+  const device = {
+    uuid: "DEVICE-1",
+    name: "Campus iPad",
+    platform: "IOS",
+    status: "COMPLIANT",
+    policyStatus: "APPLIED",
+    assignedPolicies: ["Other Policy"],
+    ...(options.inactiveDays === undefined ? {} : { inactiveDays: options.inactiveDays }),
+    raw: {},
+  };
+  const query = {
+    baseUrl: "https://relution.example.test",
+    count: 1,
+    ...(options.total === undefined ? {} : { total: options.total }),
+    ...(options.truncated === undefined ? {} : { truncated: options.truncated }),
+    devices: [device],
+  };
+  return {
+    query,
+    report: {
+      generatedAt: "2026-04-26T10:00:00.000Z",
+      baseUrl: "https://relution.example.test",
+      summary: {
+        totalDevices: 1,
+        compliant: 0,
+        issue: 1,
+        notCheckable: 0,
+        missingPolicy: 1,
+        inactiveWarning: 0,
+        inactiveProblem: options.inactiveProblem ?? 0,
+        byPlatform: { IOS: 1 },
+        byStatus: { COMPLIANT: 1 },
+        byPolicyStatus: { APPLIED: 1 },
+      },
+      devices: [
+        {
+          status: "issue",
+          device,
+          issues: [
+            {
+              id: "missing-policy",
+              severity: "problem",
+              message: "Missing expected policies: Baseline iOS.",
+              evidence: { missingPolicies: "Baseline iOS" },
+            },
+          ],
+        },
+      ],
+    },
+  };
 }
 
 function requestJson(init: RequestInit | undefined): unknown {

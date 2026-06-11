@@ -11,6 +11,7 @@ import type {
 import { uniqueStrings } from "../../../src/utils/json-guards.js";
 import { secondaryRecommendationId } from "./recommendation-record-utils.js";
 import { FallbackTranslationsSection } from "./FallbackTranslationsSection.js";
+import { CisRecommendationSummaryDetail, VendorRecommendationDetail } from "./RecommendationDetails.js";
 import { BsiDetail } from "./RecommendationsBsiDetail.js";
 import type { EditorController } from "./types.js";
 
@@ -307,7 +308,7 @@ function RecommendationDetail(props: {
       </p>
       {props.source === "bsi" ? <BsiDetail recommendation={props.recommendation} /> : null}
       {props.source === "cis" ? <CisDetail recommendation={props.recommendation} /> : null}
-      {props.source === "vendor" ? <VendorDetail recommendation={props.recommendation} /> : null}
+      {props.source === "vendor" ? <VendorRecommendationDetail recommendation={props.recommendation} /> : null}
       <FallbackTranslationsSection recommendation={props.recommendation} secondaryOnly={implementation.category === "relution-achievable"} open={implementation.category !== "relution-achievable"} />
       <section className="preview-block">
         <h4>Relution mapping</h4>
@@ -372,17 +373,7 @@ function CisDetail({ recommendation }: { readonly recommendation: Recommendation
   const item = recommendation as CisRecommendationRecord;
   return (
     <>
-      <p>{item.benchmarkTitle} | v{item.benchmarkVersion} | {item.recommendationId}</p>
-      <p>{String(item.recommendedValue)} | default {String(item.defaultValue)}</p>
-      {item.profileApplicability.length > 0 ? <p>{item.profileApplicability.join(", ")}</p> : null}
-      <details className="preview-block" open>
-        <summary>Description</summary>
-        <p>{item.description}</p>
-      </details>
-      <details className="preview-block">
-        <summary>Rationale</summary>
-        <p>{item.rationale}</p>
-      </details>
+      <CisRecommendationSummaryDetail recommendation={recommendation} />
       {item.impact.length > 0 ? (
         <details className="preview-block">
           <summary>Impact</summary>
@@ -397,20 +388,6 @@ function CisDetail({ recommendation }: { readonly recommendation: Recommendation
         <summary>Remediation</summary>
         <pre>{item.remediation}</pre>
       </details>
-    </>
-  );
-}
-
-function VendorDetail({ recommendation }: { readonly recommendation: RecommendationRecord }): JSX.Element {
-  const item = recommendation as VendorRecommendationRecord;
-  return (
-    <>
-      <p>{item.section} | recommended {String(item.recommendedValue)}</p>
-      <details className="preview-block" open>
-        <summary>Reason</summary>
-        <p>{item.reason}</p>
-      </details>
-      {item.sourceIds.length > 0 ? <p>Sources: {item.sourceIds.join(", ")}</p> : null}
     </>
   );
 }

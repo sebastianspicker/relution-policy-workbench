@@ -47,6 +47,22 @@ export interface RelutionDeviceQueryInput {
   sortAscending?: boolean;
 }
 
+export type RelutionDeviceQueryOptions = {
+  [Key in keyof RelutionDeviceQueryInput]?: RelutionDeviceQueryInput[Key] | undefined;
+};
+
+export function applyRelutionDeviceQueryOptions(
+  query: RelutionDeviceQueryInput,
+  options: RelutionDeviceQueryOptions,
+): RelutionDeviceQueryInput {
+  for (const [key, value] of Object.entries(options) as Array<[keyof RelutionDeviceQueryInput, RelutionDeviceQueryInput[keyof RelutionDeviceQueryInput]]>) {
+    if (value !== undefined) {
+      Object.assign(query, { [key]: value });
+    }
+  }
+  return query;
+}
+
 export type RelutionDeviceSortField = "lastConnectionDate" | "name" | "platform" | "status" | "policyStatus";
 
 export interface RelutionDeviceQueryResult {

@@ -11,35 +11,15 @@ import type { ConfigurationTemplate, RelutionTemplateBundle } from "../src/templ
 import type { PolicyWorkspace } from "../src/workspace.js";
 
 test("buildComplianceReport: exact native mapping yields one compliant result and one remediable gap", () => {
-  const artifacts = createArtifacts({
-    source: "bsi",
-    recommendations: [
-      createNativeRecommendation({
-        id: "bsi-native-compliant",
-        title: "Compliant native recommendation",
-        targetType: "NATIVE_SINGLE",
-        values: { enforced: true },
-      }),
-      createNativeRecommendation({
-        id: "bsi-native-gap",
-        title: "Gap native recommendation",
-        targetType: "NATIVE_MULTI",
-        values: { enforced: true },
-      }),
-    ],
-    bundles: [
-      createSettingBundle({
-        source: "bsi",
-        bundleId: "bsi-native-multi",
-        targetType: "NATIVE_MULTI",
-        recommendationIds: ["bsi-native-gap"],
-        details: {
-          type: "NATIVE_MULTI",
-          enforced: true,
-        },
-      }),
-    ],
-  });
+  const artifacts = createBsiNativeMultiArtifacts([
+    createNativeRecommendation({
+      id: "bsi-native-compliant",
+      title: "Compliant native recommendation",
+      targetType: "NATIVE_SINGLE",
+      values: { enforced: true },
+    }),
+    bsiNativeMultiGapRecommendation(),
+  ]);
 
   const workspace = createWorkspace("IOS", [
     createConfiguration("NATIVE_SINGLE", {
@@ -283,29 +263,7 @@ test("buildComplianceReport: variant-backed native mapping requires an explicit 
 });
 
 test("applyComplianceRemediationToWorkspace: native bundle creates the missing configuration and closes the gap", () => {
-  const artifacts = createArtifacts({
-    source: "bsi",
-    recommendations: [
-      createNativeRecommendation({
-        id: "bsi-native-gap",
-        title: "Gap native recommendation",
-        targetType: "NATIVE_MULTI",
-        values: { enforced: true },
-      }),
-    ],
-    bundles: [
-      createSettingBundle({
-        source: "bsi",
-        bundleId: "bsi-native-multi",
-        targetType: "NATIVE_MULTI",
-        recommendationIds: ["bsi-native-gap"],
-        details: {
-          type: "NATIVE_MULTI",
-          enforced: true,
-        },
-      }),
-    ],
-  });
+  const artifacts = createBsiNativeMultiArtifacts([bsiNativeMultiGapRecommendation()]);
 
   const applied = applyComplianceRemediationToWorkspace({
     workspace: createWorkspace("IOS"),
@@ -375,6 +333,34 @@ function createArtifacts(options: {
       settingBundleCatalog: createSettingsCatalog(options.source, options.bundles ?? [], options.variantGroups ?? []),
     },
   };
+}
+
+function createBsiNativeMultiArtifacts(recommendations: RecommendationRecord[]): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
+  return createArtifacts({
+    source: "bsi",
+    recommendations,
+    bundles: [
+      createSettingBundle({
+        source: "bsi",
+        bundleId: "bsi-native-multi",
+        targetType: "NATIVE_MULTI",
+        recommendationIds: ["bsi-native-gap"],
+        details: {
+          type: "NATIVE_MULTI",
+          enforced: true,
+        },
+      }),
+    ],
+  });
+}
+
+function bsiNativeMultiGapRecommendation(): RecommendationRecord {
+  return createNativeRecommendation({
+    id: "bsi-native-gap",
+    title: "Gap native recommendation",
+    targetType: "NATIVE_MULTI",
+    values: { enforced: true },
+  });
 }
 
 function createRecommendationCatalog(source: RecommendationSource, recommendations: RecommendationRecord[]): RecommendationCatalogResponse {
