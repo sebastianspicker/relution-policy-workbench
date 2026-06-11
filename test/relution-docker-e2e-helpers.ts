@@ -357,7 +357,12 @@ async function fetchPolicyVersionConfigurations(policyUuid: string, versionUuid:
 }
 
 async function fetchRelutionManagementApi(segments: readonly string[], init?: RequestInit): Promise<Response> {
-  return fetch(new Request(relutionManagementApiUrl(...segments), init));
+  const request = new Request(relutionManagementApiUrl(...segments), init);
+  return fetchRequest(request);
+}
+
+async function fetchRequest(request: Request): Promise<Response> {
+  return globalThis.fetch(request);
 }
 
 function relutionManagementApiUrl(...segments: string[]): URL {
