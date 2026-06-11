@@ -169,7 +169,7 @@ async function postJson<T>(baseUrlValue: string, path: string, body: unknown): P
 }
 
 async function fetchLocalEditorApi(baseUrlValue: string, path: string, init?: RequestInit): Promise<Response> {
-  return fetch(localEditorApiUrl(baseUrlValue, path), init);
+  return fetch(new Request(localEditorApiUrl(baseUrlValue, path), init));
 }
 
 function requireExportablePolicy(template: BaselineTemplate): BaselineTemplate["policies"][number] {

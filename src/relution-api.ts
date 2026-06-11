@@ -55,29 +55,10 @@ export function applyRelutionDeviceQueryOptions(
   query: RelutionDeviceQueryInput,
   options: RelutionDeviceQueryOptions,
 ): RelutionDeviceQueryInput {
-  if (options.limit !== undefined) {
-    query.limit = options.limit;
-  }
-  if (options.offset !== undefined) {
-    query.offset = options.offset;
-  }
-  if (options.platforms !== undefined) {
-    query.platforms = options.platforms;
-  }
-  if (options.statuses !== undefined) {
-    query.statuses = options.statuses;
-  }
-  if (options.ownerships !== undefined) {
-    query.ownerships = options.ownerships;
-  }
-  if (options.search !== undefined) {
-    query.search = options.search;
-  }
-  if (options.sortField !== undefined) {
-    query.sortField = options.sortField;
-  }
-  if (options.sortAscending !== undefined) {
-    query.sortAscending = options.sortAscending;
+  for (const [key, value] of Object.entries(options) as Array<[keyof RelutionDeviceQueryInput, RelutionDeviceQueryInput[keyof RelutionDeviceQueryInput]]>) {
+    if (value !== undefined) {
+      Object.assign(query, { [key]: value });
+    }
   }
   return query;
 }
