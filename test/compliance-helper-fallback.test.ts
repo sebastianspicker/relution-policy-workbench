@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildComplianceReport } from "../src/compliance.js";
 import { recommendationImplementationOf } from "../src/compliance-internals.js";
-import type { AppleSchemaCatalog } from "../src/apple-schema.js";
 import type { ComplianceSourceCatalogs } from "../src/compliance-types.js";
 import type { CisRecommendationRecord, RecommendationCatalogResponse, RecommendationRecord } from "../src/recommendation-types.js";
-import type { RelutionTemplateBundle } from "../src/templates.js";
-import type { PolicyWorkspace } from "../src/workspace.js";
+import {
+  createTestAppleSchemaCatalog,
+  createTestPolicyWorkspace,
+  createTestTemplateBundle,
+} from "./compliance-fixtures.js";
 
 test("fallbackTranslations classify as helper-only in compliance", () => {
   const recommendation = createFallbackTranslationRecommendation();
@@ -21,8 +23,8 @@ test("fallbackTranslations classify as helper-only in compliance", () => {
     selection: { policyIndex: 0, versionIndex: 0 },
     sources: ["cis"],
     catalogs: createArtifacts(recommendation),
-    bundle: createBundle(),
-    appleSchema: createAppleSchemaCatalog(),
+    bundle: createTestTemplateBundle(),
+    appleSchema: createTestAppleSchemaCatalog(),
   });
 
   assert.equal(report.summary.byStatus["not-checkable"], 1);
@@ -55,8 +57,8 @@ test("fallbackTranslations require manual audit instead of automatic remediation
     selection: { policyIndex: 0, versionIndex: 0 },
     sources: ["cis"],
     catalogs: createArtifacts(recommendation),
-    bundle: createBundle(),
-    appleSchema: createAppleSchemaCatalog(),
+    bundle: createTestTemplateBundle(),
+    appleSchema: createTestAppleSchemaCatalog(),
   });
   const result = report.results[0];
 
@@ -147,66 +149,6 @@ function createArtifacts(recommendation: RecommendationRecord): Partial<Record<"
   };
 }
 
-function createWorkspace(): PolicyWorkspace {
-  return {
-    metadata: {},
-    report: {},
-    policies: [
-      {
-        path: "policies/policy_test.json",
-        document: {
-          name: "iOS policy",
-          platform: "IOS",
-          versions: [{ configurations: [] }],
-        },
-      },
-    ],
-  };
-}
-
-function createBundle(): RelutionTemplateBundle {
-  return {
-    serverVersion: "26.1.1",
-    sourceImage: "relution/server:26.1.1",
-    sourceImageDigest: "sha256:test",
-    generatedAt: "2026-04-24T00:00:00.000Z",
-    refreshDiagnostics: {
-      runtimeMetadata: {
-        source: "reflected",
-        reflectedCount: 0,
-        configurationTypeCount: 0,
-      },
-      iosSystemAppsLoaded: false,
-      springConfigurationMetadataLoaded: false,
-    },
-    platforms: ["IOS"],
-    enrollmentTypes: [],
-    configurationTypes: [],
-    schemas: {},
-    iosSystemApps: {},
-    springConfigurationMetadata: {},
-  };
-}
-
-function createAppleSchemaCatalog(): AppleSchemaCatalog {
-  return {
-    version: 1,
-    source: {
-      repository: "apple/device-management",
-      revision: "test",
-      generatedAt: "2026-04-24T00:00:00.000Z",
-    },
-    counts: {
-      profile: 0,
-      "ddm-configuration": 0,
-      "ddm-asset": 0,
-      "ddm-activation": 0,
-      "ddm-management": 0,
-      "ddm-status": 0,
-      "mdm-command": 0,
-      "mdm-checkin": 0,
-      "ddm-protocol": 0,
-    },
-    entries: [],
-  };
+function createWorkspace() {
+  return createTestPolicyWorkspace({ name: "iOS policy" });
 }
