@@ -25,6 +25,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startTestEditor,
   type AddPolicyResponse,
   type AppleSchemaEditorStateResponse,
   type EditorStateResponse,
@@ -53,22 +54,10 @@ test("keeps static asset resolution inside the dist-web root", () => {
 });
 
 test("returns 404 for missing static assets but still serves index for SPA routes", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-static-http-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  createNewWorkspace({
-    workspace: workspaceDir,
+  const { handle } = await startTestEditor({
+    prefix: "relution-static-http-",
     platform: "IOS",
     name: "Static Route Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {
@@ -92,22 +81,10 @@ test("returns 404 for missing static assets but still serves index for SPA route
 });
 
 test("serves the local editor API and builds a verifiable rexp", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
+  const { bundle, out, workspaceDir, workspace, handle } = await startTestEditor({
+    prefix: "relution-editor-",
     platform: "IOS",
     name: "API iOS Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {

@@ -25,6 +25,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startTestEditor,
   type AddPolicyResponse,
   type AppleSchemaEditorStateResponse,
   type EditorStateResponse,
@@ -36,22 +37,10 @@ import {
 
 
 test("validates a posted workspace without saving it", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-validate-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
+  const { workspaceDir, workspace, handle } = await startTestEditor({
+    prefix: "relution-editor-validate-",
     platform: "IOS",
     name: "Validate Only Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {
@@ -74,22 +63,10 @@ test("validates a posted workspace without saving it", async () => {
 });
 
 test("validates generated workspaces larger than the default JSON body limit", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-large-validate-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
+  const { workspaceDir, workspace, handle } = await startTestEditor({
+    prefix: "relution-editor-large-validate-",
     platform: "IOS",
     name: "Large Validate Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {

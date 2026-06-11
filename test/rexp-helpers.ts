@@ -4,15 +4,49 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import type { AppleCompatReport } from "../src/apple-compat.js";
+import { startEditorServer, type EditorServerHandle } from "../src/editor-server.js";
 import type { EditorSidecarState } from "../src/sidecar.js";
-import type { RelutionTemplateBundle } from "../src/templates.js";
-import type { PolicyWorkspace, WorkspaceValidationResult } from "../src/workspace.js";
+import { loadTemplateBundle, type RelutionTemplateBundle } from "../src/templates.js";
+import { createNewWorkspace, type PolicyWorkspace, type WorkspaceValidationResult } from "../src/workspace.js";
 
 export const fixture = resolve("example/sample-policy-export.rexp");
 export const password = Buffer.from([0x6b, 0x65, 0x79, 0x31, 0x32, 0x33]).toString("utf8");
 
 export function makeTempDir(prefix: string): string {
   return mkdtempSync(join(tmpdir(), `${prefix}-${randomUUID().slice(0, 8)}-`));
+}
+
+export async function startTestEditor(options: {
+  readonly prefix: string;
+  readonly platform: string;
+  readonly name: string;
+  readonly key?: string;
+}): Promise<{
+  readonly bundle: RelutionTemplateBundle;
+  readonly root: string;
+  readonly out: string;
+  readonly workspaceDir: string;
+  readonly workspace: PolicyWorkspace;
+  readonly handle: EditorServerHandle;
+}> {
+  const bundle = loadTemplateBundle();
+  const root = mkdtempSync(join(tmpdir(), options.prefix));
+  const out = join(root, "policy.rexp");
+  const workspaceDir = join(root, "workspace");
+  const workspace = createNewWorkspace({
+    workspace: workspaceDir,
+    platform: options.platform,
+    name: options.name,
+    serverVersion: bundle.serverVersion,
+  });
+  const handle = await startEditorServer({
+    workspace: workspaceDir,
+    out,
+    key: options.key ?? password,
+    port: 0,
+    host: "127.0.0.1",
+  });
+  return { bundle, root, out, workspaceDir, workspace, handle };
 }
 
 export function deterministicRandomBytes(): (size: number) => Buffer {

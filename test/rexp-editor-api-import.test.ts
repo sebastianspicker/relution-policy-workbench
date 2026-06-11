@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ServerResponse } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
+import { readZip, writeZip } from "../src/zip.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
@@ -27,6 +28,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startTestEditor,
   type AddPolicyResponse,
   type AppleSchemaEditorStateResponse,
   type EditorStateResponse,
@@ -35,32 +37,20 @@ import {
   type WorkspaceValidateOnlyResponse,
   type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
-import { readZip, writeZip } from "../src/zip.js";
 
 type KeyUpdateResponse = { keySet: boolean; validated: boolean; reason?: string };
 
 test("updates the editor encryption key for rebuilt archives", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-key-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
+  const { bundle, out, workspaceDir, workspace, handle } = await startTestEditor({
+    prefix: "relution-editor-key-",
     platform: "IOS",
     name: "API Key Test",
-    serverVersion: bundle.serverVersion,
+    key: "old-key",
   });
   addConfigurationToWorkspace(workspaceDir, bundle, {
     policyPath: requirePolicyPath(workspace),
     versionIndex: 0,
     type: "IOS_RESTRICTION",
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: "old-key",
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {
@@ -90,24 +80,13 @@ test("updates the editor encryption key for rebuilt archives", async () => {
 });
 
 test("validates an editor encryption key against the current output archive", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-key-valid-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  copyFileSync(fixture, out);
-  createNewWorkspace({
-    workspace: workspaceDir,
+  const { out, handle } = await startTestEditor({
+    prefix: "relution-editor-key-valid-",
     platform: "IOS",
     name: "Valid Key Output",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
     key: "",
-    port: 0,
-    host: "127.0.0.1",
   });
+  copyFileSync(fixture, out);
 
   try {
     const keyResponse = await postJson(`${handle.url}api/key`, { key: password });
@@ -124,24 +103,13 @@ test("validates an editor encryption key against the current output archive", as
 });
 
 test("does not mark an editor encryption key validated when it cannot decrypt the current output archive", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-key-invalid-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  copyFileSync(fixture, out);
-  createNewWorkspace({
-    workspace: workspaceDir,
+  const { out, handle } = await startTestEditor({
+    prefix: "relution-editor-key-invalid-",
     platform: "IOS",
     name: "Invalid Key Output",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
     key: "",
-    port: 0,
-    host: "127.0.0.1",
   });
+  copyFileSync(fixture, out);
 
   try {
     const keyResponse = await postJson(`${handle.url}api/key`, { key: "wrong-key" });

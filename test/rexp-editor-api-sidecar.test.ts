@@ -1,8 +1,8 @@
+import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import test from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import assert from "node:assert/strict";
-import test from "node:test";
 import { resolveStaticAssetPath, startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
 import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries, updateMdmCommandArtifact } from "../src/sidecar.js";
@@ -25,6 +25,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startTestEditor,
   type AddPolicyResponse,
   type AppleSchemaEditorStateResponse,
   type EditorStateResponse,
@@ -38,22 +39,10 @@ import {
 const APPLE_SCHEMA_MIN_PROFILE_ENTRIES = 120;
 
 test("serves Apple schema, custom settings, sidecar, and mobileconfig inspection APIs", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-apple-schema-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
+  const { out, workspaceDir, workspace, handle } = await startTestEditor({
+    prefix: "relution-editor-apple-schema-",
     platform: "MACOS",
     name: "API Apple Schema Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {
@@ -119,22 +108,10 @@ test("serves Apple schema, custom settings, sidecar, and mobileconfig inspection
 
 
 test("adds, updates, removes DDM artifacts, and returns reconcile shape", async () => {
-  const bundle = loadTemplateBundle();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-ddm-artifacts-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  createNewWorkspace({
-    workspace: workspaceDir,
+  const { handle } = await startTestEditor({
+    prefix: "relution-editor-ddm-artifacts-",
     platform: "MACOS",
     name: "DDM Artifact Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
   });
 
   try {
