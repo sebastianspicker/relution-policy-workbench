@@ -4,21 +4,11 @@ const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "
 
 export function parsePayloadKeysJson(value: unknown, label = "payload keys"): JsonRecord {
   const text = typeof value === "string" ? value : "{}";
-  const parsed = parseJsonWithContext(text, label);
-  const record = asRecord(parsed);
-  if (record === undefined) {
-    throw new Error(`${label} JSON must be an object`);
-  }
-  return record;
+  return parseJsonRecordWithContext(text, label, "JSON must be an object");
 }
 
 export function parsePayloadBodyJson(value: string, label = "Payload JSON"): JsonRecord {
-  const parsed = parseJsonWithContext(value.length === 0 ? "{}" : value, label);
-  const record = asRecord(parsed);
-  if (record === undefined) {
-    throw new Error(`${label} must be an object`);
-  }
-  return omitPayloadShell(record);
+  return omitPayloadShell(parseJsonRecordWithContext(value.length === 0 ? "{}" : value, label, "must be an object"));
 }
 
 export function omitPayloadShell(record: JsonRecord): JsonRecord {
@@ -38,13 +28,15 @@ export function tryParsePayloadKeysJson(value: unknown): JsonRecord | undefined 
 }
 
 function recordWithoutKeys(record: JsonRecord, excludedKeys: Set<string>): JsonRecord {
-  const output: JsonRecord = {};
-  for (const [key, value] of Object.entries(record)) {
-    if (!excludedKeys.has(key)) {
-      output[key] = value;
-    }
+  return Object.fromEntries(Object.entries(record).filter(([key]) => !excludedKeys.has(key)));
+}
+
+function parseJsonRecordWithContext(text: string, label: string, objectError: string): JsonRecord {
+  const record = asRecord(parseJsonWithContext(text, label));
+  if (record === undefined) {
+    throw new Error(`${label} ${objectError}`);
   }
-  return output;
+  return record;
 }
 
 function parseJsonWithContext(text: string, label: string): unknown {

@@ -36,21 +36,14 @@ export type ImportableRuleset = {
 };
 
 export function valueAtPath(value: unknown, path: string): unknown {
-  let current = value;
-  for (const part of path.split(".")) {
-    if (!isSafeObjectPathSegment(part)) {
-      return undefined;
-    }
-    if (current === null || typeof current !== "object") {
-      return undefined;
-    }
-    const descriptor = Object.getOwnPropertyDescriptor(current, part);
-    if (descriptor === undefined) {
-      return undefined;
-    }
-    current = descriptor.value;
+  return path.split(".").reduce(valueAtSafePathSegment, value);
+}
+
+function valueAtSafePathSegment(current: unknown, part: string): unknown {
+  if (!isSafeObjectPathSegment(part) || current === null || typeof current !== "object") {
+    return undefined;
   }
-  return current;
+  return Object.getOwnPropertyDescriptor(current, part)?.value;
 }
 
 function isSafeObjectPathSegment(part: string): boolean {
