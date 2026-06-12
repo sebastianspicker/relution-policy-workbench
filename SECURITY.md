@@ -38,6 +38,6 @@ examples only when they are sanitized fixtures.
 
 ## Disclosure And Response
 
-The maintainer will triage privately reported vulnerabilities, confirm affected
-scope when possible, and publish a GitHub security advisory when a fix or
-mitigation is available. Fixes are normally made against `main`.
+The maintainer will triage privately reported vulnerabilities, confirm the
+affected scope when possible, and publish a GitHub security advisory after a
+fix or mitigation is available. Fixes are normally made against `main`.
