@@ -13,13 +13,13 @@ Use GitHub private vulnerability reporting:
 
 https://github.com/sebastianspicker/relution-policy-workbench/security/advisories/new
 
-If GitHub private vulnerability reporting is unavailable, contact the maintainer
-privately and include:
+If GitHub returns a 404 or permission error for the private reporting link,
+contact the maintainer privately and include:
 
-- affected commit or release, if known
+- affected commit or release, or `main` when no narrower version is known
 - reproduction steps
 - expected and actual impact
-- sanitized logs or sample files, if relevant
+- sanitized logs or sample files that reproduce the issue
 
 Please avoid sending real Relution exports, credentials, tenant data, private
 keys, or encryption keys unless a secure exchange path has been agreed first.
@@ -38,6 +38,8 @@ examples only when they are sanitized fixtures.
 
 ## Disclosure And Response
 
-The maintainer will triage privately reported vulnerabilities, confirm the
-affected scope when possible, and publish a GitHub security advisory after a
-fix or mitigation is available. Fixes are normally made against `main`.
+The maintainer will triage privately reported vulnerabilities, determine the
+affected scope from the reported commit or release and reproduction steps, and
+publish a GitHub security advisory after a fix or mitigation is available.
+Fixes target the `main` branch unless the report identifies an affected release
+branch.
