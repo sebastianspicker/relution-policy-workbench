@@ -32,5 +32,5 @@ function findUnwantedArtifacts(root: string): string[] {
 }
 
 function shouldSkipDirectory(entry: string): boolean {
-  return entry === ".git" || entry === "node_modules" || entry === "dist" || entry === "dist-web" || entry === ".rexp-editor" || entry === "private";
+  return entry === ".git" || entry === "node_modules" || entry === ".venv" || entry === "dist" || entry === "dist-web" || entry === ".rexp-editor" || entry === "private";
 }
