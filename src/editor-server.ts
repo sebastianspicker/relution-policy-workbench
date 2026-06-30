@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,6 +31,7 @@ import { extractRexp, packPlainDirectory, verifyRexp } from "./rexp.js";
 import { handleRelutionApiRequest, type RelutionEditorRuntime } from "./relution-editor-routes.js";
 import { handleZammadApiRequest, type ZammadEditorRuntime } from "./zammad-editor-routes.js";
 import { sendJson } from "./editor-routes-utils.js";
+import { captureSidecarState, rollbackPersistedEditorState } from "./editor-sidecar-rollback.js";
 import {
   addAppleCompatConfigurationToWorkspace, addConfigurationToWorkspace,
   addPolicyToWorkspace, loadWorkspace, moveConfigurationInWorkspace,
@@ -700,69 +701,4 @@ function requireMoveDirection(body: JsonRecord): "up" | "down" {
     throw badRequest(`Unsupported move direction: ${direction}`);
   }
   return direction;
-}
-
-type SidecarPathState =
-  | { kind: "missing" }
-  | { kind: "directory" }
-  | { kind: "file"; contents: string }
-  | { kind: "symlink"; target: string };
-
-function captureSidecarState(workspaceDir: string): SidecarPathState {
-  const path = join(workspaceDir, "editor-sidecar.json");
-  if (!existsSync(path)) {
-    return { kind: "missing" };
-  }
-  const stat = lstatSync(path);
-  if (stat.isSymbolicLink()) {
-    return { kind: "symlink", target: readlinkSync(path) };
-  }
-  if (stat.isDirectory()) {
-    return { kind: "directory" };
-  }
-  return { kind: "file", contents: readFileSync(path, "utf8") };
-}
-
-function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): void {
-  const path = join(workspaceDir, "editor-sidecar.json");
-  rmSync(path, { recursive: true, force: true });
-
-  if (snapshot.kind === "missing") {
-    return;
-  }
-  if (snapshot.kind === "directory") {
-    mkdirSync(path, { recursive: true });
-    return;
-  }
-  if (snapshot.kind === "symlink") {
-    symlinkSync(snapshot.target, path);
-    return;
-  }
-  writeFileSync(path, snapshot.contents);
-}
-
-function rollbackPersistedEditorState(
-  workspaceDir: string,
-  previousWorkspace: PolicyWorkspace,
-  previousSidecar: SidecarPathState,
-  originalError: unknown,
-): void {
-  const rollbackErrors: string[] = [];
-
-  try {
-    saveWorkspace(workspaceDir, previousWorkspace);
-  } catch (error) {
-    rollbackErrors.push(`workspace rollback failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  try {
-    restoreSidecarState(workspaceDir, previousSidecar);
-  } catch (error) {
-    rollbackErrors.push(`sidecar rollback failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
-  if (rollbackErrors.length > 0) {
-    const originalMessage = originalError instanceof Error ? originalError.message : String(originalError);
-    throw new Error(`${originalMessage}; ${rollbackErrors.join("; ")}`);
-  }
 }
