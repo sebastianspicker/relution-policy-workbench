@@ -60,10 +60,5 @@
     "js-yaml": "^4.1.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
-  },
-  "pnpm": {
-    "overrides": {
-      "fast-uri": "3.1.2"
-    }
   }
 }
