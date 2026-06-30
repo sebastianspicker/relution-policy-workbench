@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createAppleCompatReport } from "./apple-compat.js";
 import { loadAppleSchemaCatalog } from "./apple-schema-catalog.js";
-import { baselineTemplateApiResponse } from "./baseline-template-routes.js";
+import {
+  listBaselineTemplateOptions,
+  loadBaselineExpertOptions,
+  loadBaselineTemplate,
+  parseBaselineTemplatePlatform,
+  parseBaselineTemplateShape,
+  parseBaselineTemplateTier,
+} from "./baseline-templates.js";
 import { applyComplianceRemediationToWorkspace, buildComplianceReport, loadComplianceArtifacts } from "./compliance.js";
 import {
   loadEditorSidecar, replaceEditorSidecarFromWorkspace,
@@ -80,6 +87,18 @@ export interface EditorRequestContext {
 }
 
 export type EditorApiHandler = (url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext) => boolean | Promise<boolean>;
+export async function runEditorApiHandlers(
+  handlers: readonly EditorApiHandler[],
+  url: URL,
+  request: IncomingMessage,
+  response: ServerResponse,
+  context: EditorRequestContext,
+): Promise<boolean> {
+  for (const handler of handlers) {
+    if (await handler(url, request, response, context)) return true;
+  }
+  return false;
+}
 type ComplianceApplyResult = ReturnType<typeof applyComplianceRemediationToWorkspace> & {
   readonly selection: ReturnType<typeof parseComplianceSelectionBody>;
   readonly sources: RecommendationSource[];
@@ -164,10 +183,7 @@ async function handleRequest(
 }
 
 async function routeEditorApiRequest(url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext): Promise<boolean> {
-  for (const handler of EDITOR_API_HANDLERS) {
-    if (await handler(url, request, response, context)) return true;
-  }
-  return false;
+  return await runEditorApiHandlers(EDITOR_API_HANDLERS, url, request, response, context);
 }
 
 async function handleWorkspaceApiRequest(
@@ -222,58 +238,77 @@ async function handleWorkspaceMutationApiRequest(
   context: EditorRequestContext,
 ): Promise<boolean> {
   const { options, bundle } = context;
-  if (url.pathname === "/api/add-configuration" && request.method === "POST") {
+  const route = WORKSPACE_MUTATION_ROUTES.find((candidate) => candidate.path === url.pathname);
+  if (route !== undefined && request.method === "POST") {
     const body = await readJsonBody(request);
-    const workspace = addConfigurationToWorkspace(options.workspace, bundle, {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      type: requireString(body, "type"),
-    });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return true;
-  }
-  if (url.pathname === "/api/apple-compat/add" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const workspace = addAppleCompatConfigurationToWorkspace(options.workspace, {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      settingId: requireString(body, "settingId"),
-    });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return true;
-  }
-  if (url.pathname === "/api/configuration/remove" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const workspace = removeConfigurationFromWorkspace(options.workspace, {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      configurationIndex: requireNumber(body, "configurationIndex"),
-    });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return true;
-  }
-  if (url.pathname === "/api/configuration/move" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const workspace = moveConfigurationInWorkspace(options.workspace, {
-      policyPath: requireString(body, "policyPath"),
-      versionIndex: requireNumber(body, "versionIndex"),
-      configurationIndex: requireNumber(body, "configurationIndex"),
-      direction: requireMoveDirection(body),
-    });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle) });
-    return true;
-  }
-  if (url.pathname === "/api/add-policy" && request.method === "POST") {
-    const body = await readJsonBody(request);
-    const result = addPolicyToWorkspace(options.workspace, bundle, {
-      platform: requireString(body, "platform"),
-      name: requireString(body, "name"),
-    });
-    sendJson(response, 200, { workspace: result.workspace, validation: validateWorkspace(result.workspace, bundle), policyPath: result.policyPath });
+    const result = route.mutate(options.workspace, bundle, body);
+    sendJson(response, 200, { workspace: result.workspace, validation: validateWorkspace(result.workspace, bundle), ...result.extra });
     return true;
   }
   return false;
 }
+
+type WorkspaceMutationResult = {
+  readonly workspace: PolicyWorkspace;
+  readonly extra?: JsonRecord;
+};
+
+const WORKSPACE_MUTATION_ROUTES: readonly {
+  readonly path: string;
+  readonly mutate: (workspacePath: string, bundle: RelutionTemplateBundle, body: JsonRecord) => WorkspaceMutationResult;
+}[] = [
+  {
+    path: "/api/add-configuration",
+    mutate: (workspacePath, bundle, body) => ({
+      workspace: addConfigurationToWorkspace(workspacePath, bundle, {
+        policyPath: requireString(body, "policyPath"),
+        versionIndex: requireNumber(body, "versionIndex"),
+        type: requireString(body, "type"),
+      }),
+    }),
+  },
+  {
+    path: "/api/apple-compat/add",
+    mutate: (workspacePath, _bundle, body) => ({
+      workspace: addAppleCompatConfigurationToWorkspace(workspacePath, {
+        policyPath: requireString(body, "policyPath"),
+        versionIndex: requireNumber(body, "versionIndex"),
+        settingId: requireString(body, "settingId"),
+      }),
+    }),
+  },
+  {
+    path: "/api/configuration/remove",
+    mutate: (workspacePath, _bundle, body) => ({
+      workspace: removeConfigurationFromWorkspace(workspacePath, {
+        policyPath: requireString(body, "policyPath"),
+        versionIndex: requireNumber(body, "versionIndex"),
+        configurationIndex: requireNumber(body, "configurationIndex"),
+      }),
+    }),
+  },
+  {
+    path: "/api/configuration/move",
+    mutate: (workspacePath, _bundle, body) => ({
+      workspace: moveConfigurationInWorkspace(workspacePath, {
+        policyPath: requireString(body, "policyPath"),
+        versionIndex: requireNumber(body, "versionIndex"),
+        configurationIndex: requireNumber(body, "configurationIndex"),
+        direction: requireMoveDirection(body),
+      }),
+    }),
+  },
+  {
+    path: "/api/add-policy",
+    mutate: (workspacePath, bundle, body) => {
+      const result = addPolicyToWorkspace(workspacePath, bundle, {
+        platform: requireString(body, "platform"),
+        name: requireString(body, "name"),
+      });
+      return { workspace: result.workspace, extra: { policyPath: result.policyPath } };
+    },
+  },
+];
 
 async function handleKeyApiRequest(
   url: URL,
@@ -320,14 +355,11 @@ function handleReadOnlyApiRequest(
   request: IncomingMessage,
   response: ServerResponse,
   context: EditorRequestContext,
-): boolean {
+): Promise<boolean> | boolean {
   if (request.method !== "GET") {
     return false;
   }
-  for (const handler of READ_ONLY_API_HANDLERS) {
-    if (handler(url, request, response, context)) return true;
-  }
-  return false;
+  return runEditorApiHandlers(READ_ONLY_API_HANDLERS, url, request, response, context);
 }
 
 function handleStateApiRequest(
@@ -358,7 +390,7 @@ function handleStateApiRequest(
 
 function handleCatalogApiRequest(
   url: URL,
-  request: IncomingMessage,
+  _request: IncomingMessage,
   response: ServerResponse,
   context: EditorRequestContext,
 ): boolean {
@@ -372,9 +404,31 @@ function handleCatalogApiRequest(
     sendJson(response, 200, { templates: listTemplates(bundle, platform) });
     return true;
   }
-  const baselineTemplateResponse = baselineTemplateApiResponse(url, request.method);
-  if (baselineTemplateResponse !== undefined) {
-    sendJson(response, baselineTemplateResponse.status, baselineTemplateResponse.body);
+  if (url.pathname === "/api/baseline-templates") {
+    sendJson(response, 200, listBaselineTemplateOptions());
+    return true;
+  }
+  if (url.pathname === "/api/baseline-templates/expert") {
+    try {
+      sendJson(response, 200, loadBaselineExpertOptions({
+        platform: parseBaselineTemplatePlatform(url.searchParams.get("platform")),
+        shape: parseBaselineTemplateShape(url.searchParams.get("shape")),
+      }));
+    } catch (error) {
+      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+    return true;
+  }
+  if (url.pathname === "/api/baseline-templates/template") {
+    try {
+      sendJson(response, 200, loadBaselineTemplate({
+        platform: parseBaselineTemplatePlatform(url.searchParams.get("platform")),
+        tier: parseBaselineTemplateTier(url.searchParams.get("tier")),
+        shape: parseBaselineTemplateShape(url.searchParams.get("shape")),
+      }));
+    } catch (error) {
+      sendJson(response, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
     return true;
   }
   if (url.pathname === "/api/apple-schema") {
@@ -452,10 +506,7 @@ async function handleComplianceApiRequest(
   response: ServerResponse,
   context: EditorRequestContext,
 ): Promise<boolean> {
-  for (const handler of COMPLIANCE_API_HANDLERS) {
-    if (await handler(url, request, response, context)) return true;
-  }
-  return false;
+  return await runEditorApiHandlers(COMPLIANCE_API_HANDLERS, url, request, response, context);
 }
 
 async function handleComplianceCheckApiRequest(
