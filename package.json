@@ -24,7 +24,7 @@
     "test:meta": "pnpm build:node && pnpm test:meta:built",
     "test:web": "vitest run",
     "test": "pnpm test:node && pnpm test:web",
-    "verify:ci": "pnpm python:clean-cache && pnpm typecheck && pnpm build:node && pnpm test:node:built && pnpm test:web && pnpm python:lint && pnpm python:test && pnpm test:meta:built && pnpm python:clean-cache",
+    "verify:ci": "pnpm python:clean-cache && pnpm typecheck && pnpm build && pnpm test:node:built && pnpm test:web && pnpm python:lint && pnpm python:test && pnpm test:meta:built && pnpm python:clean-cache",
     "verify:pre-pr": "pnpm verify:ci && pnpm codacy:cloud:inspect && pnpm codacy:cloud",
     "codacy:cloud-config": "node tools/run_codacy_cloud.mjs config",
     "codacy:cloud:inspect": "node tools/run_codacy_cloud.mjs inspect",
