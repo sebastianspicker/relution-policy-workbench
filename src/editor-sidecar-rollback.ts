@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { saveWorkspace, type PolicyWorkspace } from "./workspace.js";
 
@@ -10,17 +10,27 @@ export type SidecarPathState =
 
 export function captureSidecarState(workspaceDir: string): SidecarPathState {
   const path = join(workspaceDir, "editor-sidecar.json");
-  if (!existsSync(path)) {
-    return { kind: "missing" };
+  let stat;
+  try {
+    stat = lstatSync(path);
+  } catch (error) {
+    if (isMissingPathError(error)) return { kind: "missing" };
+    throw error;
   }
-  const stat = lstatSync(path);
   if (stat.isSymbolicLink()) {
     return { kind: "symlink", target: readlinkSync(path) };
   }
   if (stat.isDirectory()) {
     return { kind: "directory" };
   }
+  if (!stat.isFile()) {
+    throw new Error(`Unsupported editor sidecar path type: ${path}`);
+  }
   return { kind: "file", contents: readFileSync(path, "utf8") };
+}
+
+function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
 }
 
 function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): void {

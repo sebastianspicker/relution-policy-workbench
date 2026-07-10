@@ -26,10 +26,16 @@ export function ConfigurationPickerModal(props: ConfigurationPickerModalProps): 
   const searchRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : undefined;
     if (dialogRef.current !== null && !dialogRef.current.open) {
       dialogRef.current.showModal();
     }
     searchRef.current?.focus();
+    return () => {
+      if (previouslyFocused?.isConnected === true) {
+        previouslyFocused.focus();
+      }
+    };
   }, []);
 
   const allOptions = configurationOptions(props);

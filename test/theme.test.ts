@@ -9,6 +9,7 @@ import {
   readCustomThemeTokens,
   readCorporateTheme,
   resetCustomThemeTokens,
+  themeStorage,
   THEME_STORAGE_NAME,
   writeCustomThemeTokens,
   writeCorporateTheme,
@@ -30,6 +31,30 @@ class MemoryThemeStorage implements ThemeStorage {
     this.values.delete(key);
   }
 }
+
+test("returns no theme storage when the browser storage surface is unavailable", () => {
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  try {
+    delete (globalThis as { window?: unknown }).window;
+    assert.equal(themeStorage(), undefined);
+
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: Object.defineProperty({}, "localStorage", {
+        get() {
+          throw new Error("storage blocked");
+        },
+      }),
+    });
+    assert.equal(themeStorage(), undefined);
+  } finally {
+    if (previousWindow === undefined) {
+      delete (globalThis as { window?: unknown }).window;
+    } else {
+      Object.defineProperty(globalThis, "window", previousWindow);
+    }
+  }
+});
 
 test("parses supported corporate themes", () => {
   assert.equal(parseCorporateTheme("default"), "default");
