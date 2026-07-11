@@ -5,6 +5,7 @@
   max-width: min(680px, 96vw);
   width: 100%;
   max-height: 88vh;
+  max-height: 88dvh;
   box-shadow: 0 8px 48px rgb(0 0 0 / 0.22);
 }
 
@@ -16,6 +17,7 @@
   display: flex;
   flex-direction: column;
   max-height: 88vh;
+  max-height: 88dvh;
 }
 
 .config-picker-header {
@@ -174,4 +176,33 @@
   display: flex;
   gap: 8px;
   flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .config-picker-dialog {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+  }
+
+  .config-picker-card {
+    max-height: calc(100dvh - 16px);
+  }
+
+  .config-picker-header,
+  .config-picker-search,
+  .config-picker-body,
+  .config-picker-footer {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .config-picker-footer,
+  .config-picker-selection {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .config-picker-actions button {
+    flex: 1;
+  }
 }

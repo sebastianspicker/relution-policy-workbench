@@ -8,8 +8,17 @@ export function readJsonCatalog<T>(
   if (!existsSync(path)) {
     throw new Error(`${label} not found: ${path}`);
   }
-  const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  if (!isValid(parsed)) {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
+  } catch {
+    throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
+  }
+  try {
+    if (!isValid(parsed)) {
+      throw new Error("invalid catalog");
+    }
+  } catch {
     throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
   }
   return parsed as T;

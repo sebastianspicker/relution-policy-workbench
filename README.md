@@ -428,21 +428,21 @@ Run a deep local audit of the harvested Relution configuration surface and mock 
 
 ```sh
 pnpm rexp audit \
- --key "$RELUTION_REXP_KEY" \
- --json-out data/relution-26.1.1/audit-report.json \
- --markdown-out reports/relution-audit.md
+  --key "$RELUTION_REXP_KEY" \
+  --json-out data/relution-26.1.1/audit-report.json \
+  --markdown-out reports/relution-audit.md
 ```
 
 The audit checks:
 
 - platform-to-configuration coverage for all Relution platform enum values
-- every harvested configuration template field
+- every harvested configuration template and field
 - schema compatibility issues where Relution publishes Java/OpenAPI patterns that Node/AJV cannot compile directly
 - local mock import/export compatibility by creating, validating, packing, verifying, extracting, and re-reading one `.rexp` per configuration type
 - the provided example export, when present
 
 The JSON report contains the full parameter matrix under
-`configurationTypes[].fields`; the Markdown report summarizes coverage
+`configurationTypes[].fields`; the Markdown report summarizes coverage and
 failures. The `reports/` directory is intended for local audit output and is
 ignored by git.
 
@@ -492,11 +492,13 @@ this command before opening a pull request so behavior-test failures and Codacy
 findings can be debugged locally first.
 
 `pnpm verify:ci` is the default pre-PR behavior gate and matches the GitHub
-Actions `Verify` job. It runs `pnpm typecheck`, `pnpm test`, `pnpm test:meta`,
-`ruff check .`, and `pytest`. `pnpm test` rebuilds `dist/` and `dist-web/`
-from source, runs the Node integration suite, and runs the browser-layer
-Vitest/jsdom tests for editor field behavior. `pnpm test:meta` runs repository
-hygiene and code-budget meta-tests separately from behavior tests.
+Actions `Verify` job. It cleans Python caches, runs `pnpm typecheck`, builds
+`dist/` and `dist-web/` once, then runs the built Node integration suite,
+Vitest/jsdom browser-layer tests, Ruff, pytest, and the built repository
+hygiene/code-budget meta-tests before a final Python cache cleanup. Use the
+package scripts above for Playwright: `pnpm test:e2e:web` prepares both builds
+before starting the editor server, while direct raw Playwright invocation does
+not guarantee that `dist/` and `dist-web/` are current.
 
 GitHub Actions runs `pnpm verify:ci` on push and pull request. Codacy Cloud
 does static analysis rather than runtime behavior tests; the local

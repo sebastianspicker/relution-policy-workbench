@@ -34,6 +34,13 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.npmrc
+.pypirc
+.netrc
+*.key
+*.pem
+*.p12
+*.pfx
 
 .rexp-editor/
 *.rexp.tmp
@@ -65,7 +72,7 @@ example/**/*.cmtx
 example/**/*.PolicyRules
 example/**/*.md
 
-# Local audit and review artifacts.
+# Local audit, agent, and review artifacts.
 AUDIT*.md
 FUNCTION_AUDIT*.md
 LIVE_AUDIT*.md
@@ -76,28 +83,51 @@ SECURITY_NOTES*.md
 TODO*.md
 /plan.md
 /status.md
+/ledger.md
 /audit.md
 /*-plan.md
 /*-status.md
+/*-ledger.md
 /*-audit.md
 /*_plan.md
 /*_status.md
+/*_ledger.md
 /*_audit.md
 
 # Internal or superseded documentation packets. Keep them local-only.
 docs/*-audit.md
 docs/*-audit-*.md
 docs/*-plan.md
+docs/*-plan-*.md
+docs/*-ledger.md
+docs/*-ledger-*.md
 docs/*-status.md
+docs/*-status-*.md
 docs/*_audit.md
 docs/*_plan.md
+docs/*_ledger.md
 docs/*_status.md
 docs/*-readout.md
+docs/*-readout-*.md
 docs/*_readout.md
 docs/overengineering-index.md
+docs/agent/
 docs/archive/
 
+.agents/
+.impeccable/
 .codacy/
+.codex/
+.claude/
+.cursor/
+.serena/
+.idea/
+.vscode/
+.fleet/
+.zed/
+*.code-workspace
+AGENTS.md
+CLAUDE.md
 playwright-report/
 test-results/
 coverage/
