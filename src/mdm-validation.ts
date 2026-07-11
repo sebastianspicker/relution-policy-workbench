@@ -29,7 +29,7 @@ export function loadMdmPolicySources(root = process.cwd()): Array<{ path: string
   const policyRoot = resolve(root, "mdm/policies");
   return listFiles(policyRoot)
     .filter((path) => /\.ya?ml$/u.test(path))
-    .map((path) => ({ path: relative(root, path), source: yaml.load(readFileSync(path, "utf8")) as MdmPolicySource }));
+    .map((path) => ({ path: relative(root, path), source: loadYaml<MdmPolicySource>(path) }));
 }
 
 export function loadMdmSourceManifest(root = process.cwd()): SourceManifest {
@@ -195,7 +195,7 @@ interface LegacyControl { control_id: string; title: string; classification: Mdm
 interface ControlCatalogue { common?: { residual_and_bypass_risk?: string; review_frequency?: string }; controls: LegacyControl[] }
 
 function loadControlCatalogue(root: string): ControlCatalogue {
-  return yaml.load(readFileSync(resolve(root, "mdm/controls/control-catalogue.yaml"), "utf8")) as ControlCatalogue;
+  return loadYaml<ControlCatalogue>(resolve(root, "mdm/controls/control-catalogue.yaml"));
 }
 
 function validateControlCatalogue(root: string, catalogue: ControlCatalogue, issues: MdmValidationIssue[]): void {
@@ -229,8 +229,17 @@ function validateControlCatalogue(root: string, catalogue: ControlCatalogue, iss
 function validateTestEvidenceTemplate(root: string, issues: MdmValidationIssue[]): void {
   const schema = loadJson<Record<string, unknown>>(resolve(root, TEST_EVIDENCE_SCHEMA));
   const validate = new Ajv2020({ allErrors: true, strict: false, validateFormats: false }).compile(schema);
-  const evidence = yaml.load(readFileSync(resolve(root, "mdm/evidence/test-evidence-template.yaml"), "utf8"), { schema: yaml.JSON_SCHEMA });
+  const evidence = loadYaml<unknown>(resolve(root, "mdm/evidence/test-evidence-template.yaml"));
   if (!validate(evidence)) issues.push(...schemaIssues("mdm/evidence/test-evidence-template.yaml", validate.errors ?? []));
+}
+
+function loadYaml<T>(path: string): T {
+  const documents: unknown[] = [];
+  yaml.loadAll(readFileSync(path, "utf8"), (document) => documents.push(document), { schema: yaml.JSON_SCHEMA });
+  if (documents.length !== 1 || documents[0] === undefined) {
+    throw new Error(`Expected exactly one YAML document in ${path}`);
+  }
+  return documents[0] as T;
 }
 
 function listFiles(path: string): string[] {

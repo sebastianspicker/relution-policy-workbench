@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { diffMdm, generateMdm } from "../src/mdm-generator.js";
-import { generatedPolicyName, validateMdm, verifyMdmSources } from "../src/mdm-validation.js";
+import { generatedPolicyName, loadMdmPolicySources, validateMdm, verifyMdmSources } from "../src/mdm-validation.js";
 import type { MdmPolicySource } from "../src/mdm-types.js";
 
 const policy: MdmPolicySource = {
@@ -50,6 +50,18 @@ test("offline validation and regeneration are deterministic", () => {
   assert.deepEqual(second, first);
   assert.equal(secondManifest, firstManifest);
   assert.deepEqual(diffMdm(root), { ok: true, missing: [], changed: [], unexpected: [] });
+});
+
+test("MDM YAML loading rejects custom tags", () => {
+  const root = mkdtempSync(join(tmpdir(), "mdm-yaml-custom-tag-"));
+  write(root, "mdm/policies/apple/test.yaml", "value: !!js/function >\n  function () { return process.env; }\n");
+  assert.throws(() => loadMdmPolicySources(root), /unknown tag/u);
+});
+
+test("MDM YAML loading rejects multiple documents", () => {
+  const root = mkdtempSync(join(tmpdir(), "mdm-yaml-multiple-documents-"));
+  write(root, "mdm/policies/apple/test.yaml", "policy_id: first\n---\npolicy_id: second\n");
+  assert.throws(() => loadMdmPolicySources(root), /Expected exactly one YAML document/u);
 });
 
 function createFixture(): string {

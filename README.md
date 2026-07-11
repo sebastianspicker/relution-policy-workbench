@@ -23,7 +23,7 @@ As measured on 2026-07-11, this checkout combines two release-alpha surfaces:
   sources, 17 generated LAB rulesets, and 17 generated Relution 26.1.1
   workspaces
 
-`pnpm verify:ci` passes locally with 301 Node tests, 145 web tests, 52 Python
+`pnpm verify:ci` passes locally with 303 Node tests, 145 web tests, 52 Python
 tests, Ruff, type checking, production builds, the bundle budget, and repository
 hygiene checks. Firefox, WebKit, VoiceOver, and NVDA are not claimed as locally
 verified because current test/runtime binaries were unavailable. The MDM

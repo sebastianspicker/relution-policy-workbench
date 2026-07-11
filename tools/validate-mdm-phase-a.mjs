@@ -4,9 +4,14 @@ import process from "node:process";
 import yaml from "js-yaml";
 
 const root = process.cwd();
-const loadYaml = (path) => yaml.load(readFileSync(join(root, path), "utf8"));
 const fail = (message) => {
   throw new Error(`MDM source validation failed: ${message}`);
+};
+const loadYaml = (path) => {
+  const documents = [];
+  yaml.loadAll(readFileSync(join(root, path), "utf8"), (document) => documents.push(document), { schema: yaml.JSON_SCHEMA });
+  if (documents.length !== 1 || documents[0] === undefined) fail(`${path} must contain exactly one YAML document`);
+  return documents[0];
 };
 
 const inventory = loadYaml("mdm/inventory/current-state.yaml");
