@@ -29,6 +29,7 @@ BenchmarkDetails = _benchmark_common.BenchmarkDetails
 BenchmarkSpec = _benchmark_parser.BenchmarkSpec
 main = _benchmark_parser.main
 parse_benchmark = _benchmark_parser.parse_benchmark
+extract_pdf_text = _benchmark_parser.extract_pdf_text
 cis_semantic_evidence_sources_for = _benchmark_parser.cis_semantic_evidence_sources_for
 cis_semantic_candidates_for = _benchmark_parser.cis_semantic_candidates_for
 is_windows_helper_only_cis_recommendation = (

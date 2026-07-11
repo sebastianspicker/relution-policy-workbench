@@ -27,15 +27,15 @@ test("generate README product tour screenshots", async ({ page }) => {
     page.getByRole("button", { name: "Build .rexp" }),
   ]);
 
-  await page.getByRole("button", { name: "Baseline" }).first().click();
-  await expect(page.getByRole("heading", { name: "Policy Wizard" })).toBeVisible();
+  await page.getByRole("button", { name: "Baselines" }).first().click();
+  await expect(page.getByRole("heading", { name: "Baseline builder" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Replace workspace with selected baseline" })).toBeVisible();
   await capture(page, "02-baseline-guided.png", [
-    page.getByRole("heading", { name: "Policy Wizard" }),
+    page.getByRole("heading", { name: "Baseline builder" }),
     page.getByRole("button", { name: "Replace workspace with selected baseline" }),
   ]);
 
-  await page.getByRole("tab", { name: "Expert selection" }).click();
+  await page.getByRole("tab", { name: "Expert" }).click();
   await page.getByRole("checkbox", { name: "Vendor" }).uncheck();
   await page.getByRole("checkbox", { name: "CIS" }).uncheck();
   await expect(page.getByText("Selected baseline coverage")).toBeVisible();
@@ -54,7 +54,7 @@ test("generate README product tour screenshots", async ({ page }) => {
     page.getByRole("button", { name: "Apply JSON" }),
   ]);
 
-  await page.getByRole("button", { name: "Baseline" }).first().click();
+  await page.getByRole("button", { name: "Baselines" }).first().click();
   await page.getByRole("tab", { name: "Compliance" }).click();
   await expect(page.getByRole("heading", { name: "Compliance" })).toBeVisible();
   await capture(page, "05-compliance.png", [
@@ -76,7 +76,8 @@ test("generate README product tour screenshots", async ({ page }) => {
     page.getByLabel("Ruleset JSON file"),
   ]);
 
-  await page.getByRole("button", { name: "Dashboard" }).first().click();
+  await page.getByRole("button", { name: "Device audit" }).first().click();
+  await expect(page.getByRole("heading", { name: "Device audit" })).toBeVisible();
   await page.getByLabel("Server").first().fill("relution.example.org");
   await page.getByLabel("API token").first().fill("readme-tour-token");
   await page.getByRole("button", { name: "Set session" }).click();
@@ -86,7 +87,7 @@ test("generate README product tour screenshots", async ({ page }) => {
   await expect(page.getByRole("status", { name: "Relution device summary" })).toBeVisible();
   await page.getByRole("button", { name: "Write report" }).click();
   await expect(page.getByText("Report written:")).toBeVisible();
-  await capture(page, "07-relution-dashboard.png", [
+  await capture(page, "07-device-audit.png", [
     page.getByRole("status", { name: "Relution device summary" }),
     page.getByText("Report written:"),
   ]);
@@ -98,6 +99,11 @@ async function capture(page: Page, filename: string, requiredVisible: Locator[])
   }
   await expect(page.locator(".loading, .loading-inline, .loading-spinner")).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
+  await page.locator(".status-bar-message").evaluateAll((elements) => {
+    for (const element of elements) {
+      element.textContent = element.textContent?.replace(/\/tmp\/\S+/gu, "local output") ?? "";
+    }
+  });
   const screenshot = await page.screenshot({
     path: resolve(outputDir, filename),
     animations: "disabled",
@@ -219,8 +225,8 @@ async function mockDashboardApi(page: Page): Promise<void> {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        jsonPath: "/tmp/relution-policy-workbench-readme-tour/compliance-report.json",
-        markdownPath: "/tmp/relution-policy-workbench-readme-tour/compliance-report.md",
+        jsonPath: "local-reports/device-audit.json",
+        markdownPath: "local-reports/device-audit.md",
       }),
     });
   });

@@ -6,9 +6,29 @@
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13162/badge)](https://www.bestpractices.dev/projects/13162)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-Local Relution `.rexp` policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.
+Local Relution `.rexp` policy workbench for editing exports, Apple payloads,
+BSI/CIS baselines, proportionate MDM reference policies, and read-only device
+audits.
 
 The project is built for administrators and developers who need a local, reviewable workflow for Relution policy exports, Apple `.mobileconfig` payloads, BSI/CIS/vendor baseline mappings, and read-only Relution device audits. It does not require a hosted service. The browser editor and CLI work against local files by default, and production Relution API usage is intentionally read-only.
+
+## Current Local Checkout
+
+As measured on 2026-07-11, this checkout combines two release-alpha surfaces:
+
+- a responsive, addressable browser workbench with Policies, Baselines, Device
+  audit, and Settings sections; Chromium workflow, accessibility-tree, reflow,
+  and visual-regression checks pass locally
+- a Phase B MDM source contract with 23 Apple, Windows, and Android policy
+  sources, 17 generated LAB rulesets, and 17 generated Relution 26.1.1
+  workspaces
+
+`pnpm verify:ci` passes locally with 301 Node tests, 145 web tests, 52 Python
+tests, Ruff, type checking, production builds, the bundle budget, and repository
+hygiene checks. Firefox, WebKit, VoiceOver, and NVDA are not claimed as locally
+verified because current test/runtime binaries were unavailable. The MDM
+package remains LAB-only: device application, rollback, tenant inventory, and
+production approval are `NOT_EVIDENCED`.
 
 This handles Relution policy export format v1 as observed in Relution Server `26.1.1`:
 
@@ -84,9 +104,9 @@ Do not start the editor with raw `pnpm exec vite preview`; that command serves o
 
 ![Settings panel for encryption key, ruleset import, and rexp build](docs/readme-tour/06-settings-import-export.png)
 
-### Read-Only Relution Dashboard
+### Read-Only Device Audit
 
-![Read-only Relution dashboard with device audit summary](docs/readme-tour/07-relution-dashboard.png)
+![Read-only device audit with Relution compliance summary](docs/readme-tour/07-device-audit.png)
 
 ## Architecture
 
@@ -109,12 +129,13 @@ The implementation is split into a TypeScript CLI/backend in `src/`, the React e
 
 ### Repository Map
 
-- `src/cli.ts`: CLI command routing for archive inspection, workspace serving, template refreshes, Apple schema work, recommendation audits, and read-only Relution dashboard commands.
+- `src/cli.ts`: CLI command routing for archive inspection, workspace serving, template refreshes, Apple schema work, recommendation audits, MDM source tooling, and read-only Relution device-audit commands.
 - `src/rexp.ts`: `.rexp` ZIP, encryption, hash verification, extraction, and packing core shared by the CLI and editor server.
 - `src/workspace.ts`, `src/workspace-validation.ts`, `src/sidecar.ts`: local plaintext workspace model, validation, atomic persistence, and editor-only sidecar artifacts such as DDM drafts and mobileconfig restore entries.
 - `src/editor-server.ts` and `src/*-routes.ts`: local HTTP API that serves the built React app, mutates the workspace, builds archives, and routes supported external workflows such as read-only Relution audits and optional Zammad ticket drafts.
 - `web/src/editor/`: React editor shell, controller hooks, policy tree, settings panels, compliance UI, generated field editors, and browser-side import helpers.
 - `src/recommendations.ts`, `src/compliance*.ts`, `src/baseline-*.ts`: checked-in BSI/CIS/vendor recommendation catalogs, baseline template loading, compliance evaluation, and local remediation application.
+- `mdm/` and `src/mdm-*.ts`: versioned, non-secret MDM control and policy sources, offline provenance checks, deterministic LAB artifact generation, and operational reference documentation.
 - `src/relution-*.ts` and `src/zammad-*.ts`: read-only Relution device audit integration plus optional local/Zammad ticket draft support.
 - `tools/`: Python and Node generators for harvested evidence, recommendation mappings, baseline templates, and drift reports.
 - `example/`, `data/`, and `docs/`: committed sample exports, generated machine-readable evidence, rendered reports, and README screenshots.
@@ -166,8 +187,8 @@ flowchart TD
   apple[Apple device-management catalog] --> mappings
   mappings --> templates[baseline templates]
   mappings --> compliance[compliance engine]
-  templates --> wizard[baseline wizard]
-  wizard --> ruleset[ruleset workspace import]
+  templates --> builder[baseline builder]
+  builder --> ruleset[ruleset workspace import]
   compliance --> remediation[local remediation apply]
   ruleset --> workspace[local policy workspace]
   remediation --> workspace
@@ -255,8 +276,8 @@ The local editor supports:
 - adding `APPLE_MOBILECONFIG` configurations to Apple policies and uploading or pasting `.mobileconfig` XML
 - showing friendly configuration and setting names while preserving raw Relution identifiers
 - editing primitive schema fields and full nested configuration JSON
-- inspecting validation, generated previews, raw configuration JSON, and sidecar artifacts
-- querying productive Relution servers in read-only mode only
+- inspecting Validation, Preview, JSON, and Artifacts panels
+- querying production Relution servers in read-only mode only
 - writing local device audit reports and optional Zammad ticket drafts
 - switching between default, organization-style, Relution-style, dark, and local custom theme tokens
 - building an encrypted `.rexp`, verifying decryptability and policy hashes, and downloading the output
@@ -267,6 +288,35 @@ The editor runs locally at `http://127.0.0.1:8787/` by default. Use `--port` to 
 
 Ruleset JSON import is intended for BSI-style baselines or similar control catalogs that have already been mapped to Relution targets. Explicit mappings are applied, built-in known mappings are applied, and heuristic matches are reported only as suggestions until the JSON is updated.
 
+### Proportionate MDM reference package
+
+The current local checkout also contains the Phase B reference package under
+[`mdm/`](mdm/README.md). It defines 23 Apple, Windows, and Android policy
+sources: 17 active LAB models plus migration-only and capability records. The
+checked-in generated lane contains 17 deterministic rulesets and 17 Relution
+26.1.1 workspaces. These artifacts are syntax- and reference-schema validated,
+but they are not production ready: Lab round-trip import, physical-device
+application, rollback, and production approval remain unevidenced.
+
+The MDM commands are offline and do not contact Relution:
+
+```sh
+pnpm rexp mdm verify-sources
+pnpm rexp mdm validate
+pnpm rexp mdm generate
+pnpm rexp mdm diff
+pnpm rexp mdm manifest
+```
+
+`verify-sources` requires the ignored local PDF corpus under
+`private/source-pdfs-cache/`. A public clone contains the source manifest,
+hashes, normalized reconciliation, policy sources, and generated artifacts—but
+not the PDFs. Encrypted `.rexp` output is generated only when
+`RELUTION_REXP_KEY` is supplied and is written to ignored
+`private/mdm-archives/LAB/`.
+
+### Historical baseline comparison artifacts
+
 Generated baseline templates are available in full, modular, and tiered import shapes:
 
 - `example/relution-baseline-templates/consolidated/*-full.json` imports one full policy per operating system.
@@ -274,7 +324,7 @@ Generated baseline templates are available in full, modular, and tiered import s
 - `example/relution-baseline-templates/modular/<os>/*.json` contains each block as a standalone module for selective tuning.
 - `example/relution-baseline-templates/tiered/<os>/tier-*-full.json` and `tier-*-modules.json` add three deployment tiers.
 
-Tier semantics:
+Tier semantics for these retained comparison artifacts:
 
 - tier 3 is the minimum secure BSI Basis baseline
 - tier 2 adds same-category CIS/vendor hardening where it remains non-conflicting
@@ -371,9 +421,9 @@ The raw `.mobileconfig` editor detects unsigned XML profiles and opaque signed/C
 
 Builds record `APPLE_MOBILECONFIG` restore snapshots in `editor-sidecar.json`. This mitigates Relution's current server-export gap: if a later Relution `.rexp` export omits mobileconfig entries, the local sidecar can be used to reconcile editor-owned payloads back into the workspace.
 
-## Relution Dashboard and Safety Model
+## Device Audit and Safety Model
 
-Production Relution API use is read-only. The editor dashboard and `rexp relution ...` CLI commands only call Relution's device base-info query endpoint. Operations such as report generation, ticket draft generation, and Zammad ticket creation are local or Zammad-side effects, not Relution server writes.
+Production Relution API use is read-only. The Device audit section and `rexp relution ...` CLI commands only call Relution's device base-info query endpoint. Operations such as report generation, ticket draft generation, and confirmed Zammad ticket creation are local or Zammad-side effects, not Relution server writes.
 
 Read-only CLI commands:
 
@@ -414,7 +464,8 @@ The refresh command reads `BOOT-INF/classes/openapi.json`, bundled iOS system ap
 ## Documentation Status
 
 The public documentation surface is intentionally small: this README,
-`SECURITY.md`, active evidence summaries in `docs/`, and README screenshots.
+`SECURITY.md`, the MDM reference package in `mdm/`, active evidence summaries
+in `docs/`, and README screenshots.
 
 Planning notes, scratch reports, superseded packets, and generated local check
 output are local-only artifacts. They are ignored by git and are not active
@@ -449,6 +500,8 @@ ignored by git.
 Companion evidence docs:
 
 - `docs/README.md`: public docs index and local-only material boundary
+- `mdm/README.md`: current LAB-only MDM reference architecture, evidence state,
+  generated artifacts, and production-readiness boundary
 - `docs/JAMF_RELUTION_APPLE_GAP.md`: Apple/Jamf gap matrix for `APPLE_MOBILECONFIG` transport
 - `docs/LLM_RELUTION_MAPPING.md`: offline mapping review summary for BSI, CIS, and vendor recommendations
 - `docs/MAPPING_CANDIDATE_REVIEW.md`: review queues for non-exact mapping candidates
@@ -467,7 +520,12 @@ pnpm verify:pre-pr
 pnpm verify:ci
 pnpm test:e2e:web
 docker compose -f docker-compose.relution-e2e.yml config --quiet
+pnpm rexp mdm validate
+pnpm rexp mdm diff
 ```
+
+Run `pnpm rexp mdm verify-sources` as well when the complete ignored PDF cache
+is present. It is intentionally not a public-clone-only gate.
 
 Opt-in Docker checks:
 
@@ -481,6 +539,11 @@ Documentation screenshot refresh:
 ```sh
 pnpm screenshots:readme
 ```
+
+The checked-in Chromium UI baselines under
+`e2e/editor-live.spec.ts-snapshots/` cover Policies, Baseline builder, Settings,
+and Device audit at desktop and compact widths. README tour images under
+`docs/readme-tour/` are generated separately by `pnpm screenshots:readme`.
 
 `pnpm verify:pre-pr` is the default local pre-PR gate. It runs the same
 functional checks as GitHub Actions through `pnpm verify:ci`, then refreshes

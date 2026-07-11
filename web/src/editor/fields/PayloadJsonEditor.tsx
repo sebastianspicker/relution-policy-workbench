@@ -1,4 +1,5 @@
 import { useEffect, useState, type JSX } from "react";
+import { FieldFrame } from "../FieldFrame.js";
 
 export function PayloadJsonEditor(props: {
   draftKey: string;
@@ -26,22 +27,19 @@ export function PayloadJsonEditor(props: {
   }
 
   return (
-    <div className="field field-wide payload-json-editor">
-      <div className="field-label-row">
-        <span>
-          <span className="field-label">Apple payload JSON</span>
-          <code className="field-path">Payload body keys only</code>
-        </span>
-      </div>
+    <FieldFrame
+      className="field field-wide payload-json-editor"
+      label="Apple payload JSON"
+      path="Payload body keys only"
+      required
+      footer={(
+        <div className="payload-json-actions">
+          <button type="button" onClick={applyDraft}>Apply payload JSON</button>
+          <button type="button" onClick={() => setDraft(props.payloadJson)}>Reset</button>
+        </div>
+      )}
+    >
       <textarea className="payload-json-textarea compact-code-textarea" value={draft} onChange={(event) => setDraft(event.target.value)} />
-      <div className="payload-json-actions">
-        <button type="button" onClick={applyDraft}>
-          Apply payload JSON
-        </button>
-        <button type="button" onClick={() => setDraft(props.payloadJson)}>
-          Reset
-        </button>
-      </div>
-    </div>
+    </FieldFrame>
   );
 }

@@ -16,6 +16,17 @@ vite.config.*.timestamp-*
 coverage.xml
 *.cover
 *.junit.xml
+*.sarif
+*.jsonl
+*.ndjson
+*.har
+*.trace
+*.dump
+*.prof
+*.profraw
+*.lcov
+lcov.info
+.nyc_output/
 .hypothesis/
 .DS_Store
 __pycache__/
@@ -34,15 +45,44 @@ __pycache__/
 .env
 .env.*
 !.env.example
+.envrc
+.direnv/
 .npmrc
 .pypirc
 .netrc
+*.secrets
+*.secrets.*
+*.asc
+*.gpg
+*.pgp
+*.kdbx
+*.ovpn
 *.key
 *.pem
+*.crt
+*.cer
+*.der
+*.csr
 *.p12
 *.pfx
+*.jks
+*.keystore
+*.mobileprovision
+*.mobileconfig
+editor-sidecar.json
+*.decrypted.*
+*.plaintext.*
+*.unredacted.*
+*.tenant.*
 
 .rexp-editor/
+*.rexp
+# Reviewed, non-tenant fixtures required by tests and offline evidence tooling.
+!example/sample-policy-export.rexp
+!example/Windows Group Policy Definitions.rexp
+!example/Windows Policies Win11 24H2.rexp
+!example/Windows Security Baselines Edge v128.rexp
+!example/Windows Security Baselines Win11 24H2.rexp
 *.rexp.tmp
 example/extracted/
 example/workspace/
@@ -135,3 +175,7 @@ reports/
 private/
 scratch/
 tmp/
+/temp/
+/exports/
+/imports/
+/workspaces/

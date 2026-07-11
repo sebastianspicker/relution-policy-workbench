@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX } from "react";
+import { useMemo, useRef, useState, type JSX } from "react";
 import type {
   RelutionAssessmentReport,
   RelutionDeviceAssessment,
@@ -51,6 +51,7 @@ export function RelutionDashboardPanel(): JSX.Element {
   const [ticketResult, setTicketResult] = useState<ZammadTicketResult | undefined>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const ticketCreateInFlight = useRef(false);
 
   const visibleAssessments = useMemo(
     () => assessment === undefined ? [] : filterAssessments(assessment.devices, filter, search),
@@ -157,20 +158,21 @@ export function RelutionDashboardPanel(): JSX.Element {
   }
 
   async function createTicket(): Promise<void> {
-    if (ticketDraft === undefined) {
+    if (ticketDraft === undefined || ticketResult !== undefined || ticketCreateInFlight.current) {
       return;
     }
-    await run(async () => {
-      const response = await postJson("/api/zammad/tickets", { draft: ticketDraft });
-      const result = await readJsonResponse<{ ticket?: ZammadTicketResult; error?: string }>(response);
-      if (!response.ok || result.ticket === undefined) {
-        throw new Error(result.error ?? JSON.stringify(result));
-      }
-      if (!hasZammadTicketIdentifier(result.ticket)) {
-        throw new Error("Zammad ticket creation returned no ticket id or number");
-      }
-      setTicketResult(result.ticket);
-    });
+    ticketCreateInFlight.current = true;
+    try {
+      await run(async () => {
+        const response = await postJson("/api/zammad/tickets", { draft: ticketDraft });
+        const result = await readJsonResponse<{ ticket?: ZammadTicketResult; error?: string }>(response);
+        if (!response.ok || result.ticket === undefined) throw new Error(result.error ?? JSON.stringify(result));
+        if (!hasZammadTicketIdentifier(result.ticket)) throw new Error("Zammad ticket creation returned no ticket id or number");
+        setTicketResult(result.ticket);
+      });
+    } finally {
+      ticketCreateInFlight.current = false;
+    }
   }
 
   async function run(task: () => Promise<void>): Promise<void> {
@@ -187,7 +189,7 @@ export function RelutionDashboardPanel(): JSX.Element {
 
   return (
     <div className="inspector-content recommendations-panel">
-      <h2>Relution Dashboard</h2>
+      <h2>Device audit</h2>
       <p className="status recommendation-summary">
         {session.configured ? `Relution ${session.baseUrl ?? "unknown"} | read-only` : "No Relution API session configured | read-only"}
       </p>
@@ -421,6 +423,8 @@ function ZammadSection(props: {
   readonly onTest: () => void;
   readonly onCreate: () => void;
 }): JSX.Element {
+  const [confirming, setConfirming] = useState(false);
+  const destination = props.session.baseUrl ?? props.host;
   return (
     <section className="preview-block">
       <h3>Zammad</h3>
@@ -439,7 +443,15 @@ function ZammadSection(props: {
         <details className="preview-block" open>
           <summary>{props.draft.title}</summary>
           <pre>{props.draft.body}</pre>
-          <button type="button" disabled={props.loading || !props.session.configured} onClick={props.onCreate}>Create ticket</button>
+          {confirming ? (
+            <div className="ticket-confirmation" role="group" aria-label="Confirm Zammad ticket creation">
+              <p>Create one ticket in {destination || "the configured Zammad instance"}, group {props.group}, for {props.customer}?</p>
+              <button type="button" disabled={props.loading || props.result !== undefined} onClick={props.onCreate}>Confirm and create ticket</button>
+              <button type="button" disabled={props.loading} onClick={() => setConfirming(false)}>Cancel</button>
+            </div>
+          ) : (
+            <button type="button" disabled={props.loading || !props.session.configured || props.result !== undefined} onClick={() => setConfirming(true)}>Review ticket destination</button>
+          )}
         </details>
       ) : null}
       {props.result !== undefined ? <p className="ok">Ticket created: {zammadTicketIdentifier(props.result)}</p> : null}

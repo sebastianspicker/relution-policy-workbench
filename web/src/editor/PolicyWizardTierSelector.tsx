@@ -1,4 +1,4 @@
-import type { JSX } from "react";
+import type { JSX, KeyboardEventHandler, RefObject } from "react";
 import type {
   BaselineExpertOptionsResponse,
   BaselineTemplateOption,
@@ -8,6 +8,7 @@ import type {
 } from "../../../src/baseline-templates.js";
 import { RECOMMENDATION_SOURCES } from "../../../src/recommendation-types.js";
 import { moduleNamesForTier, settingMatchesSources, tierDescription } from "./PolicyWizardPanel.logic.js";
+import { useRovingFocus } from "./useRovingFocus.js";
 
 export function TierSelector(props: {
   readonly availableOptions: readonly BaselineTemplateOption[];
@@ -22,9 +23,11 @@ export function TierSelector(props: {
   const cards = ([3, 2, 1] as const).map((candidateTier) =>
     tierCardState(candidateTier, props, allSourcesSelected),
   );
+  const enabledTiers = cards.filter((card) => card.option !== undefined).map((card) => String(card.tier));
+  const roving = useRovingFocus({ active: String(props.tier), items: enabledTiers, onChange: (tier) => props.onTierChange(Number(tier) as BaselineTemplateTier) });
   return (
-    <div className="policy-wizard-tier-grid" role="radiogroup" aria-label="Security tier">
-      {cards.map((card) => <TierButton key={card.tier} card={card} selected={props.tier === card.tier} onTierChange={props.onTierChange} />)}
+    <div ref={roving.containerRef as RefObject<HTMLDivElement | null>} className="policy-wizard-tier-grid" role="radiogroup" aria-label="Security tier">
+      {cards.map((card) => <TierButton key={card.tier} card={card} selected={props.tier === card.tier} onTierChange={props.onTierChange} {...(card.option === undefined ? {} : { rovingProps: roving.getItemProps(String(card.tier)) })} />)}
     </div>
   );
 }
@@ -87,6 +90,7 @@ function TierButton(props: {
   readonly card: TierCardState;
   readonly selected: boolean;
   readonly onTierChange: (tier: BaselineTemplateTier) => void;
+  readonly rovingProps?: { readonly tabIndex: 0 | -1; readonly onKeyDown: KeyboardEventHandler<HTMLElement> };
 }): JSX.Element {
   return (
     <button
@@ -94,6 +98,9 @@ function TierButton(props: {
       className="policy-wizard-tier"
       aria-checked={props.selected}
       role="radio"
+      data-roving-value={String(props.card.tier)}
+      tabIndex={props.rovingProps?.tabIndex ?? -1}
+      onKeyDown={props.rovingProps?.onKeyDown}
       disabled={props.card.option === undefined}
       onClick={() => props.onTierChange(props.card.tier)}
     >

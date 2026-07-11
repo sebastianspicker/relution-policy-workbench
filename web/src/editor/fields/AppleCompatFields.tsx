@@ -166,7 +166,7 @@ function renderAppleCompatScalarInput(props: {
     return (
       <div className={props.containerClass}>
         <AppleCompatFieldCaption field={props.field} />
-        <select value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)}>
+        <select aria-label={appleCompatAccessibleName(props.field)} value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)}>
           {props.field.options.map((value) => (
             <option key={value} value={value}>
               {value}
@@ -204,6 +204,7 @@ function renderAppleCompatScalarInput(props: {
       <div className={props.containerClass}>
         <AppleCompatFieldCaption field={props.field} />
         <input
+          aria-label={appleCompatAccessibleName(props.field)}
           type="number"
           step={numberKind === "number" ? "any" : "1"}
           value={props.value === undefined ? "" : String(props.value)}
@@ -217,6 +218,7 @@ function renderAppleCompatScalarInput(props: {
       <div className={props.wideContainerClass}>
         <AppleCompatFieldCaption field={props.field} />
         <textarea
+          aria-label={appleCompatAccessibleName(props.field)}
           className={props.field.kind === "json" ? "compact-code-textarea" : "compact-textarea"}
           value={textAreaValue(props.value)}
           onChange={(event) => props.onChange(event.target.value)}
@@ -227,7 +229,7 @@ function renderAppleCompatScalarInput(props: {
   return (
     <div className={props.containerClass}>
       <AppleCompatFieldCaption field={props.field} />
-      <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
+      <input aria-label={appleCompatAccessibleName(props.field)} value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
     </div>
   );
 }
@@ -292,6 +294,10 @@ function AppleCompatFieldCaption(props: { field: AppleCompatField | AppleCompatO
       <InfoButton label={props.field.label} description={props.field.description} source="Apple profile payload" facts={appleCompatFieldFacts(props.field)} />
     </div>
   );
+}
+
+function appleCompatAccessibleName(field: AppleCompatField | AppleCompatObjectField): string {
+  return `${field.label} (${field.id})`;
 }
 
 function appleCompatFieldFacts(field: AppleCompatField | AppleCompatObjectField): string[] {

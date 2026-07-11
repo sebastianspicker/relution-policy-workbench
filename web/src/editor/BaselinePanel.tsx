@@ -4,16 +4,26 @@ import { PolicyWizardPanel } from "./PolicyWizardPanel.js";
 import { RecommendationsPanel } from "./RecommendationsPanel.js";
 import type { EditorController } from "./types.js";
 
-type BaselineTab = "wizard" | "recommendations" | "compliance";
+export type BaselineTab = "wizard" | "recommendations" | "compliance";
 
 const BASELINE_TABS: readonly { readonly id: BaselineTab; readonly label: string }[] = [
-  { id: "wizard", label: "Wizard" },
+  { id: "wizard", label: "Builder" },
   { id: "recommendations", label: "Recommendations" },
   { id: "compliance", label: "Compliance" },
 ];
 
-export function BaselinePanel({ controller }: { readonly controller: EditorController }): JSX.Element {
-  const [tab, setTab] = useState<BaselineTab>("wizard");
+export function BaselinePanel({ controller, activeTab, onTabChange }: {
+  readonly controller: EditorController;
+  readonly activeTab?: BaselineTab;
+  readonly onTabChange?: (tab: BaselineTab) => void;
+}): JSX.Element {
+  const [uncontrolledTab, setUncontrolledTab] = useState<BaselineTab>("wizard");
+  const tab = activeTab ?? uncontrolledTab;
+
+  function selectTab(nextTab: BaselineTab): void {
+    setUncontrolledTab(nextTab);
+    onTabChange?.(nextTab);
+  }
 
   return (
     <div className="baseline-panel">
@@ -27,7 +37,7 @@ export function BaselinePanel({ controller }: { readonly controller: EditorContr
             aria-selected={tab === t.id}
             aria-controls={baselinePanelId(t.id)}
             className={tab === t.id ? "active" : ""}
-            onClick={() => setTab(t.id)}
+            onClick={() => selectTab(t.id)}
           >
             {t.label}
           </button>

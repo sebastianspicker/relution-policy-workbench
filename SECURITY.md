@@ -28,13 +28,19 @@ keys, or encryption keys unless a secure exchange path has been agreed first.
 
 Treat these as sensitive:
 
-- Relution `.rexp` archives, decrypted workspaces, and generated imports
+- tenant-derived Relution `.rexp` archives, decrypted workspaces, and generated
+  imports containing environment values
 - archive encryption keys and `.env` files
+- certificates, key stores, provisioning profiles, and environment-specific
+  `.mobileconfig` payloads
 - Relution API URLs, credentials, and read-only device audit exports
-- policy payloads, screenshots, logs, and generated baseline artifacts
+- tenant policy payloads, screenshots, logs, inventories, and audit reports
 
 Keep real exports, credentials, and private tenant data out of git. Use tracked
-examples only when they are sanitized fixtures.
+examples only when they are sanitized fixtures. The checked-in `mdm/generated/`
+lane is limited to deterministic, placeholder-only LAB reference JSON and is
+not a production export or production-readiness claim. Encrypted MDM archives
+and supplied environment values remain under the ignored `private/` lane.
 
 ## Disclosure And Response
 

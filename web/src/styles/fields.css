@@ -55,6 +55,22 @@
   white-space: normal;
 }
 
+.field-description,
+.field-constraint {
+  display: block;
+  margin-top: 3px;
+  color: var(--ci-color-muted, #566372);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.field-error {
+  margin: 0;
+  color: var(--ci-color-danger-text, #8c2525);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .field input,
 .field select,
 .field textarea,

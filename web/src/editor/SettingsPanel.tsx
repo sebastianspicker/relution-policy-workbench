@@ -1,5 +1,6 @@
 import { useState, type JSX } from "react";
 import { JsonTemplateImportControl } from "./JsonTemplateImportControl.js";
+import { FieldFrame } from "./FieldFrame.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
 import type { CorporateTheme } from "./theme.js";
 import type { EditorController } from "./types.js";
@@ -35,14 +36,15 @@ export function SettingsPanel(props: {
             <span className={keyBadge.warn ? "settings-key-badge settings-key-badge--warn" : "settings-key-badge"}>
               {keyBadge.label}
             </span>
-            <input
-              className="key-input"
-              type="password"
-              aria-label="Encryption key"
-              value={c.keyValue}
-              onChange={(event) => c.setKeyValue(event.target.value)}
-              placeholder="Enter encryption key..."
-            />
+            <FieldFrame className="settings-key-field" label="Encryption key" description="Stored only in the local editor process." required>
+              <input
+                className="key-input"
+                type="password"
+                value={c.keyValue}
+                onChange={(event) => c.setKeyValue(event.target.value)}
+                placeholder="Enter encryption key…"
+              />
+            </FieldFrame>
             <button type="button" onClick={() => void c.setActiveKey()}>
               Set key
             </button>

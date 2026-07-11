@@ -71,7 +71,7 @@ describe("SettingsPanel", () => {
     render(<SettingsPanel controller={createEditorControllerStub({ state: { ...state, keySet: true, keyValidated: true } })} {...defaultProps} />);
 
     expect(screen.getByText(/key validated/i)).toBeTruthy();
-    expect(screen.getByPlaceholderText("Enter encryption key...")).toBeTruthy();
+    expect(screen.getByPlaceholderText("Enter encryption key…")).toBeTruthy();
   });
 
   it("distinguishes an accepted but unvalidated encryption key", () => {

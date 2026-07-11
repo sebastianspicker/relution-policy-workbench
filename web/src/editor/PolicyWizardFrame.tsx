@@ -17,7 +17,7 @@ export function PolicyWizardHeader(props: {
   return (
     <header className="policy-wizard-header">
       <div>
-        <h2>Policy Wizard</h2>
+        <h2>Baseline builder</h2>
         <p>Build a local workspace from exact BSI/CIS/vendor baseline templates.</p>
       </div>
       {props.optionsLoaded ? (
@@ -36,10 +36,10 @@ export function WizardModeTabs(props: {
   readonly onModeChange: (mode: WizardMode) => void;
 }): JSX.Element {
   return (
-    <div className="recommendation-source-switcher" role="tablist" aria-label="Wizard mode">
+    <div className="recommendation-source-switcher" role="tablist" aria-label="Builder mode">
       {(["guided", "expert"] as const).map((candidate) => (
         <button key={candidate} type="button" role="tab" aria-selected={props.mode === candidate} className={props.mode === candidate ? "active" : ""} onClick={() => props.onModeChange(candidate)}>
-          {candidate === "guided" ? "Guided baseline" : "Expert selection"}
+          {candidate === "guided" ? "Guided" : "Expert"}
         </button>
       ))}
     </div>

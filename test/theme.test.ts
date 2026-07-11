@@ -13,6 +13,7 @@ import {
   THEME_STORAGE_NAME,
   writeCustomThemeTokens,
   writeCorporateTheme,
+  validateCustomThemeContrast,
   type ThemeStorage,
 } from "../web/src/editor/theme.js";
 
@@ -206,6 +207,34 @@ test("writes corporate themes without leaking storage failures", () => {
     ),
     false,
   );
+});
+
+test("rejects custom themes with inaccessible text or focus pairs", () => {
+  const result = validateCustomThemeContrast({
+    "--ci-color-primary": "#eeeeee",
+    "--ci-color-primary-contrast": "#ffffff",
+    "--ci-color-page": "#ffffff",
+    "--ci-color-surface": "#ffffff",
+  });
+  assert.equal(result.ok, false);
+  assert.equal(result.failures.some((failure) => failure.pair === "Primary action text"), true);
+  assert.equal(result.failures.some((failure) => failure.pair === "Primary focus on surface"), true);
+
+  const storage = new MemoryThemeStorage();
+  assert.equal(writeCustomThemeTokens(storage, {
+    "--ci-color-primary": "#eeeeee",
+    "--ci-color-primary-contrast": "#ffffff",
+  }), false);
+  assert.equal(storage.getItem(CUSTOM_THEME_STORAGE_NAME), null);
+});
+
+test("all built-in theme text and focus pairs meet their contrast targets", () => {
+  for (const theme of ["default", "organization", "relution", "dark"] as const) {
+    const tokens = readCssVariables(`web/src/styles/themes/${theme}.css`);
+    assertContrast(tokens["--ci-color-text"], tokens["--ci-color-surface"], 4.5, `${theme} body`);
+    assertContrast(tokens["--ci-color-primary-contrast"], tokens["--ci-color-primary"], 4.5, `${theme} primary`);
+    assertContrast(tokens["--ci-color-focus"], tokens["--ci-color-surface"], 3, `${theme} focus`);
+  }
 });
 
 test("dark theme semantic status colors keep WCAG AA text contrast", () => {

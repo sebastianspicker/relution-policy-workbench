@@ -144,6 +144,7 @@ function FieldInput(props: {
       <div className={fieldContainerClass(nested, true)}>
         <FieldCaption field={props.field} />
         <textarea
+          aria-label={fieldAccessibleName(props.field)}
           className="compact-textarea"
           value={arrayFieldTextValue(props.field, props.value)}
           onChange={(event) => {
@@ -186,6 +187,7 @@ function FieldInput(props: {
       <div className={fieldContainerClass(nested)}>
         <FieldCaption field={props.field} />
         <select
+          aria-label={fieldAccessibleName(props.field)}
           value={selectValue}
           onChange={(event) => props.onChange(props.field.nullable && event.target.value === NULL_OPTION_VALUE ? null : event.target.value)}
         >
@@ -222,6 +224,7 @@ function FieldInput(props: {
       <div className={fieldContainerClass(nested)}>
         <FieldCaption field={props.field} />
         <input
+          aria-label={fieldAccessibleName(props.field)}
           type="number"
           value={props.value === undefined || props.value === null ? "" : String(props.value)}
           onChange={(event) => {
@@ -253,7 +256,7 @@ function FieldInput(props: {
   return (
     <div className={fieldContainerClass(nested)}>
       <FieldCaption field={props.field} />
-      <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
+      <input aria-label={fieldAccessibleName(props.field)} value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
       {resetActions}
     </div>
   );
@@ -313,7 +316,14 @@ function JsonFieldInput(props: {
   return (
     <div className={fieldContainerClass(props.nested ?? false, true)}>
       <FieldCaption field={props.field} />
-      <textarea className="compact-code-textarea" value={draft} onChange={(event) => setDraft(event.target.value)} />
+      <textarea
+        className="compact-code-textarea"
+        aria-label={fieldAccessibleName(props.field)}
+        aria-invalid={error.length > 0 || undefined}
+        aria-describedby={error.length > 0 ? `${safeFieldId(props.field.path)}-error` : undefined}
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+      />
       <div className="inline-actions">
         <button type="button" aria-label={`Apply ${props.field.label} JSON`} onClick={applyDraft}>
           Apply JSON
@@ -326,7 +336,7 @@ function JsonFieldInput(props: {
         </button>
       </div>
       {props.resetActions}
-      {error.length > 0 ? <p className="warning">{error}</p> : null}
+      {error.length > 0 ? <p className="warning" id={`${safeFieldId(props.field.path)}-error`} role="alert">{error}</p> : null}
     </div>
   );
 }
@@ -363,6 +373,14 @@ function FieldCaption(props: { field: TemplateField }): JSX.Element {
       ) : null}
     </div>
   );
+}
+
+function fieldAccessibleName(field: TemplateField): string {
+  return `${field.label} (${field.path})`;
+}
+
+function safeFieldId(path: string): string {
+  return `generated-${path.replaceAll(/[^a-z0-9_-]+/giu, "-")}`;
 }
 
 function fieldContainerClass(nested: boolean, wide = false): string {

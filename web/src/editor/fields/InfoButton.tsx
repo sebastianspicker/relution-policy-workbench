@@ -17,35 +17,11 @@ export function InfoButton(props: {
       return;
     }
 
-    // Focus first focusable element in popover
-    const focusable = popoverRef.current?.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    );
-    focusable?.[0]?.focus();
-
     function handleKeyDown(event: KeyboardEvent): void {
       if (event.key === "Escape") {
         setOpen(false);
         triggerRef.current?.focus();
         return;
-      }
-      // Trap Tab/Shift+Tab within popover
-      if (event.key === "Tab" && popoverRef.current) {
-        const focusableEls = Array.from(
-          popoverRef.current.querySelectorAll<HTMLElement>(
-            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-          ),
-        );
-        if (focusableEls.length === 0) return;
-        const first = focusableEls[0]!;
-        const last = focusableEls[focusableEls.length - 1]!;
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault();
-          first.focus();
-        }
       }
     }
 
@@ -78,7 +54,7 @@ export function InfoButton(props: {
         i
       </button>
       {open ? (
-        <span ref={popoverRef} className="info-popover-panel" id={popoverId} role="dialog" aria-label={`Info for ${props.label}`} aria-modal="true">
+        <span ref={popoverRef} className="info-popover-panel" id={popoverId} role="region" aria-label={`Information for ${props.label}`}>
           <span className="info-popover-title">{props.label}</span>
           <span>{props.description}</span>
           {props.facts !== undefined && props.facts.length > 0 ? (

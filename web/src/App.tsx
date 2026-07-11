@@ -1,5 +1,6 @@
 import { useEffect, useState, type JSX } from "react";
 import { EditorShell } from "./editor/EditorShell.js";
+import { InlineStatus } from "./editor/InlineStatus.js";
 import { StatusBar } from "./editor/StatusBar.js";
 import { readCorporateTheme, themeStorage, writeCorporateTheme, type CorporateTheme } from "./editor/theme.js";
 import { useEditorController } from "./editor/useEditorController.js";
@@ -18,9 +19,10 @@ export function App(): JSX.Element {
 
   if (controllerResult.kind === "loading") {
     return (
-      <main className="loading" data-theme={theme}>
+      <main className="loading" data-theme={theme} aria-labelledby="loading-title">
         <span className="loading-spinner" aria-hidden="true" />
-        Loading…
+        <h1 id="loading-title" className="visually-hidden">Loading policy workbench</h1>
+        <InlineStatus kind="loading">Loading workspace and local evidence…</InlineStatus>
       </main>
     );
   }
@@ -32,6 +34,7 @@ export function App(): JSX.Element {
         <p>
           Start the local editor server with <code>pnpm rexp</code>. Raw <code>pnpm exec vite preview</code> serves only static assets and has no editor API.
         </p>
+        <InlineStatus kind="error" onRetry={() => window.location.reload()}>The local editor API could not be reached.</InlineStatus>
       </main>
     );
   }

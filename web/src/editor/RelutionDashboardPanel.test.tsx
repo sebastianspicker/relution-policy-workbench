@@ -9,6 +9,7 @@ afterEach(() => {
 describe("RelutionDashboardPanel", () => {
   it("stores sessions, audits devices, writes a report, and creates a Zammad ticket", async () => {
     const auditBodies: unknown[] = [];
+    let ticketRequests = 0;
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
       const url = typeof input === "string" ? input : input instanceof URL ? input.pathname : input.url;
       if (url === "/api/relution/session") {
@@ -25,6 +26,7 @@ describe("RelutionDashboardPanel", () => {
         return jsonResponse({ configured: true, baseUrl: "https://zammad.example.test", tokenConfigured: true, group: "IT", customer: "it@example.test" });
       }
       if (url === "/api/zammad/tickets") {
+        ticketRequests += 1;
         return jsonResponse({ ticket: { id: 42, number: "240042", raw: {} } });
       }
       throw new Error(`Unhandled fetch: ${url}`);
@@ -71,9 +73,13 @@ describe("RelutionDashboardPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /ticket: missing-policy/i }));
     await screen.findByText(/MDM non-compliance: Campus iPad/i);
-    fireEvent.click(screen.getByRole("button", { name: /create ticket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /review ticket destination/i }));
+    expect(screen.getByText(/create one ticket in https:\/\/zammad\.example\.test, group it, for it@example\.test/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /confirm and create ticket/i }));
     await screen.findByText(/ticket created: 240042/i);
-  });
+    expect(ticketRequests).toBe(1);
+    expect((screen.getByRole("button", { name: /confirm and create ticket/i }) as HTMLButtonElement).disabled).toBe(true);
+  }, 10_000);
 
   it("renders connection test failure signals from successful API responses", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -253,7 +259,8 @@ describe("RelutionDashboardPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /ticket: missing-policy/i }));
     await screen.findByText(/MDM non-compliance: Campus iPad/i);
-    fireEvent.click(screen.getByRole("button", { name: /create ticket/i }));
+    fireEvent.click(screen.getByRole("button", { name: /review ticket destination/i }));
+    fireEvent.click(screen.getByRole("button", { name: /confirm and create ticket/i }));
 
     await screen.findByText(/zammad ticket creation returned no ticket id or number/i);
     expect(screen.queryByText(/ticket created: unknown/i)).toBeNull();

@@ -4,7 +4,7 @@
   overflow: hidden;
   visibility: hidden;
   display: grid;
-  grid-template-columns: 48px 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
   padding: 0;
@@ -71,30 +71,31 @@
 
 .inspector-sidebar {
   display: flex;
-  flex-direction: column;
-  padding: 8px 0;
+  flex-direction: row;
+  padding: 0;
   gap: 2px;
   background: var(--ci-color-surface-muted, #f4f6f8);
-  border-right: 1px solid var(--ci-color-border, #cad2dc);
-  overflow: hidden;
+  border-bottom: 1px solid var(--ci-color-border, #cad2dc);
+  overflow-x: auto;
 }
 
 .inspector-sidebar button {
   display: flex;
-  flex-direction: column;
+  flex: 1 1 0;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
   gap: 3px;
-  width: 48px;
-  height: 52px;
-  padding: 0;
+  min-width: 72px;
+  min-height: var(--ci-control-height, 36px);
+  padding: 7px 8px;
   border: none;
-  border-left: 3px solid transparent;
+  border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--ci-color-muted, #64707d);
   cursor: pointer;
-  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  transition: background var(--ci-motion-fast, 150ms), color var(--ci-motion-fast, 150ms), border-color var(--ci-motion-fast, 150ms);
 }
 
 .inspector-sidebar button:hover {
@@ -104,7 +105,7 @@
 
 .inspector-sidebar button.active,
 .inspector-sidebar button.active:hover {
-  border-left-color: var(--ci-color-primary, #1d6fb8);
+  border-bottom-color: var(--ci-color-primary, #1d6fb8);
   background: var(--ci-color-primary-soft, #e8f1f8);
   color: var(--ci-color-primary, #1d6fb8);
 }
@@ -116,12 +117,11 @@
 }
 
 .inspector-tab-short {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: normal;
   line-height: 1;
   display: block;
-  text-transform: uppercase;
 }
 
 .inspector-body {
@@ -216,7 +216,7 @@
   color: var(--ci-color-text, #20242a);
   border: 1px solid transparent;
   border-radius: 0;
-  padding: 4px 0;
+  padding: 4px 8px;
   background: transparent;
   width: 100%;
   min-height: 56px;
@@ -224,14 +224,13 @@
   font: inherit;
   line-height: 1.5;
   box-shadow: none;
-  transition: border-color 0.15s, padding 0.15s, border-radius 0.15s;
+  transition: border-color var(--ci-motion-fast, 150ms), background-color var(--ci-motion-fast, 150ms);
 }
 
 .pvc-description:hover,
 .pvc-description:focus {
   border-color: var(--ci-color-border-strong, #aab5c1);
   border-radius: var(--ci-radius-control, 5px);
-  padding: 4px 8px;
   background: var(--ci-color-field-bg, #ffffff);
   outline: none;
 }
@@ -265,23 +264,22 @@
   line-height: 1.5;
 }
 
-.welcome-grid {
+.welcome-steps {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 0;
+  margin: 0;
+  padding-left: 24px;
+  max-width: 72ch;
 }
 
-.welcome-grid section {
-  border: 1px solid var(--ci-color-border, #cad2dc);
-  border-radius: var(--ci-radius-card, 6px);
-  background: var(--ci-color-surface, #ffffff);
-  padding: 14px;
-  box-shadow: var(--ci-shadow-card, none);
+.welcome-steps li {
+  padding: 10px 4px 10px 8px;
+  border-bottom: 1px solid var(--ci-color-border, #cad2dc);
+  color: var(--ci-color-text, #20242a);
 }
 
-.welcome-grid h2 {
-  margin-bottom: 6px;
-  font-size: 16px;
+.welcome-steps li:last-child {
+  border-bottom: 0;
 }
 
 .status-bar {

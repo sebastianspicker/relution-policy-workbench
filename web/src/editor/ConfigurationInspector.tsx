@@ -7,8 +7,8 @@ import type { EditorController, InspectorTab, JsonRecord, RulesetImportReport } 
 const INSPECTOR_TABS = [
   { id: "validation", label: "Validation", Icon: IconCheck,  short: "Check" },
   { id: "preview",    label: "Preview",    Icon: IconEye,    short: "View"  },
-  { id: "json",       label: "Raw JSON",   Icon: IconCode,   short: "JSON"  },
-  { id: "sidecar",    label: "Sidecar",    Icon: IconLayers, short: "Data"  },
+  { id: "json",       label: "JSON",       Icon: IconCode,   short: "JSON"  },
+  { id: "sidecar",    label: "Artifacts",  Icon: IconLayers, short: "Files" },
 ] as const satisfies readonly { readonly id: InspectorTab; readonly label: string; readonly Icon: (props: { size?: number }) => JSX.Element; readonly short: string }[];
 
 export function ConfigurationInspector(props: { readonly controller: EditorController; readonly id?: string; readonly className?: string }): JSX.Element {
@@ -21,9 +21,9 @@ export function ConfigurationInspector(props: { readonly controller: EditorContr
     const ids = INSPECTOR_TABS.map((t) => t.id);
     const currentIndex = ids.indexOf(currentId);
     let nextIndex: number | undefined;
-    if (event.key === "ArrowDown") {
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
       nextIndex = (currentIndex + 1) % ids.length;
-    } else if (event.key === "ArrowUp") {
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
       nextIndex = (currentIndex - 1 + ids.length) % ids.length;
     } else if (event.key === "Home") {
       nextIndex = 0;
@@ -41,7 +41,7 @@ export function ConfigurationInspector(props: { readonly controller: EditorContr
 
   return (
     <aside id={props.id} className={className}>
-      <nav ref={tablistRef} className="inspector-sidebar" role="tablist" aria-label="Inspector panels" aria-orientation="vertical">
+      <nav ref={tablistRef} className="inspector-sidebar" role="tablist" aria-label="Inspector panels" aria-orientation="horizontal">
         {INSPECTOR_TABS.map((tab) => (
           <button
             key={tab.id}

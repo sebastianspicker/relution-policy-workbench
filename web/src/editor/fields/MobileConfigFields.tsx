@@ -1,6 +1,7 @@
 import { useState, type JSX } from "react";
 import { invalidateMobileConfigDetails, updateMobileConfigDetails } from "../mobileconfig-editor.js";
 import type { JsonRecord } from "../types.js";
+import { FieldFrame } from "../FieldFrame.js";
 import { InfoButton } from "./InfoButton.js";
 
 export function MobileConfigFields(props: {
@@ -58,31 +59,13 @@ export function MobileConfigFields(props: {
           />
         </label>
       </div>
-      <div className="field">
-        <div className="field-label-row">
-          <span>
-            <span className="field-label">Display name</span>
-            <code className="field-path">displayName</code>
-          </span>
-        </div>
+      <FieldFrame label="Display name" path="displayName">
         <input value={displayName} onChange={(event) => props.onChange({ ...props.details, displayName: event.target.value })} />
-      </div>
-      <div className="field">
-        <div className="field-label-row">
-          <span>
-            <span className="field-label">Detected payload type</span>
-            <code className="field-path">secondLevelPayloadType</code>
-          </span>
-        </div>
+      </FieldFrame>
+      <FieldFrame label="Detected payload type" path="secondLevelPayloadType">
         <input readOnly value={payloadType} />
-      </div>
-      <div className="field field-wide">
-        <div className="field-label-row">
-          <span>
-            <span className="field-label">Mobileconfig XML</span>
-            <code className="field-path">rawContent</code>
-          </span>
-        </div>
+      </FieldFrame>
+      <FieldFrame className="field field-wide" label="Mobileconfig XML" path="rawContent" required>
         <textarea
           className="mobileconfig-textarea"
           value={rawContent}
@@ -96,7 +79,7 @@ export function MobileConfigFields(props: {
             }
           }}
         />
-      </div>
+      </FieldFrame>
     </div>
   );
 }
