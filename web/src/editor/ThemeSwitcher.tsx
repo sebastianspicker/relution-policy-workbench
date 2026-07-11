@@ -10,6 +10,7 @@ import {
   themeStorage,
   THEME_PACKS,
   writeCustomThemeTokens,
+  validateCustomThemeContrast,
   type CorporateTheme,
   type CustomThemeTokenName,
   type CustomThemeTokens,
@@ -26,6 +27,8 @@ function getCustomTokens(): CustomThemeTokens {
 
 export function ThemeSwitcher({ theme, onThemeChange }: ThemeSwitcherProps): JSX.Element {
   const [customTokens, setCustomTokens] = useState<CustomThemeTokens>(getCustomTokens);
+  const [appliedTokens, setAppliedTokens] = useState<CustomThemeTokens>(getCustomTokens);
+  const [contrastError, setContrastError] = useState<string>();
   const [showTokens, setShowTokens] = useState(false);
 
   useEffect(() => {
@@ -34,22 +37,30 @@ export function ThemeSwitcher({ theme, onThemeChange }: ThemeSwitcherProps): JSX
     }
 
     if (theme === "custom") {
-      applyCustomThemeTokens(document.documentElement, customTokens);
+      applyCustomThemeTokens(document.documentElement, appliedTokens);
     } else {
       clearCustomThemeTokens(document.documentElement);
     }
-  }, [customTokens, theme]);
+  }, [appliedTokens, theme]);
 
   function updateCustomToken(tokenName: CustomThemeTokenName, tokenValue: string): void {
     const nextTokens = { ...customTokens, [tokenName]: tokenValue };
     setCustomTokens(nextTokens);
-    writeCustomThemeTokens(themeStorage(), nextTokens);
-    onThemeChange("custom");
+    const result = validateCustomThemeContrast(nextTokens);
+    if (!result.ok) {
+      setContrastError(result.failures.map((failure) => `${failure.pair}: ${failure.ratio.toFixed(2)}:1 (needs ${failure.minimum}:1)`).join("; "));
+      return;
+    }
+    setContrastError(undefined);
+    setAppliedTokens(nextTokens);
+    if (writeCustomThemeTokens(themeStorage(), nextTokens)) onThemeChange("custom");
   }
 
   function resetCustomTokens(): void {
     resetCustomThemeTokens(themeStorage());
     setCustomTokens(DEFAULT_CUSTOM_THEME_TOKENS);
+    setAppliedTokens(DEFAULT_CUSTOM_THEME_TOKENS);
+    setContrastError(undefined);
     onThemeChange("custom");
   }
 
@@ -91,6 +102,7 @@ export function ThemeSwitcher({ theme, onThemeChange }: ThemeSwitcherProps): JSX
                   />
                 </label>
               ))}
+              {contrastError !== undefined ? <p className="field-error" role="alert">Custom theme not applied: {contrastError}</p> : null}
               <button type="button" onClick={resetCustomTokens}>
                 Reset custom
               </button>

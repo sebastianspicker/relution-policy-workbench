@@ -9,6 +9,13 @@
   --spacing-lg: 12px;
   --spacing-xl: 16px;
   --spacing-2xl: 24px;
+  --ci-control-height: 36px;
+  --ci-touch-target: 44px;
+  --ci-focus-width: 2px;
+  --ci-layout-rail-width: 88px;
+  --ci-layout-navigation-width: 320px;
+  --ci-layout-inspector-width: 360px;
+  --ci-motion-fast: 150ms;
 }
 
 body {
@@ -47,7 +54,13 @@ p {
 
 ::placeholder {
   color: var(--ci-color-muted, #64707d);
-  opacity: 0.7;
+  opacity: 1;
+}
+
+@media (pointer: coarse) {
+  button,
+  input,
+  select { min-height: var(--ci-touch-target); }
 }
 
 details:not(.artifact-card):not(.restore-snapshots) > summary {

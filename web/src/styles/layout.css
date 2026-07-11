@@ -1,5 +1,7 @@
 .app-shell {
+  height: 100vh;
   min-height: 100vh;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
@@ -9,6 +11,7 @@
   min-height: 0;
   display: grid;
   grid-template-rows: auto auto auto 1fr;
+  min-width: 0;
 }
 
 .toolbar {
@@ -90,11 +93,10 @@
 }
 
 .app-rail-label {
-  max-width: 58px;
-  font-size: 8px;
-  font-weight: 700;
+  max-width: 72px;
+  font-size: 11px;
+  font-weight: 600;
   letter-spacing: 0;
-  text-transform: uppercase;
   line-height: 1.1;
   overflow: hidden;
   overflow-wrap: normal;
@@ -150,9 +152,9 @@
 
 .workspace-grid {
   min-height: 0;
+  min-width: 0;
   display: grid;
   grid-template-columns: 76px minmax(280px, 360px) minmax(420px, 1fr) 0;
-  transition: grid-template-columns 0.18s ease;
 }
 
 .workspace-grid.inspector-pinned {
@@ -200,10 +202,9 @@
 }
 
 .sidebar h2 {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
   color: var(--ci-color-muted, #64707d);
   margin-bottom: 8px;
 }
@@ -253,14 +254,11 @@
 }
 
 .new-policy-form-wrapper {
-  display: grid;
-  grid-template-rows: 0fr;
-  overflow: hidden;
-  transition: grid-template-rows 0.2s ease;
+  display: none;
 }
 
 .new-policy-form-wrapper--open {
-  grid-template-rows: 1fr;
+  display: block;
   margin-bottom: 14px;
 }
 

@@ -5,6 +5,7 @@ import { createAppleCompatReport, renderAppleCompatReportMarkdown } from "./appl
 import { loadAppleSchemaCatalog, refreshAppleSchemaCatalog } from "./apple-schema-catalog.js";
 import { createRelutionAuditReport, writeAuditOutputs } from "./audit.js";
 import { startEditorServer } from "./editor-server.js";
+import { runMdmCliCommand } from "./mdm-cli.js";
 import { runRelutionCliCommand } from "./relution-cli.js";
 import { extractRexp, inspectRexp, packPlainDirectory, verifyRexp } from "./rexp.js";
 import { resetEditorSidecar } from "./sidecar.js";
@@ -66,6 +67,7 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
   "apple-compat": appleCompatCommand,
   "apple-schema": appleSchemaCommand,
   relution: runRelutionCliCommand,
+  mdm: runMdmCliCommand,
   new: newCommand,
   edit: editCommand,
   serve: serveCommand,
@@ -542,6 +544,11 @@ function printHelp(): void {
   rexp relution devices --host <server> --token <api-token> [--platform <csv>] [--status <csv>] [--ownership <csv>] [--limit <n>] [--offset <n>] [--json]  # read-only
   rexp relution assess --host <server> --token <api-token> [--workspace <dir>] [--platform <csv>] [--status <csv>] [--json]  # read-only remote API
   rexp relution audit --host <server> --token <api-token> [--expected-policy IOS=Policy] [--inactive-warning-days 30] [--inactive-problem-days 90] [--json]  # read-only remote API
+  rexp mdm verify-sources [--json]  # offline
+  rexp mdm validate [--json]        # offline
+  rexp mdm generate [--json]        # offline, LAB only
+  rexp mdm diff [--json]            # offline
+  rexp mdm manifest [--json]        # offline
   rexp new --platform <Platform> --name <name> --workspace <dir> [--force]
   rexp edit <file.rexp> --key <password> --workspace <dir> --out <file.rexp> [--port 8787] [--force] [--allow-local-service-hosts]
   rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-network-editor] [--allow-local-service-hosts]

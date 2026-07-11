@@ -18,16 +18,16 @@
   --ci-color-toolbar-muted: #deded8;
   --ci-color-toolbar-border: #ff0094;
 
-  --ci-color-primary: #ff0094;
-  --ci-color-primary-hover: #d6007e;
-  --ci-color-primary-active: #a80063;
+  --ci-color-primary: #bd006d;
+  --ci-color-primary-hover: #a80063;
+  --ci-color-primary-active: #880050;
   --ci-color-primary-contrast: #ffffff;
   --ci-color-accent: #ff0094;
   --ci-color-accent-2: #00c4ff;
   --ci-color-accent-3: #ffe200;
 
   --ci-color-field-bg: #ffffff;
-  --ci-color-focus: #00c4ff;
+  --ci-color-focus: #007da3;
   --ci-color-active-bg: #fff0fa;
   --ci-color-success-bg: #e8f8ef;
   --ci-color-success-text: #165f36;

@@ -393,6 +393,7 @@ def detect_recommendation_starts(
                     "recommendationId": parsed_heading["id"],
                     "title": parsed_heading["title"],
                     "assessmentStatus": parsed_heading["assessment"],
+                    "sourcePage": page_index + 1,
                 }
             )
     return starts

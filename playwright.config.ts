@@ -11,6 +11,7 @@ const output = "/tmp/relution-policy-workbench-playwright-output.rexp";
 export default defineConfig({
   testDir: "./e2e",
   outputDir: join(projectRoot, "test-results/playwright"),
+  snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}{ext}",
   fullyParallel: false,
   reporter: [
     ["list"],
@@ -24,6 +25,11 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${String(port)}`,
     trace: "on-first-retry",
   },
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" } },
+    { name: "firefox", use: { browserName: "firefox" } },
+    { name: "webkit", use: { browserName: "webkit" } },
+  ],
   webServer: {
     command: editorServerCommand({ workspace, output, port }),
     url: `http://127.0.0.1:${String(port)}/`,

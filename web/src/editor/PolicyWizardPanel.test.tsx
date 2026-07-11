@@ -14,7 +14,7 @@ describe("PolicyWizardPanel", () => {
 
     render(<PolicyWizardPanel controller={controller} />);
 
-    expect(await screen.findByRole("heading", { name: /policy wizard/i })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: /baseline builder/i })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /1\. scope/i })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /2\. security tier/i })).toBeTruthy();
     expect(screen.getByRole("heading", { name: /3\. preview and apply/i })).toBeTruthy();
@@ -46,13 +46,28 @@ describe("PolicyWizardPanel", () => {
     expect(vendorBox.checked).toBe(true);
   });
 
+  it("moves and selects security tiers with arrow, Home, and End keys", async () => {
+    installFetchMock();
+    render(<PolicyWizardPanel controller={createEditorControllerStub()} />);
+    const tier3 = await screen.findByRole("radio", { name: /tier 3/i });
+
+    tier3.focus();
+    fireEvent.keyDown(tier3, { key: "ArrowRight" });
+    const tier2 = screen.getByRole("radio", { name: /tier 2/i });
+    expect(tier2.getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(tier2);
+
+    fireEvent.keyDown(tier2, { key: "End" });
+    expect(screen.getByRole("radio", { name: /tier 1/i }).getAttribute("aria-checked")).toBe("true");
+  });
+
   it("source filter affects expert coverage and preset selection", async () => {
     installFetchMock();
     const controller = createEditorControllerStub();
 
     render(<PolicyWizardPanel controller={controller} />);
 
-    fireEvent.click(await screen.findByRole("tab", { name: /expert selection/i }));
+    fireEvent.click(await screen.findByRole("tab", { name: /^expert$/i }));
     await screen.findByLabelText(/3 of 4 settings selected/i);
 
     // Uncheck BSI — tier 3 has only BSI-sourced settings, so selection should drop to 0.
@@ -67,7 +82,7 @@ describe("PolicyWizardPanel", () => {
 
     render(<PolicyWizardPanel controller={controller} />);
 
-    fireEvent.click(await screen.findByRole("tab", { name: /expert selection/i }));
+    fireEvent.click(await screen.findByRole("tab", { name: /^expert$/i }));
 
     expect(await screen.findByLabelText(/3 of 4 settings selected/i)).toBeTruthy();
     expect(screen.getByText(/selected baseline coverage/i)).toBeTruthy();

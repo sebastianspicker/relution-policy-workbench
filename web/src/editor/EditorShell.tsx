@@ -1,6 +1,6 @@
 import { useEffect, useState, type JSX } from "react";
 import { APPLE_COMPAT_HINT } from "../../../src/apple-compat.js";
-import { BaselinePanel } from "./BaselinePanel.js";
+import { BaselinePanel, type BaselineTab } from "./BaselinePanel.js";
 import { ConfigurationInspector } from "./ConfigurationInspector.js";
 import { ConfigurationPickerModal } from "./ConfigurationPickerModal.js";
 import { EditorBreadcrumb } from "./EditorBreadcrumb.js";
@@ -15,6 +15,7 @@ import { MobileConfigFields } from "./fields/MobileConfigFields.js";
 import { PolicyNavigator } from "./PolicyNavigator.js";
 import { RelutionDashboardPanel } from "./RelutionDashboardPanel.js";
 import { SettingsPanel } from "./SettingsPanel.js";
+import { navigateToSectionRoute, replaceWithCanonicalRoute, routeFromHash, type SectionRoute } from "./SectionRoute.js";
 import type { CorporateTheme } from "./theme.js";
 import type { EditorController } from "./types.js";
 import { WorkspaceToolbar } from "./WorkspaceToolbar.js";
@@ -31,13 +32,14 @@ function readInspectorPinned(): boolean {
 }
 
 type AppSection = "policies" | "baseline" | "dashboard" | "settings";
+export type CompactPane = "editor" | "navigation" | "inspector";
 
 const APP_SECTIONS = [
   { id: "policies", label: "Policies", Icon: IconPolicies },
-  { id: "baseline", label: "Baseline", Icon: IconBaseline },
-  { id: "dashboard", label: "Dashboard", Icon: IconDashboard },
+  { id: "baselines/builder", label: "Baselines", Icon: IconBaseline },
+  { id: "device-audit", label: "Device audit", Icon: IconDashboard },
   { id: "settings", label: "Settings", Icon: IconSettings },
-] as const satisfies readonly { readonly id: AppSection; readonly label: string; readonly Icon: (props: { size?: number }) => JSX.Element }[];
+] as const satisfies readonly { readonly id: SectionRoute; readonly label: string; readonly Icon: (props: { size?: number }) => JSX.Element }[];
 
 type EditorShellProps = {
   readonly controller: EditorController;
@@ -46,9 +48,8 @@ type EditorShellProps = {
 };
 
 export function EditorShell({ controller, theme, onThemeChange }: EditorShellProps): JSX.Element {
-  const [appSection, setAppSection] = useState<AppSection>("policies");
-  const [navigationOpen, setNavigationOpen] = useState(false);
-  const [inspectorOpen, setInspectorOpen] = useState(false);
+  const [route, setRoute] = useState<SectionRoute>(() => readInitialRoute());
+  const [compactPane, setCompactPane] = useState<CompactPane>("editor");
   const [inspectorPinned, setInspectorPinned] = useState(() =>
     typeof window !== "undefined" ? readInspectorPinned() : true,
   );
@@ -62,12 +63,29 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
   }, [inspectorPinned]);
 
   useEffect(() => {
+    function syncRouteFromHash(): void {
+      const resolved = routeFromHash(window.location.hash);
+      if (!resolved.canonical) replaceWithCanonicalRoute(resolved.route);
+      setRoute(resolved.route);
+      setCompactPane("editor");
+    }
+    window.addEventListener("hashchange", syncRouteFromHash);
+    window.addEventListener("popstate", syncRouteFromHash);
+    return () => {
+      window.removeEventListener("hashchange", syncRouteFromHash);
+      window.removeEventListener("popstate", syncRouteFromHash);
+    };
+  }, []);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent): void {
       const modifier = event.ctrlKey || event.metaKey;
       if (!modifier) return;
       if (event.key === "s") {
         event.preventDefault();
         void controller.saveWorkspace();
+      } else if (isEditableTarget(event.target)) {
+        return;
       } else if (event.key === "b") {
         event.preventDefault();
         void controller.buildArchive();
@@ -89,7 +107,15 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [controller]);
 
-  const workspaceClassName = `workspace-grid${appSection === "policies" && navigationOpen ? " show-navigation" : ""}${appSection === "policies" && inspectorOpen ? " show-inspector" : ""}${inspectorPinned ? " inspector-pinned" : ""}`;
+  const appSection = sectionForRoute(route);
+  const baselineTab = baselineTabForRoute(route);
+  const workspaceClassName = `workspace-grid compact-pane-${compactPane}${inspectorPinned ? " inspector-pinned" : ""}`;
+
+  function setRouteFromNavigation(nextRoute: SectionRoute): void {
+    navigateToSectionRoute(nextRoute);
+    setRoute(nextRoute);
+    setCompactPane("editor");
+  }
 
   return (
     <main className="editor-root" data-theme={theme}>
@@ -104,8 +130,8 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
           <button
             key={section.id}
             type="button"
-            aria-current={appSection === section.id ? "page" : undefined}
-            onClick={() => setAppSection(section.id)}
+            aria-current={appSection === sectionForRoute(section.id) ? "page" : undefined}
+            onClick={() => setRouteFromNavigation(section.id)}
           >
             {section.label}
           </button>
@@ -116,17 +142,24 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
         <nav className="mobile-pane-controls" aria-label="Workspace panes">
           <button
             type="button"
+            aria-pressed={compactPane === "editor"}
+            onClick={() => setCompactPane("editor")}
+          >
+            Editor
+          </button>
+          <button
+            type="button"
             aria-controls="editor-navigation-pane"
-            aria-expanded={navigationOpen}
-            onClick={() => setNavigationOpen((current) => !current)}
+            aria-pressed={compactPane === "navigation"}
+            onClick={() => setCompactPane("navigation")}
           >
             Navigation
           </button>
           <button
             type="button"
             aria-controls="editor-inspector-pane"
-            aria-expanded={inspectorOpen}
-            onClick={() => setInspectorOpen((current) => !current)}
+            aria-pressed={compactPane === "inspector"}
+            onClick={() => setCompactPane("inspector")}
           >
             Inspector
           </button>
@@ -134,7 +167,7 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
       ) : null}
 
       <section className={workspaceClassName}>
-        <AppRail section={appSection} onChange={setAppSection} />
+        <AppRail section={appSection} onChange={setRouteFromNavigation} />
 
         <aside id="editor-navigation-pane" className="sidebar">
           <PolicyNavigator
@@ -157,7 +190,7 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
         <section className="editor-panel">
           {appSection === "baseline" ? (
             <div className="center-section">
-              <BaselinePanel controller={controller} />
+              <BaselinePanel controller={controller} activeTab={baselineTab} onTabChange={(tab) => setRouteFromNavigation(`baselines/${tab === "wizard" ? "builder" : tab}`)} />
             </div>
           ) : appSection === "dashboard" ? (
             <div className="center-section center-section--wide">
@@ -180,12 +213,41 @@ export function EditorShell({ controller, theme, onThemeChange }: EditorShellPro
   );
 }
 
+function isEditableTarget(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/u.test(target.tagName));
+}
+
+function readInitialRoute(): SectionRoute {
+  const resolved = routeFromHash(window.location.hash);
+  if (!resolved.canonical) replaceWithCanonicalRoute(resolved.route);
+  return resolved.route;
+}
+
+function sectionForRoute(route: SectionRoute): AppSection {
+  switch (route) {
+    case "baselines/builder":
+    case "baselines/recommendations":
+    case "baselines/compliance":
+      return "baseline";
+    case "device-audit":
+      return "dashboard";
+    default:
+      return route;
+  }
+}
+
+function baselineTabForRoute(route: SectionRoute): BaselineTab {
+  if (route === "baselines/recommendations") return "recommendations";
+  if (route === "baselines/compliance") return "compliance";
+  return "wizard";
+}
+
 function AppRail({
   section,
   onChange,
 }: {
   readonly section: AppSection;
-  readonly onChange: (s: AppSection) => void;
+  readonly onChange: (s: SectionRoute) => void;
 }): JSX.Element {
   return (
     <nav className="app-rail" aria-label="App sections">
@@ -194,7 +256,7 @@ function AppRail({
           key={appSection.id}
           type="button"
           className="app-rail-btn"
-          aria-current={section === appSection.id ? "page" : undefined}
+          aria-current={section === sectionForRoute(appSection.id) ? "page" : undefined}
           title={appSection.label}
           onClick={() => onChange(appSection.id)}
         >
@@ -419,24 +481,12 @@ function EditorWelcome(): JSX.Element {
       <p>
         Pick a policy version from the sidebar or create a new one to begin adding configurations.
       </p>
-      <div className="welcome-grid">
-        <section>
-          <h2>Select or create a policy</h2>
-          <p>Choose an existing version from the left sidebar, or click <strong>+</strong> to create a new platform policy.</p>
-        </section>
-        <section>
-          <h2>Add configurations</h2>
-          <p>Add Relution native settings, Apple mobileconfig payloads, Apple schema profiles, or macOS declarative management entries.</p>
-        </section>
-        <section>
-          <h2>Apply baseline evidence</h2>
-          <p>Import BSI/CIS recommendations, run compliance checks, or apply JSON templates to pre-fill values.</p>
-        </section>
-        <section>
-          <h2>Build and export</h2>
-          <p>Save your work, optionally set an encryption key, then Build → Download the <code>.rexp</code> archive.</p>
-        </section>
-      </div>
+      <ol className="welcome-steps">
+        <li><strong>Select or create a policy.</strong> Choose a version in Navigation or create a platform policy.</li>
+        <li><strong>Add configurations.</strong> Use Relution-native settings, Apple payloads, schema profiles, or sidecar artifacts.</li>
+        <li><strong>Review evidence and validation.</strong> Apply a baseline, inspect compatibility limits, and resolve errors.</li>
+        <li><strong>Save, build, and download.</strong> Set an encryption key when required, then produce the local <code>.rexp</code> archive.</li>
+      </ol>
     </article>
   );
 }

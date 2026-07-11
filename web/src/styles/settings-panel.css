@@ -15,11 +15,10 @@
 }
 
 .settings-panel-header h2 {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ci-color-muted, #64707d);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: normal;
+  color: var(--ci-color-heading, #344150);
   margin: 0;
 }
 
@@ -37,11 +36,10 @@
 }
 
 .settings-section h3 {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ci-color-muted, #64707d);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: normal;
+  color: var(--ci-color-heading, #344150);
   margin: 0 0 10px;
 }
 
@@ -57,9 +55,15 @@
   align-items: center;
 }
 
-.settings-field-row .key-input {
+.settings-key-field {
   flex: 1;
   min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.settings-field-row .key-input {
+  width: 100%;
 }
 
 .settings-key-badge {

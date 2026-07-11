@@ -4,8 +4,7 @@
   text-align: left;
   margin-bottom: 2px;
   overflow-wrap: anywhere;
-  border-color: transparent;
-  border-left-width: 3px;
+  border: 1px solid transparent;
   background: transparent;
 }
 
@@ -74,7 +73,7 @@
 }
 
 .tree-item.active {
-  border-left-color: var(--ci-color-primary, #1d6fb8);
+  border-color: var(--ci-color-primary, #1d6fb8);
   background: var(--ci-color-active-bg, #e6f1fb);
 }
 

@@ -130,3 +130,19 @@
   display: block;
   overflow-wrap: anywhere;
 }
+
+.inline-status {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--ci-radius-card, 6px);
+  overflow-wrap: anywhere;
+}
+
+.inline-status--loading,
+.inline-status--info { background: var(--ci-color-info-bg, #e8f1fb); color: var(--ci-color-info-text, #24537a); }
+.inline-status--warning { background: var(--ci-color-warning-bg, #fff3d6); color: var(--ci-color-warning-text, #7a5600); }
+.inline-status--error { background: var(--ci-color-danger-bg, #fdeaea); color: var(--ci-color-danger-text, #8c2525); }
+.inline-status--success { background: var(--ci-color-success-bg, #e7f6ec); color: var(--ci-color-success-text, #1f6b3a); }

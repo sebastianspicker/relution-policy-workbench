@@ -25,7 +25,7 @@ describe("ConfigurationInspector", () => {
 
     render(<ConfigurationInspector controller={controller} />);
 
-    const rawJsonTab = screen.getByRole("tab", { name: /raw json/i });
+    const rawJsonTab = screen.getByRole("tab", { name: /^json$/i });
     expect(rawJsonTab.getAttribute("aria-selected")).toBe("true");
     expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(rawJsonTab.id);
     expect(screen.getByLabelText(/configuration raw json/i)).toBeTruthy();
@@ -173,7 +173,7 @@ describe("ConfigurationInspector", () => {
 
     fireEvent.keyDown(screen.getByRole("tab", { name: /preview/i }), { key: "ArrowDown" });
 
-    expect(screen.getByRole("tab", { name: /raw json/i }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("tab", { name: /^json$/i }).getAttribute("aria-selected")).toBe("true");
     expect((screen.getByLabelText(/configuration raw json/i) as HTMLTextAreaElement).value).toContain("CONF-1");
   });
 

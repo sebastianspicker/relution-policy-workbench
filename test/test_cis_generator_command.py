@@ -10,7 +10,9 @@ from python_tool_helpers import expect, import_tool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-CIS_BENCHMARKS = import_tool("harvest_cis_benchmarks").BENCHMARKS
+CIS_MODULE = import_tool("harvest_cis_benchmarks")
+CIS_BENCHMARKS = CIS_MODULE.BENCHMARKS
+CIS_EXTRACT_PDF_TEXT = CIS_MODULE.extract_pdf_text
 
 
 def extraction_boundary_error_text(exc: FileNotFoundError | SystemExit) -> str:
@@ -21,6 +23,11 @@ def extraction_boundary_error_text(exc: FileNotFoundError | SystemExit) -> str:
 
 def test_cis_generator_command_reaches_pdf_extraction_boundary() -> None:
     """Verify the generator imports and reaches the expected PDF boundary."""
+
+    if all(benchmark.path.is_file() for benchmark in CIS_BENCHMARKS):
+        extracted = CIS_EXTRACT_PDF_TEXT(CIS_BENCHMARKS[0].path)
+        expect("Profile Applicability:" in extracted)
+        return
 
     stdout = StringIO()
     stderr = StringIO()

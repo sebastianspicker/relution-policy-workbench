@@ -88,6 +88,7 @@ function AppleSchemaFieldInput(props: {
       <div className="field">
         <AppleSchemaFieldCaption field={props.field} />
         <select
+          aria-label={appleSchemaAccessibleName(props.field)}
           value={selectValue}
           onChange={(event) => props.onChange(!props.field.required && event.target.value === OMIT_OPTION_VALUE ? undefined : event.target.value)}
         >
@@ -108,6 +109,7 @@ function AppleSchemaFieldInput(props: {
         <div className="field">
           <AppleSchemaFieldCaption field={props.field} />
           <select
+            aria-label={appleSchemaAccessibleName(props.field)}
             value={selectValue}
             onChange={(event) => {
               if (event.target.value === OMIT_OPTION_VALUE) {
@@ -142,6 +144,7 @@ function AppleSchemaFieldInput(props: {
       <div className="field">
         <AppleSchemaFieldCaption field={props.field} />
         <input
+          aria-label={appleSchemaAccessibleName(props.field)}
           type="number"
           step={props.field.kind === "number" ? "any" : "1"}
           value={props.value === undefined ? "" : String(props.value)}
@@ -169,6 +172,7 @@ function AppleSchemaFieldInput(props: {
       <div className="field">
         <AppleSchemaFieldCaption field={props.field} />
         <textarea
+          aria-label={appleSchemaAccessibleName(props.field)}
           className={props.field.kind === "json" || props.field.kind === "data" ? "compact-code-textarea" : "compact-textarea"}
           value={textAreaValue(props.value)}
           onChange={(event) => props.onChange(event.target.value)}
@@ -179,7 +183,7 @@ function AppleSchemaFieldInput(props: {
   return (
     <div className="field">
       <AppleSchemaFieldCaption field={props.field} />
-      <input value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
+      <input aria-label={appleSchemaAccessibleName(props.field)} value={String(props.value ?? "")} onChange={(event) => props.onChange(event.target.value)} />
     </div>
   );
 }
@@ -194,6 +198,10 @@ function AppleSchemaFieldCaption(props: { field: AppleSchemaField }): JSX.Elemen
       <InfoButton label={props.field.title} description={props.field.description} source="Apple device-management schema" facts={appleSchemaFieldFacts(props.field)} />
     </div>
   );
+}
+
+function appleSchemaAccessibleName(field: AppleSchemaField): string {
+  return `${field.title} (${field.path})`;
 }
 
 function appleSchemaFieldFacts(field: AppleSchemaField): string[] {

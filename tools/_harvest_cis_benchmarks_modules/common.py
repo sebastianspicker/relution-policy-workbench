@@ -11,7 +11,17 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CIS_DIR = REPO_ROOT / "example" / "cis-references"
-PDF_DIR = CIS_DIR / "downloads" / "pdf"
+TRACKED_PDF_DIR = CIS_DIR / "downloads" / "pdf"
+PDF_CACHE_DIR = (
+    REPO_ROOT
+    / "private"
+    / "source-pdfs-cache"
+    / "example"
+    / "cis-references"
+    / "downloads"
+    / "pdf"
+)
+PDF_DIR = TRACKED_PDF_DIR if TRACKED_PDF_DIR.exists() else PDF_CACHE_DIR
 README_PATH = CIS_DIR / "README.md"
 
 POWERSHELL_COMMAND_START_RE = re.compile(

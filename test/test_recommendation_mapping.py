@@ -181,7 +181,7 @@ def test_bsi_generator_smoke_discovers_required_source_files() -> None:
 
 
 def test_cis_generator_smoke_discovers_required_source_files() -> None:
-    """Document that CIS metadata exists while benchmark PDFs are local-only."""
+    """Accept a complete ignored PDF cache or a clean checkout with no PDFs."""
     expect(callable(cis_harvest_main))
     expect(CIS_SOURCES_PATH.is_file())
     expect(CIS_MANIFEST_PATH.is_file())
@@ -193,7 +193,7 @@ def test_cis_generator_smoke_discovers_required_source_files() -> None:
         for benchmark in CIS_BENCHMARKS
         if not benchmark.path.exists()
     ]
-    expect(missing_pdfs == [benchmark.file_name for benchmark in CIS_BENCHMARKS])
+    expect(len(missing_pdfs) in {0, len(CIS_BENCHMARKS)})
 
 
 def test_coverage_matrix_fails_when_required_catalog_is_missing(
