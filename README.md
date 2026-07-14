@@ -14,21 +14,26 @@ The project is built for administrators and developers who need a local, reviewa
 
 ## Current Local Checkout
 
-As measured on 2026-07-11, this checkout combines two release-alpha surfaces:
+As measured on 2026-07-14, this checkout combines two release-alpha surfaces:
 
 - a responsive, addressable browser workbench with Policies, Baselines, Device
-  audit, and Settings sections; Chromium workflow, accessibility-tree, reflow,
-  and visual-regression checks pass locally
+  audit, and Settings sections; component and controller tests pass in this
+  checkout, while browser and visual checks remain outside the current evidence
 - a Phase B MDM source contract with 23 Apple, Windows, and Android policy
   sources, 17 generated LAB rulesets, and 17 generated Relution 26.1.1
   workspaces
 
-`pnpm verify:ci` passes locally with 303 Node tests, 145 web tests, 52 Python
-tests, Ruff, type checking, production builds, the bundle budget, and repository
-hygiene checks. Firefox, WebKit, VoiceOver, and NVDA are not claimed as locally
-verified because current test/runtime binaries were unavailable. The MDM
-package remains LAB-only: device application, rollback, tenant inventory, and
-production approval are `NOT_EVIDENCED`.
+The checks executable in the current restricted workspace pass: 333 Node tests,
+163 web tests, 52 Python tests, three fuzz tests, Ruff, type checking,
+production builds, the web bundle budget, Docker Compose configuration, and
+the offline MDM validation/diff gates. Another 49 Node integration tests could
+not start because this workspace denies loopback listeners with `EPERM`; two
+repository-hygiene checks likewise could not inspect the workspace-denied
+`.env.example`. Those checks are unexecuted, not claimed as passing, so a full
+`pnpm verify:ci` rerun is still required outside this sandbox. Firefox, WebKit,
+VoiceOver, NVDA, live containers, and external services are also not claimed as
+verified here. The MDM package remains LAB-only: device application, rollback,
+tenant inventory, and production approval are `NOT_EVIDENCED`.
 
 This handles Relution policy export format v1 as observed in Relution Server `26.1.1`:
 
@@ -282,7 +287,7 @@ The local editor supports:
 - switching between default, organization-style, Relution-style, dark, and local custom theme tokens
 - building an encrypted `.rexp`, verifying decryptability and policy hashes, and downloading the output
 
-The editor runs locally at `http://127.0.0.1:8787/` by default. Use `--port` to change the port. Binding to a non-loopback host requires `--allow-network-editor` because the editor can mutate and rebuild local policy workspaces. Relution and Zammad editor sessions reject hosts that resolve to loopback, private, link-local, multicast, unspecified, or IPv6 ULA addresses unless local Docker or lab use is made explicit with `--allow-local-service-hosts`.
+The editor runs locally at `http://127.0.0.1:8787/` by default. Use `--port` to change the port. It rejects non-loopback listeners and Host headers, and every API request requires an ephemeral capability token delivered to the browser through the URL fragment. Relution and Zammad connections use HTTPS by default. Cleartext HTTP and special-use destinations require the explicit local Docker/lab opt-in `--allow-local-service-hosts`; otherwise the transport resolves once, rejects local/private/transition addresses, pins the approved socket addresses, refuses redirects, and enforces one 30-second deadline plus a 16 MiB response limit.
 
 ## Ruleset JSON and Baselines
 
@@ -424,6 +429,13 @@ Builds record `APPLE_MOBILECONFIG` restore snapshots in `editor-sidecar.json`. T
 ## Device Audit and Safety Model
 
 Production Relution API use is read-only. The Device audit section and `rexp relution ...` CLI commands only call Relution's device base-info query endpoint. Operations such as report generation, ticket draft generation, and confirmed Zammad ticket creation are local or Zammad-side effects, not Relution server writes.
+
+Local audit reports are created only below the selected workspace's `reports/`
+directory with private directory/file permissions, UUID filenames, and a
+ten-report retention limit. Persisted reports redact the server URL, raw device
+records, serial numbers, and user identity fields. JSON and Markdown output
+also records whether server-query coverage was complete, partial, or unknown,
+so a limited or count-less device query is not presented as a complete audit.
 
 Read-only CLI commands:
 
