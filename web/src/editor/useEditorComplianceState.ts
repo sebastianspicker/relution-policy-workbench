@@ -3,6 +3,7 @@ import type { ComplianceReport } from "../../../src/compliance.js";
 import type { RecommendationSource } from "../../../src/recommendation-types.js";
 import type { AppState, JsonRecord, Selection } from "./types.js";
 import { postJson, readJsonResponse } from "./editor-utils.js";
+import { hasExplicitComplianceActivity } from "./editor-workspace-requests.js";
 import { DEFAULT_COMPLIANCE_SOURCES } from "./useEditorRecommendationState.js";
 
 const COMPLIANCE_REFRESH_DELAY_MS = 250;
@@ -60,7 +61,7 @@ function useComplianceReportRefresh(props: {
     if (props.state === undefined || props.selection === undefined || props.complianceSources.length === 0) {
       props.setComplianceReport(undefined);
       props.setComplianceError(undefined);
-      props.setComplianceLoading(false);
+      if (!hasExplicitComplianceActivity(props.setComplianceLoading)) props.setComplianceLoading(false);
       return;
     }
     const workspace = props.state.workspace;
@@ -92,7 +93,7 @@ function useComplianceReportRefresh(props: {
           }
         })
         .finally(() => {
-          if (!cancelled) {
+          if (!cancelled && !hasExplicitComplianceActivity(props.setComplianceLoading)) {
             props.setComplianceLoading(false);
           }
         });

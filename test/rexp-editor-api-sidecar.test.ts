@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import test from "node:test";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { startEditorServer } from "../src/editor-server.js";
 import { verifyRexp } from "../src/rexp.js";
 import { loadEditorSidecar, updateMdmCommandArtifact } from "../src/sidecar.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
@@ -19,6 +18,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startRegisteredTestEditor as startEditorServer,
   startTestEditor,
   type AppleSchemaEditorStateResponse,
   type ReconcileResponse,
@@ -94,6 +94,54 @@ test("serves Apple schema, custom settings, sidecar, and mobileconfig inspection
     assert.equal(verifyRexp(out, password).ok, true);
   } finally {
     await handle.close();
+  }
+});
+
+test("Apple workspace mutations leave the workspace unchanged when the sidecar is malformed", async () => {
+  const malformedSidecar = `${JSON.stringify({ version: 1, mobileConfigRestore: [], ddmArtifacts: [], mdmCommandArtifacts: [] }, null, 2)}\n`;
+  const mutations = [
+    {
+      path: "api/apple-profile/add",
+      body: (policyPath: string) => ({
+        policyPath,
+        versionIndex: 0,
+        schemaId: "profile:com.apple.security.acme",
+      }),
+    },
+    {
+      path: "api/custom-settings/add",
+      body: (policyPath: string) => ({
+        policyPath,
+        versionIndex: 0,
+        domain: "com.example.managed",
+        settings: { ExampleKey: "ExampleValue" },
+      }),
+    },
+  ];
+
+  for (const mutation of mutations) {
+    const { workspaceDir, workspace, handle } = await startTestEditor({
+      prefix: "relution-editor-apple-sidecar-rollback-",
+      platform: "MACOS",
+      name: "Malformed Apple sidecar",
+    });
+    const policyPath = requirePolicyPath(workspace);
+    const policyFile = join(workspaceDir, policyPath);
+    const workspaceBytes = readFileSync(policyFile, "utf8");
+    const configurationCount = configurationTypes(loadWorkspace(workspaceDir)).length;
+    const sidecarPath = join(workspaceDir, "editor-sidecar.json");
+    writeFileSync(sidecarPath, malformedSidecar);
+
+    try {
+      const response = await postJson(`${handle.url}${mutation.path}`, mutation.body(policyPath));
+      assert.equal(response.status, 500, mutation.path);
+      assert.match(await response.text(), /Internal editor error/u, mutation.path);
+      assert.equal(readFileSync(policyFile, "utf8"), workspaceBytes, mutation.path);
+      assert.equal(configurationTypes(loadWorkspace(workspaceDir)).length, configurationCount, mutation.path);
+      assert.equal(readFileSync(sidecarPath, "utf8"), malformedSidecar, mutation.path);
+    } finally {
+      await handle.close();
+    }
   }
 });
 

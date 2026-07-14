@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { startEditorServer } from "../src/editor-server.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { createNewWorkspace, loadWorkspace, type PolicyWorkspace } from "../src/workspace.js";
+import { editorApiHeaders } from "./rexp-helpers.js";
 
 test("compliance APIs report and apply an exact native BSI recommendation", async () => {
   const root = mkdtempSync(join(tmpdir(), "relution-compliance-native-"));
@@ -30,7 +31,7 @@ test("compliance APIs report and apply an exact native BSI recommendation", asyn
   try {
     const checkResponse = await fetch(new URL("api/compliance/check", handle.url), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...editorApiHeaders(handle) },
       body: JSON.stringify({
         workspace,
         selection: { policyIndex: 0, versionIndex: 0 },
@@ -59,7 +60,7 @@ test("compliance APIs report and apply an exact native BSI recommendation", asyn
 
     const applyResponse = await fetch(new URL("api/compliance/apply", handle.url), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...editorApiHeaders(handle) },
       body: JSON.stringify({
         workspace,
         selection: { policyIndex: 0, versionIndex: 0 },
@@ -120,7 +121,7 @@ test("compliance APIs report and apply an exact Apple schema CIS recommendation"
   try {
     const checkResponse = await fetch(new URL("api/compliance/check", handle.url), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...editorApiHeaders(handle) },
       body: JSON.stringify({
         workspace,
         selection: { policyIndex: 0, versionIndex: 0 },
@@ -149,7 +150,7 @@ test("compliance APIs report and apply an exact Apple schema CIS recommendation"
 
     const applyResponse = await fetch(new URL("api/compliance/apply", handle.url), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...editorApiHeaders(handle) },
       body: JSON.stringify({
         workspace,
         selection: { policyIndex: 0, versionIndex: 0 },
@@ -213,7 +214,7 @@ test("compliance apply rejects malformed selected configurations without persist
   try {
     const applyResponse = await fetch(new URL("api/compliance/apply", handle.url), {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...editorApiHeaders(handle) },
       body: JSON.stringify({
         workspace: malformedWorkspace,
         selection: { policyIndex: 0, versionIndex: 0 },

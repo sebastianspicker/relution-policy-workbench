@@ -42,7 +42,7 @@ test("editor Relution and Zammad sessions reject local service hosts by default"
     ];
 
     for (const entry of cases) {
-      const response = await postRaw(handle.url, entry.path, entry.body);
+      const response = await postRaw(handle.url, handle.apiToken, entry.path, entry.body);
       const text = await response.text();
       assert.equal(response.status, 400, `${entry.label}: ${text}`);
       assert.match(text, /blocked local\/private address/u, entry.label);
@@ -96,14 +96,14 @@ test("editor Relution API session queries devices and writes local reports", asy
   });
   try {
     handle = await startEditorServer({ workspace, key: "", out: join(root, "out.rexp"), port: 0, allowLocalServiceHosts: true });
-    const session = await postJson<{ configured: boolean }>(handle.url, "/api/relution/session", {
+    const session = await postJson<{ configured: boolean }>(handle.url, handle.apiToken, "/api/relution/session", {
       protocol: "https",
       host: "relution.example.test",
       apiToken: "secret-token",
     });
     assert.equal(session.configured, true);
 
-    const devices = await postJson<{ count: number }>(handle.url, "/api/relution/devices/query", {
+    const devices = await postJson<{ count: number }>(handle.url, handle.apiToken, "/api/relution/devices/query", {
       platforms: ["IOS"],
       statuses: ["COMPLIANT"],
       ownerships: ["CORPORATE"],
@@ -111,10 +111,10 @@ test("editor Relution API session queries devices and writes local reports", asy
     });
     assert.equal(devices.count, 1);
 
-    const assessment = await postJson<{ report: { summary: { issue: number } } }>(handle.url, "/api/relution/devices/assess", {});
+    const assessment = await postJson<{ report: { summary: { issue: number } } }>(handle.url, handle.apiToken, "/api/relution/devices/assess", {});
     assert.equal(assessment.report.summary.issue, 1);
 
-    const audit = await postJson<{ report: { summary: { missingPolicy: number; inactiveProblem: number } } }>(handle.url, "/api/relution/devices/audit", {
+    const audit = await postJson<{ assessmentId: string; report: { summary: { missingPolicy: number; inactiveProblem: number } } }>(handle.url, handle.apiToken, "/api/relution/devices/audit", {
       platforms: ["IOS"],
       ownerships: ["CORPORATE"],
       sortField: "policyStatus",
@@ -124,25 +124,25 @@ test("editor Relution API session queries devices and writes local reports", asy
     assert.equal(audit.report.summary.missingPolicy, 1);
     assert.equal(audit.report.summary.inactiveProblem, 1);
 
-    const report = await postJson<{ jsonPath: string; markdownPath: string }>(handle.url, "/api/relution/reports/compliance", {});
+    const report = await postJson<{ jsonPath: string; markdownPath: string }>(handle.url, handle.apiToken, "/api/relution/reports/compliance", { assessmentId: audit.assessmentId });
     assert.match(report.jsonPath, /relution-compliance-report/u);
     assert.match(report.markdownPath, /relution-compliance-report/u);
 
-    const history = await getJson<{ reports: Array<{ jsonPath: string; markdownPath?: string }> }>(handle.url, "/api/relution/reports");
+    const history = await getJson<{ reports: Array<{ jsonPath: string; markdownPath?: string }> }>(handle.url, handle.apiToken, "/api/relution/reports");
     assert.equal(history.reports.length, 1);
     assert.equal(history.reports[0]?.jsonPath, report.jsonPath);
     assert.equal(history.reports[0]?.markdownPath, report.markdownPath);
 
-    const zammadSession = await postJson<{ configured: boolean }>(handle.url, "/api/zammad/session", {
+    const zammadSession = await postJson<{ configured: boolean }>(handle.url, handle.apiToken, "/api/zammad/session", {
       host: "zammad.example.test",
       apiToken: "zammad-token",
       group: "IT",
       customer: "it@example.test",
     });
     assert.equal(zammadSession.configured, true);
-    const zammadTest = await postJson<{ ok: boolean }>(handle.url, "/api/zammad/test", {});
+    const zammadTest = await postJson<{ ok: boolean }>(handle.url, handle.apiToken, "/api/zammad/test", {});
     assert.equal(zammadTest.ok, true);
-    const ticket = await postJson<{ ticket: { number: string } }>(handle.url, "/api/zammad/tickets", {
+    const ticket = await postJson<{ ticket: { number: string } }>(handle.url, handle.apiToken, "/api/zammad/tickets", {
       draft: {
         kind: "non-compliant-device",
         title: "MDM non-compliance: Campus iPad",
@@ -157,24 +157,24 @@ test("editor Relution API session queries devices and writes local reports", asy
   }
 });
 
-async function getJson<T>(baseUrl: string, path: string): Promise<T> {
-  const response = await fetch(localApiUrl(baseUrl, path));
+async function getJson<T>(baseUrl: string, apiToken: string, path: string): Promise<T> {
+  const response = await fetch(localApiUrl(baseUrl, path), { headers: { "x-relution-editor-token": apiToken } });
   const text = await response.text();
   assert.equal(response.ok, true, text);
   return JSON.parse(text) as T;
 }
 
-async function postJson<T>(baseUrl: string, path: string, body: unknown): Promise<T> {
-  const response = await postRaw(baseUrl, path, body);
+async function postJson<T>(baseUrl: string, apiToken: string, path: string, body: unknown): Promise<T> {
+  const response = await postRaw(baseUrl, apiToken, path, body);
   const text = await response.text();
   assert.equal(response.ok, true, text);
   return JSON.parse(text) as T;
 }
 
-async function postRaw(baseUrl: string, path: string, body: unknown): Promise<Response> {
+async function postRaw(baseUrl: string, apiToken: string, path: string, body: unknown): Promise<Response> {
   const response = await fetch(localApiUrl(baseUrl, path), {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-relution-editor-token": apiToken },
     body: JSON.stringify(body),
   });
   return response;

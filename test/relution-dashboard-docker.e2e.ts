@@ -127,7 +127,7 @@ async function probeDashboardWithMockDevices(options: {
     allowLocalServiceHosts: true,
   });
   try {
-    const session = await postJson<{ configured: boolean; baseUrl?: string }>(handle.url, "/api/relution/session", {
+    const session = await postJson<{ configured: boolean; baseUrl?: string }>(handle.url, handle.apiToken, "/api/relution/session", {
       host: baseUrl,
       apiToken: options.apiToken,
     });
@@ -135,9 +135,10 @@ async function probeDashboardWithMockDevices(options: {
     assert.equal(session.baseUrl, baseUrl, "dashboard session base URL");
 
     const audit = await postJson<{
+      assessmentId: string;
       query: { count: number };
       report: { summary: { totalDevices: number; issue: number; missingPolicy: number; inactiveProblem: number } };
-    }>(handle.url, "/api/relution/devices/audit", {
+    }>(handle.url, handle.apiToken, "/api/relution/devices/audit", {
       platforms: ["IOS"],
       expectedPoliciesByPlatform: { IOS: [options.expectedPolicyName] },
       inactiveProblemDays: 30,
@@ -148,19 +149,19 @@ async function probeDashboardWithMockDevices(options: {
     assert.equal(audit.report.summary.missingPolicy, 1, "dashboard audit missing policy count");
     assert.equal(audit.report.summary.inactiveProblem, 1, "dashboard audit inactive problem count");
 
-    const report = await postJson<{ jsonPath: string; markdownPath: string }>(handle.url, "/api/relution/reports/compliance", {});
-    assert.equal(existsSync(report.jsonPath), true, "dashboard report JSON exists");
-    assert.equal(existsSync(report.markdownPath), true, "dashboard report Markdown exists");
+    const report = await postJson<{ jsonPath: string; markdownPath: string }>(handle.url, handle.apiToken, "/api/relution/reports/compliance", { assessmentId: audit.assessmentId });
+    assert.equal(existsSync(join(options.workspaceDir, report.jsonPath)), true, "dashboard report JSON exists");
+    assert.equal(existsSync(join(options.workspaceDir, report.markdownPath)), true, "dashboard report Markdown exists");
   } finally {
     globalThis.fetch = originalFetch;
     await handle.close();
   }
 }
 
-async function postJson<T>(baseUrlValue: string, path: string, body: unknown): Promise<T> {
+async function postJson<T>(baseUrlValue: string, apiToken: string, path: string, body: unknown): Promise<T> {
   const response = await fetchLocalEditorApi(baseUrlValue, path, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-relution-editor-token": apiToken },
     body: JSON.stringify(body),
   });
   const text = await response.text();

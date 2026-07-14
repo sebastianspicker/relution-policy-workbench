@@ -10,8 +10,9 @@ import { ALL_RECOMMENDATION_PLATFORMS, filterActionableRecommendationRuleset, po
 import { clearWorkspaceHistory, pushUndoState, WORKSPACE_HISTORY_LIMIT } from "./workspace-history.js";
 import { baselineTemplateImportName, fetchBaselineTemplateRuleset, type BaselineExpertApplyRuleset, type BaselineTemplateClientSelection } from "./baseline-template-client.js";
 import type { EditorControllerActions, UseEditorControllerActionsInput, WorkspaceHistoryEntry } from "./useEditorControllerActionTypes.js";
-import { importedKeyState, keyResponseState, keyStatusMessage, type KeyUpdateResponse } from "./key-validation.js";
-import { parseArtifactValuesJson, postAddConfiguration, postSidecarActionRequest } from "./useEditorControllerActionRequests.js";
+import { importedKeyState } from "./key-validation.js";
+import { postAddConfiguration } from "./useEditorControllerActionRequests.js";
+import { beginExplicitComplianceActivity, createKeyRequester, createSidecarRequester, createWorkspacePersistence, finishExplicitComplianceActivity, workspaceRequestGuardFor, type WorkspaceRequest } from "./editor-workspace-requests.js";
 
 export function useEditorControllerActions(input: UseEditorControllerActionsInput): EditorControllerActions {
   const {
@@ -22,87 +23,48 @@ export function useEditorControllerActions(input: UseEditorControllerActionsInpu
     setState, setSelection, setRawJsonState, setRawJsonDirty, setSelectedType, setNewPolicyName, setStatus, setLastActionResult,
     setIsDirty, setHasFreshBuild, setRulesetReport, setInspectorTab, setIsBuildLoading,
   } = input.workspaceSetters;
+  const requestGuard = workspaceRequestGuardFor(setState);
+  requestGuard.synchronizeSelection(selection === undefined ? "none" : `${String(selection.policyIndex)}:${String(selection.versionIndex)}:${String(selection.configurationIndex ?? "policy")}`);
   const { undoStack, redoStack, setUndoStack, setRedoStack } = input.history;
   const { recommendationCatalog, recommendationSummary, recommendationIndex, recommendationSource, recommendationPlatform } = input.recommendations;
   const { setSelectedRecommendationId, setRecommendationSourceState, setRecommendationPlatform, setRecommendationQuery } = input.recommendationSetters;
   const { complianceSources, complianceReport } = input.compliance;
   const { setComplianceSources, setComplianceReport, setComplianceLoading, setComplianceError } = input.complianceSetters;
   const historyInput = { currentState, isDirty, selection, undoStack, redoStack, setState, setSelection, setIsDirty, setHasFreshBuild, setStatus, setLastActionResult, setUndoStack, setRedoStack };
+  const { persistWorkspace, ensureSavedWorkspace } = createWorkspacePersistence({
+    currentState, isDirty, guard: requestGuard, historyInput, setState, setIsDirty,
+    onSavedBeforeAction: () => setActionSuccessStatus("Saved workspace before server action"),
+  });
+  const { postSidecarAction, postArtifactUpdate } = createSidecarRequester({
+    guard: requestGuard, setState, onSuccess: setActionSuccessStatus, onError: setActionErrorStatus,
+  });
+  const updateKey = createKeyRequester({ guard: requestGuard, setState, setHasFreshBuild, onSuccess: setActionSuccessStatus, onError: setActionErrorStatus });
 
-async function persistWorkspace(nextWorkspace: PolicyWorkspace): Promise<{
-  workspace: PolicyWorkspace;
-  validation: WorkspaceValidationResult;
-  sidecar?: AppState["sidecar"];
-}> {
-  const response = await postJson("/api/workspace", { workspace: nextWorkspace });
-  const updated = await readJsonResponse<{ workspace: PolicyWorkspace; validation: WorkspaceValidationResult; sidecar?: AppState["sidecar"] }>(response);
-  if (!response.ok) {
-    throw new Error(JSON.stringify(updated));
-  }
-  setState((current) =>
-    current === undefined
-      ? current
-      : {
-          ...current,
-          workspace: updated.workspace,
-          validation: updated.validation,
-          sidecar: updated.sidecar ?? current.sidecar,
-        },
-  );
-  setIsDirty(false);
-  clearWorkspaceHistory(historyInput);
-  return updated;
+function markWorkspaceDirty(nextWorkspace: PolicyWorkspace, nextSelection: Selection | undefined, message: string): boolean {
+  if (!requestGuard.recordEdit()) { setActionErrorStatus("A server workspace mutation is in progress"); return false; }
+  pushUndoState(historyInput); setState((current) => current === undefined ? current : { ...current, workspace: nextWorkspace }); setSelection(nextSelection);
+  setIsDirty(true); setHasFreshBuild(false); setLastActionResult({ ok: true }); setStatus(message);
+  return true;
 }
 
-async function ensureSavedWorkspace(): Promise<PolicyWorkspace> {
-  if (!isDirty) {
-    return currentState.workspace;
-  }
-  const updated = await persistWorkspace(currentState.workspace);
-  setActionSuccessStatus("Saved workspace before server action");
-  return updated.workspace;
-}
-
-function markWorkspaceDirty(nextWorkspace: PolicyWorkspace, nextSelection: Selection | undefined, message: string): void {
-  pushUndoState(historyInput);
-  setState({ ...currentState, workspace: nextWorkspace });
-  setSelection(nextSelection);
-  setIsDirty(true);
-  setHasFreshBuild(false);
-  setLastActionResult({ ok: true });
-  setStatus(message);
-}
-
-function handleImportError(error: unknown, kind: string): void {
-  const message = actionErrorMessage(error);
-  setLastActionResult({ ok: false, error: message });
-  setStatus(`${kind} failed: ${message}`);
-}
+function handleImportError(error: unknown, kind: string): void { const message = actionErrorMessage(error); setLastActionResult({ ok: false, error: message }); setStatus(`${kind} failed: ${message}`); }
 function actionErrorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 function setActionSuccessStatus(message: string): void { setLastActionResult({ ok: true }); setStatus(message); }
 function setActionErrorStatus(message: string): void { setLastActionResult({ ok: false, error: message }); setStatus(message); }
 function currentHistoryEntry(): WorkspaceHistoryEntry { return { workspace: currentState.workspace, selection, isDirty }; }
 function restoreHistoryEntry(entry: WorkspaceHistoryEntry, status: string): void {
-  setState({ ...currentState, workspace: entry.workspace });
-  setSelection(entry.selection);
-  setIsDirty(entry.isDirty);
-  setHasFreshBuild(false);
-  setLastActionResult({ ok: true });
-  setStatus(status);
+  if (!requestGuard.recordEdit()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
+  setState((current) => current === undefined ? current : { ...current, workspace: entry.workspace }); setSelection(entry.selection); setIsDirty(entry.isDirty);
+  setHasFreshBuild(false); setLastActionResult({ ok: true }); setStatus(status);
 }
 function clearWorkspace(): void {
-  if (currentState.workspace.policies.length === 0 && !isDirty) {
-    return;
-  }
-  pushUndoState(historyInput);
-  setState({ ...currentState, workspace: { ...currentState.workspace, report: {}, policies: [] } });
-  setSelection(undefined);
-  setIsDirty(true);
-  setHasFreshBuild(false);
-  setLastActionResult({ ok: true });
-  setStatus("Cleared workspace");
+  if (currentState.workspace.policies.length === 0 && !isDirty) return;
+  if (!requestGuard.recordEdit()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
+  pushUndoState(historyInput); setState((current) => current === undefined ? current : { ...current, workspace: { ...current.workspace, report: {}, policies: [] } });
+  setSelection(undefined); setIsDirty(true); setHasFreshBuild(false); setLastActionResult({ ok: true }); setStatus("Cleared workspace");
 }
 function undoWorkspace(): void {
+  if (!requestGuard.canEditWorkspace()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
   const previous = undoStack.at(-1);
   if (previous === undefined) {
     return;
@@ -112,6 +74,7 @@ function undoWorkspace(): void {
   restoreHistoryEntry(previous, "Restored previous workspace state");
 }
 function redoWorkspace(): void {
+  if (!requestGuard.canEditWorkspace()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
   const next = redoStack.at(-1);
   if (next === undefined) {
     return;
@@ -123,7 +86,7 @@ function redoWorkspace(): void {
 function confirmReplaceWorkspace(): boolean { return currentState.workspace.policies.length === 0 && !isDirty ? true : window.confirm("Replace the current workspace with this baseline? This does not touch Relution and can be undone before saving."); }
 async function applyBaselineTemplate(template: BaselineTemplateClientSelection): Promise<void> {
   if (!confirmReplaceWorkspace()) return;
-  await importBaselineRuleset(baselineTemplateImportName(template), fetchBaselineTemplateRuleset(template), "Applied baseline template", "Baseline template import failed");
+  await importBaselineRuleset(baselineTemplateImportName(template), fetchBaselineTemplateRuleset(template), "Applied baseline template", "Baseline template import failed", requestGuard.begin());
 }
 async function applyExpertBaselineSelection(ruleset: BaselineExpertApplyRuleset): Promise<void> {
   if (!ruleset.policies.some((policy) => policy.rules.length > 0)) {
@@ -131,22 +94,28 @@ async function applyExpertBaselineSelection(ruleset: BaselineExpertApplyRuleset)
     return;
   }
   if (!confirmReplaceWorkspace()) return;
-  await importBaselineRuleset(ruleset.name, ruleset, "Applied expert baseline selection", "Expert baseline import failed");
+  await importBaselineRuleset(ruleset.name, ruleset, "Applied expert baseline selection", "Expert baseline import failed", requestGuard.begin());
 }
-async function importBaselineRuleset(name: string, parsed: Promise<unknown> | unknown, success: string, failure: string): Promise<void> {
+async function importBaselineRuleset(name: string, parsed: Promise<unknown> | unknown, success: string, failure: string, request: WorkspaceRequest): Promise<void> {
   try {
-    if (await applyRulesetJson(name, await parsed) === "applied") setActionSuccessStatus(success);
+    if (await applyRulesetJson(name, await parsed, request) === "applied") setActionSuccessStatus(success);
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`${failure}: ${message}`);
   }
 }
 async function saveWorkspace(nextWorkspace = currentState.workspace): Promise<void> {
+  if (!requestGuard.canEditWorkspace()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
+  const request = requestGuard.begin();
   try {
-    await persistWorkspace(nextWorkspace);
+    if (await persistWorkspace(nextWorkspace, request) === undefined) {
+      return;
+    }
     setActionSuccessStatus("Saved workspace");
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Save failed: ${message}`);
@@ -156,8 +125,13 @@ async function addConfiguration(): Promise<void> {
   if (selection === undefined || selectedType.length === 0) {
     return;
   }
+  const request = requestGuard.beginExclusiveMutation();
+  if (request === undefined) { setActionErrorStatus("A server workspace mutation is already in progress"); return; }
   try {
-    const workspace = await ensureSavedWorkspace();
+    const workspace = await ensureSavedWorkspace(request);
+    if (workspace === undefined) {
+      return;
+    }
     const policyPath = workspace.policies[selection.policyIndex]?.path;
     if (policyPath === undefined) {
       return;
@@ -166,11 +140,16 @@ async function addConfiguration(): Promise<void> {
     const response = await postAddConfiguration(addSelection, policyPath, selection.versionIndex);
     const updated = await readJsonResponse<{ workspace: PolicyWorkspace; validation: WorkspaceValidationResult; sidecar?: AppState["sidecar"] }>(response);
     if (!response.ok) {
+      if (!requestGuard.isExclusiveCurrent(request)) return;
       setActionErrorStatus(`Configuration creation blocked: ${JSON.stringify(updated)}`);
       return;
     }
-    setState({ ...currentState, workspace: updated.workspace, validation: updated.validation, sidecar: updated.sidecar ?? currentState.sidecar });
+    if (!requestGuard.isExclusiveCurrent(request)) {
+      return;
+    }
+    setState((current) => current === undefined ? current : { ...current, workspace: updated.workspace, validation: updated.validation, sidecar: updated.sidecar ?? current.sidecar });
     setIsDirty(false);
+    clearWorkspaceHistory(historyInput);
     setHasFreshBuild(false);
     const version = versionRecord(updated.workspace, selection.policyIndex, selection.versionIndex);
     const nextConfigurationCount = Array.isArray(version?.configurations) ? version.configurations.length : 1;
@@ -178,43 +157,56 @@ async function addConfiguration(): Promise<void> {
     setSelectedType("");
     setActionSuccessStatus(`Added ${addConfigurationLabel(addSelection)}`);
   } catch (error) {
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Configuration creation failed: ${message}`);
+  } finally {
+    requestGuard.finishExclusiveMutation(request);
   }
 }
-
 async function addPolicy(): Promise<void> {
   const name = newPolicyName.trim();
   if (newPolicyPlatform.length === 0 || name.length === 0) {
     setActionErrorStatus("Policy name and operating system are required");
     return;
   }
+  const request = requestGuard.beginExclusiveMutation();
+  if (request === undefined) { setActionErrorStatus("A server workspace mutation is already in progress"); return; }
   try {
-    await ensureSavedWorkspace();
+    if (await ensureSavedWorkspace(request) === undefined) {
+      return;
+    }
     const response = await postJson("/api/add-policy", { platform: newPolicyPlatform, name });
     const result = await readJsonResponse<AddPolicyResponse | JsonRecord>(response);
     if (!response.ok) {
+      if (!requestGuard.isExclusiveCurrent(request)) return;
       setActionErrorStatus(`Policy creation blocked: ${JSON.stringify(result)}`);
+      return;
+    }
+    if (!requestGuard.isExclusiveCurrent(request)) {
       return;
     }
     const added = result as AddPolicyResponse;
     const policyIndex = added.workspace.policies.findIndex((candidate) => candidate.path === added.policyPath);
     const nextPolicyIndex = policyIndex >= 0 ? policyIndex : added.workspace.policies.length - 1;
-    setState({ ...currentState, workspace: added.workspace, validation: added.validation });
+    setState((current) => current === undefined ? current : { ...current, workspace: added.workspace, validation: added.validation });
     setIsDirty(false);
+    clearWorkspaceHistory(historyInput);
     setHasFreshBuild(false);
     setSelection({ policyIndex: nextPolicyIndex, versionIndex: 0 });
     setSelectedType("");
     setNewPolicyName("");
     setActionSuccessStatus(`Created ${name}`);
   } catch (error) {
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Policy creation failed: ${message}`);
+  } finally {
+    requestGuard.finishExclusiveMutation(request);
   }
 }
-
 async function removeConfiguration(targetSelection: Selection): Promise<void> {
   if (targetSelection.configurationIndex === undefined) {
     return;
@@ -238,7 +230,6 @@ async function removeConfiguration(targetSelection: Selection): Promise<void> {
       };
   markWorkspaceDirty(nextWorkspace, nextSelection, "Removed configuration");
 }
-
 async function moveConfiguration(targetSelection: Selection, direction: "up" | "down"): Promise<void> {
   if (targetSelection.configurationIndex === undefined) {
     return;
@@ -257,16 +248,21 @@ async function moveConfiguration(targetSelection: Selection, direction: "up" | "
   configurations.splice(nextIndex, 0, configurationToMove);
   markWorkspaceDirty(nextWorkspace, { ...targetSelection, configurationIndex: nextIndex }, `Moved configuration ${direction}`);
 }
-
 async function buildArchive(): Promise<void> {
+  if (!requestGuard.canEditWorkspace()) { setActionErrorStatus("A server workspace mutation is in progress"); return; }
+  const request = requestGuard.begin();
+  const activity = requestGuard.beginBuildActivity(request);
   setIsBuildLoading(true);
   setHasFreshBuild(false);
   try {
     if (isDirty) {
-      await persistWorkspace(currentState.workspace);
+      if (await persistWorkspace(currentState.workspace, request) === undefined) {
+        return;
+      }
     }
     const response = await postJson("/api/build", {});
     const result = await readJsonResponse<JsonRecord>(response);
+    if (!requestGuard.isCurrent(request)) return;
     const verification = asRecord(result.verification);
     if (!response.ok || verification?.ok !== true) {
       setActionErrorStatus(verification !== undefined && verification.ok !== true ? "Build verification failed" : `Build blocked: ${JSON.stringify(result)}`);
@@ -284,31 +280,22 @@ async function buildArchive(): Promise<void> {
     setHasFreshBuild(true);
     setActionSuccessStatus(`Built ${String(result.outputFile)}`);
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Build failed: ${message}`);
   } finally {
-    setIsBuildLoading(false);
+    if (requestGuard.finishBuildActivity(activity)) setIsBuildLoading(false);
   }
 }
-
 async function setActiveKey(): Promise<void> {
   const key = keyValue.trim();
   if (key.length === 0) {
     setActionErrorStatus("Encryption key is required");
     return;
   }
-  const response = await postJson("/api/key", { key });
-  const result = await readJsonResponse<KeyUpdateResponse>(response);
-  if (!response.ok) {
-    setActionErrorStatus(`Key update blocked: ${JSON.stringify(result)}`);
-    return;
-  }
-  setState({ ...currentState, ...keyResponseState(result) });
-  setHasFreshBuild(false);
-  setActionSuccessStatus(keyStatusMessage(keyResponseState(result)));
+  await updateKey(key);
 }
-
 async function importArchive(): Promise<void> {
   if (importFile === undefined) {
     setActionErrorStatus("Choose a .rexp file first");
@@ -317,6 +304,8 @@ async function importArchive(): Promise<void> {
   if (isDirty && !window.confirm("Importing replaces the current workspace. Continue?")) {
     return;
   }
+  const request = requestGuard.beginExclusiveMutation();
+  if (request === undefined) { setActionErrorStatus("A server workspace mutation is already in progress"); return; }
   try {
     const body: JsonRecord = {
       fileName: importFile.name,
@@ -332,13 +321,11 @@ async function importArchive(): Promise<void> {
       setActionErrorStatus(`Import blocked: ${JSON.stringify(result)}`);
       return;
     }
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     const imported = result as WorkspaceResponse;
-    setState({
-      ...currentState,
-      workspace: imported.workspace,
-      validation: imported.validation,
-      ...importedKeyState(imported, currentState),
-      sidecar: imported.sidecar ?? currentState.sidecar,
+    setState((current) => current === undefined ? current : {
+      ...current, workspace: imported.workspace, validation: imported.validation,
+      ...importedKeyState(imported, current), sidecar: imported.sidecar ?? current.sidecar,
     });
     setIsDirty(false);
     setHasFreshBuild(false);
@@ -347,10 +334,12 @@ async function importArchive(): Promise<void> {
     setSelectedType("");
     setActionSuccessStatus(`Imported ${importFile.name}`);
   } catch (error) {
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     handleImportError(error, "Import");
+  } finally {
+    requestGuard.finishExclusiveMutation(request);
   }
 }
-
 async function importJsonTemplates(): Promise<void> {
   if (selection === undefined || configuration === undefined || details === undefined) {
     setActionErrorStatus("Select a configuration before applying JSON");
@@ -360,16 +349,18 @@ async function importJsonTemplates(): Promise<void> {
     setActionErrorStatus("Choose a setting JSON file first");
     return;
   }
+  const request = requestGuard.begin();
   try {
     const importedDetails = parseSettingDetailsJson(await jsonTemplateFile.text());
-    updateSelectedConfiguration({ ...configuration, details: mergeSettingDetails(details, importedDetails) });
+    if (!requestGuard.isCurrent(request)) return;
+    if (!updateSelectedConfiguration({ ...configuration, details: mergeSettingDetails(details, importedDetails) })) return;
     setActionSuccessStatus(`Applied ${jsonTemplateFile.name} to selected setting`);
     setInspectorTab("validation");
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     handleImportError(error, "Setting JSON import");
   }
 }
-
 async function importRuleset(): Promise<void> {
   if (rulesetFile === undefined) {
     setActionErrorStatus("Choose a ruleset JSON file first");
@@ -378,14 +369,15 @@ async function importRuleset(): Promise<void> {
   if (isDirty && !window.confirm("Importing a ruleset replaces the current workspace. Continue?")) {
     return;
   }
+  const request = requestGuard.begin();
   try {
     const parsed = JSON.parse(await rulesetFile.text()) as unknown;
-    await applyRulesetJson(rulesetFile.name, parsed);
+    await applyRulesetJson(rulesetFile.name, parsed, request);
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     handleImportError(error, "Ruleset import");
   }
 }
-
 async function importRecommendationRuleset(): Promise<void> {
   if (recommendationCatalog?.ruleset === undefined) {
     setActionErrorStatus(`No bundled ruleset is available for ${recommendationSummary?.label ?? recommendationSource.toUpperCase()}`);
@@ -402,18 +394,21 @@ async function importRecommendationRuleset(): Promise<void> {
     setActionErrorStatus(`No actionable ${recommendationSummary?.label ?? recommendationSource.toUpperCase()} ruleset settings are available for ${recommendationPlatform}`);
     return;
   }
+  const request = requestGuard.begin();
   try {
-    await applyRulesetJson(recommendationCatalog.ruleset.name, ruleset);
+    await applyRulesetJson(recommendationCatalog.ruleset.name, ruleset, request);
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     handleImportError(error, "Bundled ruleset import");
   }
 }
-
 async function refreshCompliance(): Promise<void> {
   if (selection === undefined) {
     setActionErrorStatus("Select a policy before checking compliance");
     return;
   }
+  const request = requestGuard.begin();
+  const activity = beginExplicitComplianceActivity(setComplianceLoading);
   try {
     setComplianceLoading(true);
     setComplianceError(undefined);
@@ -426,6 +421,7 @@ async function refreshCompliance(): Promise<void> {
       sources: complianceSources,
     });
     const result = await readJsonResponse<{ report?: ComplianceReport } & JsonRecord>(response);
+    if (!requestGuard.isCurrent(request)) return;
     if (!response.ok || result.report === undefined) {
       setActionErrorStatus(`Compliance check failed: ${JSON.stringify(result)}`);
       return;
@@ -433,11 +429,12 @@ async function refreshCompliance(): Promise<void> {
     setComplianceReport(result.report);
     setActionSuccessStatus("Checked compliance");
   } catch (error) {
+    if (!requestGuard.isCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Compliance check failed: ${message}`);
   } finally {
-    setComplianceLoading(false);
+    if (finishExplicitComplianceActivity(setComplianceLoading, activity)) setComplianceLoading(false);
   }
 }
 
@@ -446,6 +443,9 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
     setActionErrorStatus("Select a policy before applying compliance remediation");
     return;
   }
+  const request = requestGuard.beginExclusiveMutation();
+  if (request === undefined) { setActionErrorStatus("A server workspace mutation is already in progress"); return; }
+  const activity = beginExplicitComplianceActivity(setComplianceLoading);
   try {
     setComplianceLoading(true);
     setComplianceError(undefined);
@@ -478,15 +478,15 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
       sidecar?: AppState["sidecar"];
       report?: ComplianceReport;
     } & JsonRecord>(response);
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     if (!response.ok || result.workspace === undefined || result.validation === undefined || result.report === undefined) {
       setActionErrorStatus(`Compliance remediation failed: ${JSON.stringify(result)}`);
       return;
     }
-    setState({
-      ...currentState,
-      workspace: result.workspace,
-      validation: result.validation,
-      sidecar: result.sidecar ?? currentState.sidecar,
+    const appliedWorkspace = result.workspace;
+    const appliedValidation = result.validation;
+    setState((current) => current === undefined ? current : {
+      ...current, workspace: appliedWorkspace, validation: appliedValidation, sidecar: result.sidecar ?? current.sidecar,
     });
     setComplianceReport(result.report);
     setIsDirty(false);
@@ -494,11 +494,13 @@ async function applyComplianceRemediation(remediationId: string): Promise<void> 
     setHasFreshBuild(false);
     setActionSuccessStatus(`Applied compliance remediation ${remediationId}`);
   } catch (error) {
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Compliance remediation failed: ${message}`);
   } finally {
-    setComplianceLoading(false);
+    if (finishExplicitComplianceActivity(setComplianceLoading, activity)) setComplianceLoading(false);
+    requestGuard.finishExclusiveMutation(request);
   }
 }
 
@@ -506,22 +508,36 @@ async function addDdmArtifact(): Promise<void> { await postSidecarAction("/api/d
 async function addMdmCommandArtifact(): Promise<void> { await postSidecarAction("/api/mdm-command/artifact", { schemaId: mdmCommandSchemaId }, "Added offline MDM command draft"); }
 
 async function reconcileSidecar(): Promise<void> {
+  const request = requestGuard.beginExclusiveMutation();
+  if (request === undefined) { setActionErrorStatus("A server workspace mutation is already in progress"); return; }
   try {
-    await ensureSavedWorkspace();
+    if (await ensureSavedWorkspace(request) === undefined) {
+      return;
+    }
     const response = await postJson("/api/roundtrip/reconcile", {});
     const result = await readJsonResponse<{ workspace?: PolicyWorkspace; validation?: WorkspaceValidationResult; sidecar?: unknown } & JsonRecord>(response);
     if (!response.ok || result.workspace === undefined || result.validation === undefined || !isEditorSidecarState(result.sidecar)) {
       setActionErrorStatus(`Sidecar reconcile blocked: ${JSON.stringify(result)}`);
       return;
     }
-    setState({ ...currentState, workspace: result.workspace, validation: result.validation, sidecar: result.sidecar });
+    if (!requestGuard.isExclusiveCurrent(request)) {
+      return;
+    }
+    const reconciledWorkspace = result.workspace;
+    const reconciledValidation = result.validation;
+    const reconciledSidecar = result.sidecar;
+    setState((current) => current === undefined ? current : { ...current, workspace: reconciledWorkspace, validation: reconciledValidation, sidecar: reconciledSidecar });
     setIsDirty(false);
+    clearWorkspaceHistory(historyInput);
     setHasFreshBuild(false);
     setActionSuccessStatus("Reconciled sidecar restore snapshots");
   } catch (error) {
+    if (!requestGuard.isExclusiveCurrent(request)) return;
     const message = actionErrorMessage(error);
     setLastActionResult({ ok: false, error: message });
     setStatus(`Sidecar reconcile failed: ${message}`);
+  } finally {
+    requestGuard.finishExclusiveMutation(request);
   }
 }
 
@@ -573,15 +589,15 @@ function deleteSelectedPolicy(): void {
   markWorkspaceDirty(nextWorkspace, nextSelection, "Deleted policy");
 }
 
-function updateSelectedConfiguration(nextConfiguration: JsonRecord): void {
+function updateSelectedConfiguration(nextConfiguration: JsonRecord): boolean {
   if (selection === undefined || selection.configurationIndex === undefined) {
-    return;
+    return false;
   }
   const nextWorkspace = cloneWorkspace(currentState.workspace);
   const version = versionRecord(nextWorkspace, selection.policyIndex, selection.versionIndex);
   const configurations = Array.isArray(version?.configurations) ? version.configurations : [];
   configurations[selection.configurationIndex] = nextConfiguration;
-  markWorkspaceDirty(nextWorkspace, selection, "Updated configuration");
+  return markWorkspaceDirty(nextWorkspace, selection, "Updated configuration");
 }
 
 function applyRawJson(): void {
@@ -596,7 +612,7 @@ function applyRawJson(): void {
       setActionErrorStatus("Raw JSON must be an object");
       return;
     }
-    updateSelectedConfiguration(nextConfiguration);
+    if (!updateSelectedConfiguration(nextConfiguration)) return;
     setRawJsonState(JSON.stringify(nextConfiguration, null, 2));
     setRawJsonDirty(false);
     setActionSuccessStatus("Applied raw JSON");
@@ -615,7 +631,8 @@ function resetRawJson(): void {
   setRawJsonState(canonicalRawJson);
   setRawJsonDirty(false);
 }
-async function applyRulesetJson(name: string, parsed: unknown): Promise<"applied" | "blocked"> {
+async function applyRulesetJson(name: string, parsed: unknown, request: WorkspaceRequest): Promise<"applied" | "blocked"> {
+  if (!requestGuard.isCurrent(request)) return "blocked";
   const result = importRulesetWorkspace(parsed, currentState.bundle, currentState.appleSchema);
   setRulesetReport(result.report);
   setInspectorTab("validation");
@@ -625,15 +642,16 @@ async function applyRulesetJson(name: string, parsed: unknown): Promise<"applied
   }
   const response = await postJson("/api/workspace/validate", { workspace: result.workspace });
   const validated = await readJsonResponse<{ validation: WorkspaceValidationResult }>(response);
+  if (!requestGuard.isCurrent(request)) return "blocked";
   if (!response.ok || !validated.validation.ok) {
     setActionErrorStatus(`Ruleset validation blocked: ${JSON.stringify(validated)}`);
     return "blocked";
   }
+  if (!requestGuard.recordEdit()) return "blocked";
+  const importedWorkspace = result.workspace;
   pushUndoState(historyInput);
-  setState({
-    ...currentState,
-    workspace: result.workspace,
-    validation: validated.validation,
+  setState((current) => current === undefined ? current : {
+    ...current, workspace: importedWorkspace, validation: validated.validation,
     sidecar: {
       version: 1,
       appleSchemaRevision: currentState.appleSchema.source.revision,
@@ -643,7 +661,7 @@ async function applyRulesetJson(name: string, parsed: unknown): Promise<"applied
       customManifests: [],
     },
   });
-  setSelection(firstConfigurationSelection(result.workspace));
+  setSelection(firstConfigurationSelection(importedWorkspace));
   setSelectedType("");
   setSelectedRecommendationId(undefined);
   setIsDirty(true);
@@ -660,7 +678,6 @@ function setRecommendationSource(value: RecommendationSource): void {
   setRecommendationQuery("");
   setSelectedRecommendationId(undefined);
 }
-
 function toggleComplianceSource(value: RecommendationSource): void {
   setComplianceSources((current) => {
     if (current.includes(value)) {
@@ -669,24 +686,6 @@ function toggleComplianceSource(value: RecommendationSource): void {
     return [...current, value];
   });
 }
-
-async function postSidecarAction(url: string, body: JsonRecord, success: string): Promise<void> {
-  try {
-    setState({ ...currentState, sidecar: await postSidecarActionRequest(url, body, success) });
-    setActionSuccessStatus(success);
-  } catch (error) {
-    setActionErrorStatus(actionErrorMessage(error));
-  }
-}
-async function postArtifactUpdate(url: string, uuid: string, valuesJson: string, success: string): Promise<void> {
-  try {
-    await postSidecarAction(url, { uuid, values: parseArtifactValuesJson(valuesJson) }, success);
-  } catch (error) {
-    const message = actionErrorMessage(error);
-    setActionErrorStatus(message);
-  }
-}
-
 function updateSelectedPolicy(change: (policyToUpdate: WorkspacePolicy) => void, message: string): void {
   if (selection === undefined) {
     return;
@@ -699,7 +698,6 @@ function updateSelectedPolicy(change: (policyToUpdate: WorkspacePolicy) => void,
   change(policyToUpdate);
   markWorkspaceDirty(nextWorkspace, selection, message);
 }
-
   return {
     setRawJson, resetRawJson, setRecommendationSource, toggleComplianceSource, saveWorkspace, addConfiguration,
     addPolicy, removeConfiguration, moveConfiguration, buildArchive, setActiveKey, importArchive, importJsonTemplates,

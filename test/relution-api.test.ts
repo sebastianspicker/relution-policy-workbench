@@ -1,15 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  assessmentCompleteness,
   assessRelutionDevices,
   assertRelutionReadOnlyRequest,
   createRelutionAssessmentReport,
   normalizeRelutionConnection,
   publicRelutionSession,
-  queryRelutionDevices,
-  testRelutionConnection,
+  queryRelutionDevices as queryRelutionDevicesWithTransport,
+  testRelutionConnection as testRelutionConnectionWithTransport,
 } from "../src/relution-api.js";
 import { handleRelutionApiRequest } from "../src/relution-editor-routes.js";
+import { TEST_HTTP_SERVICE_TRANSPORT } from "./http-service-test-adapter.js";
+
+async function queryRelutionDevices(
+  connection: Parameters<typeof queryRelutionDevicesWithTransport>[0],
+  input: Parameters<typeof queryRelutionDevicesWithTransport>[1],
+) {
+  return await queryRelutionDevicesWithTransport(connection, input, TEST_HTTP_SERVICE_TRANSPORT);
+}
+
+async function testRelutionConnection(connection: Parameters<typeof testRelutionConnectionWithTransport>[0]) {
+  return await testRelutionConnectionWithTransport(connection, TEST_HTTP_SERVICE_TRANSPORT);
+}
 
 test("normalizes Relution connection settings without exposing the token publicly", () => {
   const connection = normalizeRelutionConnection({
@@ -17,6 +30,7 @@ test("normalizes Relution connection settings without exposing the token publicl
     host: "http://127.0.0.1",
     port: 8080,
     apiToken: "secret-token",
+    allowLocalServiceHosts: true,
   });
 
   assert.equal(connection.baseUrl, "http://127.0.0.1:8080");
@@ -30,15 +44,37 @@ test("normalizes Relution connection settings without exposing the token publicl
 
 test("derives protocol port and base path from host URLs", () => {
   const connection = normalizeRelutionConnection({
-    host: "http://relution.example.test:8080/customer-a/",
+    host: "https://relution.example.test:8443/customer-a/",
     apiToken: "secret-token",
   });
 
-  assert.equal(connection.protocol, "http");
+  assert.equal(connection.protocol, "https");
   assert.equal(connection.host, "relution.example.test");
-  assert.equal(connection.port, 8080);
+  assert.equal(connection.port, 8443);
   assert.equal(connection.basePath, "/customer-a");
-  assert.equal(connection.baseUrl, "http://relution.example.test:8080/customer-a");
+  assert.equal(connection.baseUrl, "https://relution.example.test:8443/customer-a");
+});
+
+test("normalizes raw and bracketed IPv6 Relution hosts into valid URLs", () => {
+  const raw = normalizeRelutionConnection({ host: "::1", apiToken: "secret-token", allowLocalServiceHosts: true });
+  const bracketed = normalizeRelutionConnection({
+    host: "[::1]",
+    port: 8443,
+    apiToken: "secret-token",
+    allowLocalServiceHosts: true,
+  });
+
+  assert.equal(raw.baseUrl, "https://[::1]");
+  assert.equal(bracketed.baseUrl, "https://[::1]:8443");
+  assert.doesNotThrow(() => new URL(raw.baseUrl));
+  assert.doesNotThrow(() => new URL(bracketed.baseUrl));
+});
+
+test("rejects cleartext Relution connections without explicit local/lab opt-in", () => {
+  assert.throws(
+    () => normalizeRelutionConnection({ host: "http://relution.example.test", apiToken: "secret-token" }),
+    /HTTP connections require --allow-local-service-hosts/u,
+  );
 });
 
 test("Relution connection test validates the device query response body", async () => {
@@ -148,6 +184,49 @@ test("marks Relution device queries truncated when the page is smaller than the 
   }
 });
 
+test("uses nonpagedCount for completeness when a page-sized total is also present", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    nonpagedCount: 200,
+    total: 1,
+    results: [{ uuid: "DEVICE-1", name: "Device 1" }],
+  }));
+  try {
+    const result = await queryRelutionDevices(
+      normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }),
+      {},
+    );
+
+    assert.equal(result.total, 200);
+    assert.equal(result.truncated, true);
+    assert.equal(assessmentCompleteness(result).status, "partial");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("treats an explicit empty policy assignment list as known missing policy evidence", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    nonpagedCount: 1,
+    results: [{ uuid: "DEVICE-1", name: "Device 1", platform: "IOS", assignedPolicies: [] }],
+  }));
+  try {
+    const result = await queryRelutionDevices(
+      normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }),
+      {},
+    );
+    assert.deepEqual(result.devices[0]?.assignedPolicies, []);
+    const report = createRelutionAssessmentReport("https://relution.example.test", result.devices, {
+      expectedPoliciesByPlatform: { IOS: ["Baseline iOS"] },
+    });
+    assert.equal(report.devices[0]?.issues.some((issue) => issue.id === "missing-policy"), true);
+    assert.equal(report.devices[0]?.issues.some((issue) => issue.id === "policy-assignment-unknown"), false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("rejects malformed Relution device query responses without treating them as empty", async () => {
   const originalFetch = globalThis.fetch;
   const connection = normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" });
@@ -226,6 +305,7 @@ test("Relution editor routes re-check outbound host policy before each request",
             protocol: "http",
             host: "127.0.0.1",
             apiToken: "secret-token",
+            allowLocalServiceHosts: true,
           }),
         },
         "/tmp/workspace",
@@ -308,9 +388,61 @@ test("audits missing policies and inactive devices with evidence", () => {
   );
 
   assert.equal(report.summary.missingPolicy, 1);
-  assert.equal(report.summary.inactiveWarning, 1);
+  assert.equal(report.summary.inactiveWarning, 2);
   assert.equal(report.summary.inactiveProblem, 1);
   assert.equal(report.devices[1]?.issues.some((issue) => issue.id === "missing-policy"), true);
   assert.equal(report.devices[1]?.issues.some((issue) => issue.id === "inactive-problem"), true);
   assert.equal(report.devices[2]?.issues.some((issue) => issue.id === "policy-assignment-unknown"), true);
+});
+
+test("rejects unsafe or misordered inactivity thresholds before classifying devices", () => {
+  const device = [{
+    uuid: "DEVICE-1",
+    name: "Campus iPad",
+    status: "COMPLIANT",
+    policyStatus: "APPLIED",
+    lastConnectionDate: "2026-03-07T00:00:00.000Z",
+    raw: {},
+  }];
+  const options = { now: new Date("2026-04-26T00:00:00.000Z") };
+
+  assert.throws(
+    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveWarningDays: 90, inactiveProblemDays: 30 }),
+    /problem days must be greater than or equal to inactive warning days/u,
+  );
+  assert.throws(
+    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveWarningDays: -1 }),
+    /warning days must be a non-negative safe integer/u,
+  );
+  assert.throws(
+    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveProblemDays: 1.5 }),
+    /problem days must be a non-negative safe integer/u,
+  );
+  assert.throws(
+    () => createRelutionAssessmentReport("https://relution.example.test", [], { inactiveWarningDays: 90, inactiveProblemDays: 30 }),
+    /problem days must be greater than or equal to inactive warning days/u,
+  );
+  assert.throws(
+    () => createRelutionAssessmentReport("https://relution.example.test", device, { now: new Date("invalid") }),
+    /assessment time must be a valid date/u,
+  );
+});
+
+test("distinguishes complete, partial, and unknown assessment coverage", () => {
+  assert.equal(assessmentCompleteness({ count: 1, total: 1, truncated: false }).status, "complete");
+  assert.equal(assessmentCompleteness({ count: 1, total: 2, truncated: true }).status, "partial");
+  assert.equal(assessmentCompleteness({ count: 1, truncated: false }).status, "unknown");
+});
+
+test("rejects malformed device totals", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ nonpagedCount: -1, results: [] }));
+  try {
+    await assert.rejects(
+      queryRelutionDevices(normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }), {}),
+      /nonpagedCount must be a non-negative safe integer/u,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

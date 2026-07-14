@@ -3,6 +3,7 @@ import { type IncomingMessage } from "node:http";
 import { isIP } from "node:net";
 import { RECOMMENDATION_SOURCES, type RecommendationSource } from "./recommendation-types.js";
 import { type ComplianceSelection } from "./compliance.js";
+import { formatHttpUrlAuthority } from "./connection-normalization.js";
 import { isRecommendationSource } from "./recommendations.js";
 import { type PolicyWorkspace } from "./workspace.js";
 import type { EditorServerOptions } from "./editor-server.js";
@@ -16,10 +17,12 @@ const DEFAULT_JSON_MAX_ARRAY_ITEMS = 10_000;
 
 export class HttpError extends Error {
   readonly status: number;
+  readonly expose: boolean;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, expose = status < 500) {
     super(message);
     this.status = status;
+    this.expose = expose;
   }
 }
 
@@ -35,9 +38,8 @@ export async function readJsonBody(request: IncomingMessage, limitBytes = DEFAUL
     chunks.push(buffer);
   }
   const text = Buffer.concat(chunks).toString("utf8");
-  // Network editor mode can expose mutating workspace APIs beyond loopback; keep
-  // a cheap shape scan before JSON.parse so byte-capped requests still reject
-  // pathological nesting or wide arrays with a clear 413.
+  // Keep a cheap shape scan before JSON.parse so byte-capped requests still
+  // reject pathological nesting or wide arrays with a clear 413.
   assertJsonShapeWithinLimits(text);
   let parsed: unknown;
   try {
@@ -53,7 +55,7 @@ export async function readJsonBody(request: IncomingMessage, limitBytes = DEFAUL
 }
 
 export function assertSafeMutatingApiRequest(request: IncomingMessage, options: EditorServerOptions): void {
-  // The local editor has no login layer. Mutating requests are therefore scoped
+  // In addition to the session capability token, mutating requests are scoped
   // to loopback/same-origin JSON so a random web page cannot submit form-style
   // requests that rewrite the user's workspace.
   const host = assertSafeApiRequestHost(request, options, "Mutating editor API requests");
@@ -67,7 +69,7 @@ export function assertSafeApiRequestHost(
   label = "Editor API requests",
 ): { host: string; hostname: string } {
   const host = requireRequestHost(request, label);
-  if (options.allowNetworkHost !== true && !isLoopbackHostname(host.hostname)) {
+  if (!isLoopbackHostname(host.hostname)) {
     throw new HttpError(403, `${label} require a loopback Host header`);
   }
   return host;
@@ -78,19 +80,16 @@ export function createNetworkApiToken(): string {
 }
 
 export function editorUrlWithNetworkToken(host: string, port: number, token: string | undefined): string {
-  const baseUrl = `http://${host}:${String(port)}/`;
+  const baseUrl = `http://${formatHttpUrlAuthority(host, port)}/`;
   return typeof token === "undefined" ? baseUrl : `${baseUrl}#editorToken=${encodeURIComponent(token)}`;
 }
 
-export function assertNetworkApiToken(request: IncomingMessage, token: string | undefined): void {
-  if (typeof token === "undefined") {
-    return;
-  }
+export function assertNetworkApiToken(request: IncomingMessage, token: string): void {
   const headerToken = firstHeaderValue(request.headers["x-relution-editor-token"]);
   if (typeof headerToken === "string" && constantTimeStringEqual(headerToken, token)) {
     return;
   }
-  throw new HttpError(403, "Network editor API requests require the editor token");
+  throw new HttpError(403, "Editor API requests require the editor token");
 }
 
 function constantTimeStringEqual(left: string, right: string): boolean {
@@ -140,11 +139,11 @@ function assertJsonContentType(request: IncomingMessage): void {
   }
 }
 
-export function assertSafeEditorHost(host: string, allowNetworkHost: boolean): void {
-  if (allowNetworkHost || isLoopbackHostname(normalizeHostname(host))) {
+export function assertSafeEditorHost(host: string, _allowNetworkHost: boolean): void {
+  if (isLoopbackHostname(normalizeHostname(host))) {
     return;
   }
-  throw new Error(`Non-loopback editor host "${host}" requires --allow-network-editor`);
+  throw new Error(`Non-loopback editor host "${host}" is not supported because the editor transport is local HTTP`);
 }
 
 function firstHeaderValue(value: string | string[] | undefined): string | undefined {

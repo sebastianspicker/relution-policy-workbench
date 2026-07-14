@@ -6,7 +6,6 @@ import { setTimeout as delay } from "node:timers/promises";
 import { readZip, writeZip } from "../src/zip.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
 import { addDdmArtifact, loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
 import { findAppleSchemaEntry, createDdmArtifact } from "../src/apple-schema.js";
@@ -26,6 +25,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startRegisteredTestEditor as startEditorServer,
   startTestEditor,
   type EditorStateResponse,
 } from "./rexp-helpers.js";
@@ -290,7 +290,7 @@ test("restores the previous runtime key when import response sending fails", asy
     });
     assert.equal(importResponse.status, 500);
     const result = await importResponse.json() as { error?: string };
-    assert.match(result.error ?? "", /simulated import response failure/u);
+    assert.equal(result.error, "Internal editor error");
   } finally {
     ServerResponse.prototype.writeHead = originalWriteHead;
   }
@@ -341,7 +341,7 @@ test("rejects tampered rexp imports before replacing the editor workspace", asyn
     });
     assert.equal(importResponse.status, 500);
     const result = await importResponse.json() as { error?: string };
-    assert.match(result.error ?? "", /hash mismatch/i);
+    assert.equal(result.error, "Internal editor error");
     assert.deepEqual(loadWorkspace(workspaceDir), before);
   } finally {
     await handle.close();

@@ -1,20 +1,27 @@
 import { createCipheriv, createDecipheriv, createHash, pbkdf2Sync, randomBytes } from "node:crypto";
 import {
   closeSync,
+  chmodSync,
   constants as fsConstants,
+  cpSync,
   existsSync,
   fstatSync,
+  lstatSync,
   mkdirSync,
+  mkdtempSync,
   opendirSync,
   openSync,
   readSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
-import { dirname, join, resolve, sep } from "node:path";
+import { basename, dirname, join, resolve, sep } from "node:path";
 import { asRecord } from "./utils/json-guards.js";
-import { assertNoSymlinkPath } from "./utils/path-safety.js";
+import { writePrivateFileAtomic } from "./utils/atomic-private-file.js";
+import { assertNoSymlinkPath, resolveSymlinkFreePath } from "./utils/path-safety.js";
+import { isPolicyPath, policyPathCollisionKey } from "./policy-path.js";
 import { readZip, writeZip, type ZipEntry, type ZipEntryInput } from "./zip.js";
 
 export type ArchiveHashStatus = "match" | "mismatch" | "absent";
@@ -73,7 +80,6 @@ const MAX_REXP_TOTAL_UNCOMPRESSED_BYTES = 128 * 1024 * 1024;
 // metadata.hashes.json. Relution archives are ZIP files, so path scope is a
 // security invariant rather than a cosmetic validation detail.
 const MANAGED_PROJECT_PATHS = [METADATA_JSON, REPORT_JSON, HASHES_JSON, "policies"] as const;
-const POLICY_FILE_PATTERN = /^policies\/policy_[^/]+\.json$/u;
 
 export function inspectRexp(filePath: string, password?: string): InspectResult {
   const entries = readRexpEntries(filePath);
@@ -119,23 +125,11 @@ export function extractRexp(filePath: string, outputDir: string, password: strin
   const entries = readRexpEntries(filePath);
   const hashes = decryptHashMap(getRequiredEntry(entries, METADATA_BIN).data, password);
   assertArchiveEntryHashes(entries, hashes);
-  prepareOutputPath(outputDir, options.force === true);
-
-  writeProjectFile(outputDir, METADATA_JSON, maybeFormatJson(getRequiredEntry(entries, METADATA_JSON).data, options.pretty));
-  writeProjectFile(outputDir, REPORT_JSON, maybeFormatJson(getRequiredEntry(entries, REPORT_JSON).data, options.pretty));
-  writeProjectFile(outputDir, HASHES_JSON, formatJsonBuffer(Buffer.from(JSON.stringify(hashes), "utf8")));
-
-  for (const entry of entries.filter((candidate) => isPolicyEntry(candidate.name))) {
-    const plaintext = decryptRelutionPayload(entry.data, password);
-    writeProjectFile(outputDir, entry.name, maybeFormatJson(plaintext, options.pretty));
-  }
+  const projectFiles = materializeExtractedProject(entries, hashes, password, options.pretty);
+  replaceManagedProjectSurface(outputDir, projectFiles, options.force === true);
 }
 
 export function packPlainDirectory(inputDir: string, outputFile: string, password: string, options: PackOptions = {}): void {
-  if (existsSync(outputFile) && options.force !== true) {
-    throw new Error(`Output file already exists: ${outputFile}`);
-  }
-
   const metadata = readProjectFile(inputDir, METADATA_JSON);
   const report = readProjectFile(inputDir, REPORT_JSON);
   parseJson(metadata, METADATA_JSON);
@@ -174,8 +168,10 @@ export function packPlainDirectory(inputDir: string, outputFile: string, passwor
     { name: METADATA_BIN, data: metadataBinEncrypted },
   ];
 
-  mkdirSync(dirname(outputFile), { recursive: true });
-  writeFileSync(outputFile, writeZip(zipEntries));
+  writePrivateFileAtomic(outputFile, writeZip(zipEntries), {
+    force: options.force === true,
+    label: "Archive output path",
+  });
 }
 
 export function decryptRelutionPayload(payload: Buffer, password: string): Buffer {
@@ -231,8 +227,17 @@ function readRexpEntries(filePath: string): ZipEntry[] {
     maxTotalCompressedBytes: MAX_REXP_TOTAL_COMPRESSED_BYTES,
     maxTotalUncompressedBytes: MAX_REXP_TOTAL_UNCOMPRESSED_BYTES,
   });
+  assertPortableArchiveEntryNames(entries);
   assertNoDuplicateManagedArchiveEntries(entries);
   return entries;
+}
+
+function assertPortableArchiveEntryNames(entries: ZipEntry[]): void {
+  for (const entry of entries) {
+    if (entry.name.includes("\\") || entry.name.includes("\0")) {
+      throw new Error(`Archive entry uses an unsafe path separator or NUL: ${entry.name}`);
+    }
+  }
 }
 
 function assertNoDuplicateManagedArchiveEntries(entries: ZipEntry[]): void {
@@ -241,10 +246,11 @@ function assertNoDuplicateManagedArchiveEntries(entries: ZipEntry[]): void {
     if (!isManagedArchiveEntry(entry.name)) {
       continue;
     }
-    if (seen.has(entry.name)) {
-      throw new Error(`Duplicate managed archive entry: ${entry.name}`);
+    const collisionKey = policyPathCollisionKey(entry.name);
+    if (seen.has(collisionKey)) {
+      throw new Error(`Duplicate or colliding managed archive entry: ${entry.name}`);
     }
-    seen.add(entry.name);
+    seen.add(collisionKey);
   }
 }
 
@@ -348,21 +354,95 @@ function archiveHashStatus(expectedSha256: string | undefined, sha256: string): 
   return expectedSha256 === sha256 ? "match" : "mismatch";
 }
 
-function prepareOutputPath(outputDir: string, force: boolean): void {
-  if (existsSync(outputDir)) {
-    if (!statSync(outputDir).isDirectory()) {
-      throw new Error(`Output path exists and is not a directory: ${outputDir}`);
+function materializeExtractedProject(
+  entries: ZipEntry[],
+  hashes: Record<string, string>,
+  password: string,
+  pretty: boolean | undefined,
+): Map<string, Buffer> {
+  const files = new Map<string, Buffer>();
+  files.set(METADATA_JSON, maybeFormatJson(getRequiredEntry(entries, METADATA_JSON).data, pretty));
+  files.set(REPORT_JSON, maybeFormatJson(getRequiredEntry(entries, REPORT_JSON).data, pretty));
+  files.set(HASHES_JSON, formatJsonBuffer(Buffer.from(JSON.stringify(hashes), "utf8")));
+  for (const entry of entries.filter((candidate) => isPolicyEntry(candidate.name))) {
+    files.set(entry.name, maybeFormatJson(decryptRelutionPayload(entry.data, password), pretty));
+  }
+  return files;
+}
+
+function replaceManagedProjectSurface(outputDir: string, files: Map<string, Buffer>, force: boolean): void {
+  const resolvedOutput = resolveSymlinkFreePath(outputDir, "Output path");
+  assertSafeExtractionDestination(resolvedOutput, force);
+
+  mkdirSync(dirname(resolvedOutput), { recursive: true });
+  const stagingContainer = mkdtempSync(join(dirname(resolvedOutput), `.${basename(resolvedOutput)}.staging-`));
+  chmodSync(stagingContainer, 0o700);
+  const stagingRoot = join(stagingContainer, "workspace");
+  const backupRoot = join(stagingContainer, "previous-workspace");
+  const hadOutput = existsSync(resolvedOutput);
+  let cleanupStaging = true;
+  try {
+    if (hadOutput) {
+      cpSync(resolvedOutput, stagingRoot, { recursive: true, dereference: false });
+    } else {
+      mkdirSync(stagingRoot, { mode: 0o700 });
     }
-    if (listDirectoryNames(outputDir).length > 0) {
-      if (!force) {
-        throw new Error(`Output directory is not empty: ${outputDir}`);
+    chmodSync(stagingRoot, 0o700);
+    for (const relativePath of MANAGED_PROJECT_PATHS) {
+      rmSync(resolveManagedProjectPath(stagingRoot, relativePath), { recursive: true, force: true });
+    }
+    for (const [relativePath, data] of files) {
+      writeProjectFile(stagingRoot, relativePath, data);
+    }
+
+    if (hadOutput) {
+      renameSync(resolvedOutput, backupRoot);
+      cleanupStaging = false;
+    }
+    try {
+      renameSync(stagingRoot, resolvedOutput);
+      cleanupStaging = true;
+    } catch (error) {
+      if (hadOutput) {
+        try {
+          renameSync(backupRoot, resolvedOutput);
+          cleanupStaging = true;
+        } catch (rollbackError) {
+          throw new AggregateError(
+            [error, rollbackError],
+            `Failed to install extracted workspace and restore the original; recover it from ${backupRoot}`,
+          );
+        }
       }
-      for (const relativePath of MANAGED_PROJECT_PATHS) {
-        rmSync(resolveManagedProjectPath(outputDir, relativePath), { recursive: true, force: true });
-      }
+      throw error;
+    }
+  } finally {
+    if (cleanupStaging) {
+      rmSync(stagingContainer, { recursive: true, force: true });
     }
   }
-  mkdirSync(outputDir, { recursive: true });
+}
+
+function assertSafeExtractionDestination(outputDir: string, force: boolean): void {
+  assertNoSymlinkPath(outputDir, "", "Output path");
+  if (!existsSync(outputDir)) {
+    return;
+  }
+  if (!lstatSync(outputDir).isDirectory()) {
+    throw new Error(`Output path exists and is not a directory: ${outputDir}`);
+  }
+  for (const relativePath of [METADATA_JSON, REPORT_JSON, HASHES_JSON, "policies"] as const) {
+    assertNoSymlinkPath(outputDir, relativePath, "Output path");
+  }
+  const policiesDir = join(outputDir, "policies");
+  if (existsSync(policiesDir)) {
+    for (const name of listDirectoryNames(policiesDir)) {
+      assertNoSymlinkPath(outputDir, `policies/${name}`, "Output path");
+    }
+  }
+  if (!force && listDirectoryNames(outputDir).length > 0) {
+    throw new Error(`Output directory is not empty: ${outputDir}`);
+  }
 }
 
 function listPolicyFiles(inputDir: string): string[] {
@@ -375,7 +455,16 @@ function listPolicyFiles(inputDir: string): string[] {
     .filter((name) => name.startsWith("policy_") && name.endsWith(POLICY_SUFFIX))
     .sort()
     .map((name) => `policies/${name}`);
+  const seen = new Set<string>();
   for (const policyFile of policyFiles) {
+    if (!isPolicyPath(policyFile)) {
+      throw new Error(`Project contains an invalid policy path: ${policyFile}`);
+    }
+    const collisionKey = policyPathCollisionKey(policyFile);
+    if (seen.has(collisionKey)) {
+      throw new Error(`Project contains duplicate or colliding policy paths: ${policyFile}`);
+    }
+    seen.add(collisionKey);
     assertNoSymlinkPath(inputDir, policyFile, "Project path");
   }
   return policyFiles;
@@ -383,8 +472,10 @@ function listPolicyFiles(inputDir: string): string[] {
 
 function writeProjectFile(outputDir: string, relativePath: string, data: Buffer): void {
   const destination = resolveManagedProjectPath(outputDir, relativePath);
-  mkdirSync(dirname(destination), { recursive: true });
-  writeFileSync(destination, data);
+  mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
+  chmodSync(dirname(destination), 0o700);
+  writeFileSync(destination, data, { mode: 0o600 });
+  chmodSync(destination, 0o600);
 }
 
 function readProjectFile(inputDir: string, relativePath: string): Buffer {
@@ -401,7 +492,7 @@ function getRequiredEntry(entries: ZipEntry[], name: string): ZipEntry {
 }
 
 function isPolicyEntry(name: string): boolean {
-  return POLICY_FILE_PATTERN.test(name);
+  return isPolicyPath(name);
 }
 
 function isManagedArchiveEntry(name: string): boolean {
@@ -465,11 +556,11 @@ function listDirectoryNames(path: string): string[] {
 }
 
 function isManagedProjectPath(relativePath: string): boolean {
-  return relativePath === METADATA_JSON || relativePath === REPORT_JSON || relativePath === HASHES_JSON || relativePath === "policies" || POLICY_FILE_PATTERN.test(relativePath);
+  return relativePath === METADATA_JSON || relativePath === REPORT_JSON || relativePath === HASHES_JSON || relativePath === "policies" || isPolicyPath(relativePath);
 }
 
 function isHashManagedProjectPath(relativePath: string): boolean {
-  return relativePath === METADATA_JSON || relativePath === REPORT_JSON || POLICY_FILE_PATTERN.test(relativePath);
+  return relativePath === METADATA_JSON || relativePath === REPORT_JSON || isPolicyPath(relativePath);
 }
 
 function deriveKey(password: string, salt: Buffer): Buffer {

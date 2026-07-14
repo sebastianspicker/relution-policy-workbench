@@ -71,8 +71,8 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
   });
 
   try {
-    await assertEditorStateApi(handle.url);
-    await assertBaselineTemplateApis(handle.url);
+    await assertEditorStateApi(handle.url, handle.apiToken);
+    await assertBaselineTemplateApis(handle.url, handle.apiToken);
     const addPolicyResponse = await postJson(`${handle.url}api/add-policy`, {
       platform: "WINDOWS",
       name: "API Windows Test",
@@ -156,7 +156,7 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
     assert.equal(verifyRexp(out, password).ok, true);
     assert.equal(inspectRexp(out, password).policyEntries.length, 2);
 
-    const outputResponse = await fetch(`${handle.url}api/output`);
+    const outputResponse = await fetch(`${handle.url}api/output`, { headers: { "x-relution-editor-token": handle.apiToken } });
     assert.equal(outputResponse.ok, true);
     assert.match(outputResponse.headers.get("content-disposition") ?? "", /policy\.rexp/);
     assert.equal((await outputResponse.arrayBuffer()).byteLength > 0, true);
@@ -165,7 +165,7 @@ test("serves the local editor API and builds a verifiable rexp", async () => {
   }
 });
 
-async function assertEditorStateApi(baseUrl: string): Promise<void> {
+async function assertEditorStateApi(baseUrl: string, apiToken: string): Promise<void> {
   const state = await getJson<EditorStateResponse>(`${baseUrl}api/state`);
   assert.equal(state.bundle.configurationTypes.length >= RELUTION_26_1_1_MIN_CONFIGURATION_TYPES, true);
   assert.equal(CORE_POLICY_PLATFORMS.every((platform) => state.bundle.platforms.includes(platform)), true);
@@ -174,14 +174,15 @@ async function assertEditorStateApi(baseUrl: string): Promise<void> {
   assert.equal(state.appleCompat.summary.mobileconfigBacked, mobileconfigBackedSettings.length);
   assert.equal(mobileconfigBackedSettings.every((setting) => setting.relutionTransportType === "APPLE_MOBILECONFIG"), true);
 
-  const missingApiResponse = await fetch(`${baseUrl}api/does-not-exist`);
+  const missingApiResponse = await fetch(`${baseUrl}api/does-not-exist`, { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(missingApiResponse.status, 404);
   const missingApi = await missingApiResponse.json() as { error?: string };
   assert.match(missingApi.error ?? "", /Unknown API endpoint/);
 }
 
-async function assertBaselineTemplateApis(baseUrl: string): Promise<void> {
-  const baselineIndexResponse = await fetch(`${baseUrl}api/baseline-templates`);
+async function assertBaselineTemplateApis(baseUrl: string, apiToken: string): Promise<void> {
+  const headers = { "x-relution-editor-token": apiToken };
+  const baselineIndexResponse = await fetch(`${baseUrl}api/baseline-templates`, { headers });
   assert.equal(baselineIndexResponse.ok, true);
   const baselineIndex = await baselineIndexResponse.json() as {
     options?: Array<{ platform?: string; tier?: number; shape?: string; actionableRuleCount?: number }>;
@@ -189,12 +190,12 @@ async function assertBaselineTemplateApis(baseUrl: string): Promise<void> {
   const iosTier3Modules = baselineIndex.options?.find((candidate) => candidate.platform === "IOS" && candidate.tier === 3 && candidate.shape === "modules");
   assert.equal((iosTier3Modules?.actionableRuleCount ?? 0) > 0, true);
 
-  const baselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=IOS&tier=3&shape=modules`);
+  const baselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=IOS&tier=3&shape=modules`, { headers });
   assert.equal(baselineTemplateResponse.ok, true);
   const baselineTemplate = await baselineTemplateResponse.json() as { policies?: unknown[] };
   assert.equal((baselineTemplate.policies ?? []).length > 0, true);
 
-  const baselineExpertResponse = await fetch(`${baseUrl}api/baseline-templates/expert?platform=IOS&shape=modules`);
+  const baselineExpertResponse = await fetch(`${baseUrl}api/baseline-templates/expert?platform=IOS&shape=modules`, { headers });
   assert.equal(baselineExpertResponse.ok, true);
   const baselineExpert = await baselineExpertResponse.json() as {
     settings?: Array<{ recommendations?: unknown[] }>;
@@ -204,7 +205,7 @@ async function assertBaselineTemplateApis(baseUrl: string): Promise<void> {
   assert.equal(baselineExpert.settings?.every((setting) => (setting.recommendations ?? []).length > 0), true);
   assert.equal((baselineExpert.tierCoverage?.find((entry) => entry.tier === 3)?.totalSettings ?? 0) > 0, true);
 
-  const invalidBaselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=../IOS&tier=3&shape=modules`);
+  const invalidBaselineTemplateResponse = await fetch(`${baseUrl}api/baseline-templates/template?platform=../IOS&tier=3&shape=modules`, { headers });
   assert.equal(invalidBaselineTemplateResponse.status, 400);
 }
 

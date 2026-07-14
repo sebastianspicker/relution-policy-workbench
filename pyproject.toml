@@ -10,9 +10,6 @@ dependencies = [
 [tool.ruff]
 target-version = "py311"
 
-[tool.pytest.ini_options]
-asyncio_default_fixture_loop_scope = "function"
-
 [tool.pylint.similarities]
 min-similarity-lines = 12
 

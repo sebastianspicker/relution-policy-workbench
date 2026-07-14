@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,7 +27,7 @@ import {
   loadRecommendationSemanticIndex,
   loadUnifiedRecommendationAnalysis,
 } from "./recommendations.js";
-import { extractRexp, packPlainDirectory, verifyRexp } from "./rexp.js";
+import { extractRexp } from "./rexp.js";
 import { handleRelutionApiRequest, type RelutionEditorRuntime } from "./relution-editor-routes.js";
 import { handleZammadApiRequest, type ZammadEditorRuntime } from "./zammad-editor-routes.js";
 import { sendJson } from "./editor-routes-utils.js";
@@ -53,8 +53,13 @@ import {
   type JsonRecord,
 } from "./editor-server-helpers.js";
 import { validateEditorKeyForOutput, type EditorKeyValidationResponse } from "./editor-key-validation.js";
-import { outputFileName, resolveStaticAssetPath, serveStaticAsset } from "./editor-static-assets.js";
+import { resolveStaticAssetPath, serveStaticAsset } from "./editor-static-assets.js";
+import { handleOutputApiRequest } from "./editor-output-route.js";
 import { handleAppleArtifactApiRequest } from "./editor-server-apple-routes.js";
+import { buildVerifiedEditorArchive } from "./editor-build-publish.js";
+import { configureEditorHttpServer, runEditorMutation } from "./editor-mutation-routing.js";
+import { BoundedOperationQueue } from "./utils/bounded-operation-queue.js";
+import { normalizeHttpHostname } from "./connection-normalization.js";
 export { resolveStaticAssetPath };
 export interface EditorServerOptions {
   workspace: string;
@@ -68,7 +73,11 @@ export interface EditorServerOptions {
 }
 
 export interface EditorServerHandle {
+  /** Loopback origin for programmatic clients. API requests require apiToken. */
   url: string;
+  /** Browser launch URL; the fragment is consumed into sessionStorage by the UI. */
+  browserUrl: string;
+  apiToken: string;
   close: () => Promise<void>;
 }
 
@@ -77,7 +86,8 @@ export interface EditorRuntimeState {
   keyValidation: EditorKeyValidationResponse;
   relution: RelutionEditorRuntime;
   zammad: ZammadEditorRuntime;
-  networkApiToken?: string;
+  networkApiToken: string;
+  mutationQueue: BoundedOperationQueue;
 }
 
 export interface EditorRequestContext {
@@ -109,18 +119,19 @@ const STATIC_ROOT = fileURLToPath(new URL("../../dist-web", import.meta.url));
 const IMPORT_JSON_BODY_LIMIT_BYTES = 64 * 1024 * 1024;
 
 export async function startEditorServer(options: EditorServerOptions): Promise<EditorServerHandle> {
-  const host = options.host ?? "127.0.0.1";
+  const host = normalizeHttpHostname(options.host ?? "127.0.0.1");
   assertSafeEditorHost(host, options.allowNetworkHost === true);
   const port = options.port ?? 8787;
   const bundle = loadTemplateBundle(options.bundlePath);
   const appleSchema = loadAppleSchemaCatalog();
-  const networkApiToken = options.allowNetworkHost === true ? createNetworkApiToken() : undefined;
+  const networkApiToken = createNetworkApiToken();
   const runtimeState: EditorRuntimeState = {
     key: options.key,
     keyValidation: validateEditorKeyForOutput(options.out, options.key),
     relution: { lastDevices: [] },
     zammad: {},
-    ...(networkApiToken === undefined ? {} : { networkApiToken }),
+    mutationQueue: new BoundedOperationQueue(32),
+    networkApiToken,
   };
 
   const server = createServer((request, response) => {
@@ -129,9 +140,12 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
       if (status >= 500) {
         console.error(error);
       }
-      sendJson(response, status, { error: error instanceof Error ? error.message : String(error) });
+      sendJson(response, status, {
+        error: error instanceof HttpError && error.expose ? error.message : status >= 500 ? "Internal editor error" : error instanceof Error ? error.message : String(error),
+      });
     });
   });
+  configureEditorHttpServer(server);
 
   await new Promise<void>((resolveListen, rejectListen) => {
     server.once("error", rejectListen);
@@ -143,8 +157,11 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
   const address = server.address();
   const actualPort = typeof address === "object" && address !== null ? address.port : port;
 
+  const url = editorUrlWithNetworkToken(host, actualPort, undefined);
   return {
-    url: editorUrlWithNetworkToken(host, actualPort, networkApiToken),
+    url,
+    browserUrl: editorUrlWithNetworkToken(host, actualPort, networkApiToken),
+    apiToken: networkApiToken,
     close: () =>
       new Promise((resolveClose, rejectClose) => {
         server.close((error) => {
@@ -154,6 +171,7 @@ export async function startEditorServer(options: EditorServerOptions): Promise<E
           }
           resolveClose();
         });
+        server.closeAllConnections();
       }),
   };
 }
@@ -175,7 +193,13 @@ async function handleRequest(
   if (url.pathname.startsWith("/api/") && request.method === "POST") {
     assertSafeMutatingApiRequest(request, options);
   }
-  if (await routeEditorApiRequest(url, request, response, context)) return;
+  let handled: boolean;
+  if (url.pathname.startsWith("/api/") && request.method === "POST") {
+    handled = await runEditorMutation(runtimeState.mutationQueue, async () => await routeEditorApiRequest(url, request, response, context));
+  } else {
+    handled = await routeEditorApiRequest(url, request, response, context);
+  }
+  if (handled) return;
   if (url.pathname.startsWith("/api/")) {
     sendJson(response, 404, { error: `Unknown API endpoint: ${request.method ?? "GET"} ${url.pathname}` });
     return;
@@ -472,28 +496,6 @@ function handleRecommendationApiRequest(
   return false;
 }
 
-function handleOutputApiRequest(
-  url: URL,
-  _request: IncomingMessage,
-  response: ServerResponse,
-  context: EditorRequestContext,
-): boolean {
-  const { options } = context;
-  if (url.pathname === "/api/output") {
-    if (!existsSync(options.out) || !statSync(options.out).isFile()) {
-      sendJson(response, 404, { error: "No built .rexp output is available yet" });
-      return true;
-    }
-    response.writeHead(200, {
-      "content-type": "application/octet-stream",
-      "content-disposition": `attachment; filename="${outputFileName(options.out)}"`,
-    });
-    response.end(readFileSync(options.out));
-    return true;
-  }
-  return false;
-}
-
 const READ_ONLY_API_HANDLERS: readonly EditorApiHandler[] = [
   handleStateApiRequest,
   handleCatalogApiRequest,
@@ -626,8 +628,11 @@ async function handleArchiveApiRequest(
       return true;
     }
     const sidecar = recordMobileConfigRestoreEntries(options.workspace, workspace, appleSchema.source.revision);
-    packPlainDirectory(options.workspace, options.out, runtimeState.key, { force: true });
-    const verification = verifyRexp(options.out, runtimeState.key);
+    const verification = buildVerifiedEditorArchive({
+      workspace: options.workspace,
+      output: options.out,
+      key: runtimeState.key,
+    });
     if (!verification.ok) {
       const failedEntryCount = verification.checkedEntries.filter((entry) => entry.hashStatus !== "match").length;
       sendJson(response, 500, {

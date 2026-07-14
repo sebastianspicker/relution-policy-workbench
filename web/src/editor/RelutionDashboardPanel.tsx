@@ -12,6 +12,7 @@ import { postJson, readJsonResponse } from "./editor-utils.js";
 type Protocol = "http" | "https";
 type DeviceFilter = "all" | "noncompliant" | "missing-policy" | "inactive";
 type ConnectionTestResponse = { ok?: boolean; baseUrl?: string; reason?: string; error?: string };
+type RequestDomain = "relution-session" | "relution-audit" | "relution-report" | "zammad-session" | "zammad-ticket";
 
 const DEVICE_FILTERS = ["all", "noncompliant", "missing-policy", "inactive"] as const satisfies readonly DeviceFilter[];
 const RELUTION_LIST_VALUE_PATTERN = /^[A-Z0-9_-]+$/u;
@@ -19,6 +20,7 @@ const RELUTION_LIST_VALUE_PATTERN = /^[A-Z0-9_-]+$/u;
 interface AuditResponse {
   query: RelutionDeviceQueryResult;
   report: RelutionAssessmentReport;
+  assessmentId: string;
 }
 
 interface ReportWriteResult {
@@ -39,6 +41,7 @@ export function RelutionDashboardPanel(): JSX.Element {
   const [session, setSession] = useState<RelutionPublicSession>({ configured: false, tokenConfigured: false, mode: "read-only" });
   const [devices, setDevices] = useState<RelutionDeviceQueryResult | undefined>();
   const [assessment, setAssessment] = useState<RelutionAssessmentReport | undefined>();
+  const [assessmentId, setAssessmentId] = useState<string | undefined>();
   const [reportPath, setReportPath] = useState<ReportWriteResult | undefined>();
   const [zammadProtocol, setZammadProtocol] = useState<Protocol>("https");
   const [zammadHost, setZammadHost] = useState("");
@@ -52,6 +55,16 @@ export function RelutionDashboardPanel(): JSX.Element {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const ticketCreateInFlight = useRef(false);
+  const activeRequestCount = useRef(0);
+  const latestRequest = useRef<Record<RequestDomain, number>>({
+    "relution-session": 0,
+    "relution-audit": 0,
+    "relution-report": 0,
+    "zammad-session": 0,
+    "zammad-ticket": 0,
+  });
+  const nextRequestId = useRef(0);
+  const latestErrorRequestId = useRef(0);
 
   const visibleAssessments = useMemo(
     () => assessment === undefined ? [] : filterAssessments(assessment.devices, filter, search),
@@ -59,7 +72,7 @@ export function RelutionDashboardPanel(): JSX.Element {
   );
 
   async function submitSession(): Promise<void> {
-    await run(async () => {
+    await run("relution-session", async (isCurrent) => {
       const response = await postJson("/api/relution/session", {
         protocol,
         host,
@@ -70,29 +83,36 @@ export function RelutionDashboardPanel(): JSX.Element {
       if (!response.ok) {
         throw new Error(result.error ?? JSON.stringify(result));
       }
-      setSession(result);
-      setApiToken("");
-      setDevices(undefined);
-      setAssessment(undefined);
-      setReportPath(undefined);
-    });
+      if (isCurrent()) {
+        setSession(result);
+        setApiToken("");
+        setDevices(undefined);
+        setAssessment(undefined);
+        setAssessmentId(undefined);
+        setReportPath(undefined);
+        setTicketDraft(undefined);
+        setTicketResult(undefined);
+      }
+    }, ["relution-audit", "relution-report", "zammad-ticket"]);
   }
 
   async function testConnection(): Promise<void> {
-    await run(async () => {
+    await run("relution-session", async (isCurrent) => {
       const response = await postJson("/api/relution/test", {});
       const result = await readJsonResponse<ConnectionTestResponse>(response);
       if (!response.ok || result.ok === false) {
         throw new Error(connectionTestFailureMessage(result));
       }
-      setSession(result.baseUrl === undefined
-        ? { configured: true, tokenConfigured: true, mode: "read-only" }
-        : { configured: true, baseUrl: result.baseUrl, tokenConfigured: true, mode: "read-only" });
+      if (isCurrent()) {
+        setSession(result.baseUrl === undefined
+          ? { configured: true, tokenConfigured: true, mode: "read-only" }
+          : { configured: true, baseUrl: result.baseUrl, tokenConfigured: true, mode: "read-only" });
+      }
     });
   }
 
   async function runAudit(): Promise<void> {
-    await run(async () => {
+    await run("relution-audit", async (isCurrent) => {
       const response = await postJson("/api/relution/devices/audit", {
         limit: 100,
         platforms: csvValues(platforms, "platform"),
@@ -103,27 +123,31 @@ export function RelutionDashboardPanel(): JSX.Element {
       if (!response.ok) {
         throw new Error(result.error ?? JSON.stringify(result));
       }
-      setDevices(result.query);
-      setAssessment(result.report);
-      setReportPath(undefined);
-      setTicketDraft(undefined);
-      setTicketResult(undefined);
-    });
+      if (isCurrent()) {
+        setDevices(result.query);
+        setAssessment(result.report);
+        setAssessmentId(result.assessmentId);
+        setReportPath(undefined);
+        setTicketDraft(undefined);
+        setTicketResult(undefined);
+      }
+    }, ["relution-report", "zammad-ticket"]);
   }
 
   async function writeReport(): Promise<void> {
-    await run(async () => {
-      const response = await postJson("/api/relution/reports/compliance", { report: assessment });
+    await run("relution-report", async (isCurrent) => {
+      if (assessmentId === undefined) throw new Error("No server assessment is available");
+      const response = await postJson("/api/relution/reports/compliance", { assessmentId });
       const result = await readJsonResponse<ReportWriteResult & { error?: string }>(response);
       if (!response.ok) {
         throw new Error(result.error ?? JSON.stringify(result));
       }
-      setReportPath(result);
+      if (isCurrent()) setReportPath(result);
     });
   }
 
   async function submitZammadSession(): Promise<void> {
-    await run(async () => {
+    await run("zammad-session", async (isCurrent) => {
       const response = await postJson("/api/zammad/session", {
         protocol: zammadProtocol,
         host: zammadHost,
@@ -136,24 +160,30 @@ export function RelutionDashboardPanel(): JSX.Element {
       if (!response.ok) {
         throw new Error(result.error ?? JSON.stringify(result));
       }
-      setZammadSession(result);
-      setZammadToken("");
-    });
+      if (isCurrent()) {
+        setZammadSession(result);
+        setZammadToken("");
+        setTicketDraft(undefined);
+        setTicketResult(undefined);
+      }
+    }, ["zammad-ticket"]);
   }
 
   async function testZammadConnection(): Promise<void> {
-    await run(async () => {
+    await run("zammad-session", async (isCurrent) => {
       const response = await postJson("/api/zammad/test", {});
       const result = await readJsonResponse<ConnectionTestResponse>(response);
       if (!response.ok || result.ok === false) {
         throw new Error(connectionTestFailureMessage(result));
       }
-      setZammadSession((current) => ({
-        ...current,
-        configured: true,
-        ...(result.baseUrl === undefined ? {} : { baseUrl: result.baseUrl }),
-        tokenConfigured: true,
-      }));
+      if (isCurrent()) {
+        setZammadSession((current) => ({
+          ...current,
+          configured: true,
+          ...(result.baseUrl === undefined ? {} : { baseUrl: result.baseUrl }),
+          tokenConfigured: true,
+        }));
+      }
     });
   }
 
@@ -163,27 +193,41 @@ export function RelutionDashboardPanel(): JSX.Element {
     }
     ticketCreateInFlight.current = true;
     try {
-      await run(async () => {
+      await run("zammad-ticket", async (isCurrent) => {
         const response = await postJson("/api/zammad/tickets", { draft: ticketDraft });
         const result = await readJsonResponse<{ ticket?: ZammadTicketResult; error?: string }>(response);
         if (!response.ok || result.ticket === undefined) throw new Error(result.error ?? JSON.stringify(result));
         if (!hasZammadTicketIdentifier(result.ticket)) throw new Error("Zammad ticket creation returned no ticket id or number");
-        setTicketResult(result.ticket);
+        if (isCurrent()) setTicketResult(result.ticket);
       });
     } finally {
       ticketCreateInFlight.current = false;
     }
   }
 
-  async function run(task: () => Promise<void>): Promise<void> {
+  async function run(
+    domain: RequestDomain,
+    task: (isCurrent: () => boolean) => Promise<void>,
+    invalidatedDomains: readonly RequestDomain[] = [],
+  ): Promise<void> {
+    for (const invalidatedDomain of invalidatedDomains) {
+      latestRequest.current[invalidatedDomain] = ++nextRequestId.current;
+    }
+    const requestId = ++nextRequestId.current;
+    latestRequest.current[domain] = requestId;
+    latestErrorRequestId.current = requestId;
+    activeRequestCount.current += 1;
     setLoading(true);
     setError(undefined);
     try {
-      await task();
+      await task(() => latestRequest.current[domain] === requestId);
     } catch (taskError) {
-      setError(taskError instanceof Error ? taskError.message : String(taskError));
+      if (latestErrorRequestId.current === requestId) {
+        setError(taskError instanceof Error ? taskError.message : String(taskError));
+      }
     } finally {
-      setLoading(false);
+      activeRequestCount.current -= 1;
+      setLoading(activeRequestCount.current > 0);
     }
   }
 
@@ -212,9 +256,9 @@ export function RelutionDashboardPanel(): JSX.Element {
       <section className="preview-block">
         <h3>Audit</h3>
         <div className="recommendation-controls">
-          <label>Platforms<input value={platforms} onChange={(event) => setPlatforms(event.target.value)} /></label>
-          <label>Statuses<input value={statuses} placeholder="COMPLIANT,INACTIVE" onChange={(event) => setStatuses(event.target.value)} /></label>
-          <label>Expected policies<input value={expectedPolicies} placeholder="IOS=Baseline iOS;ANDROID_ENTERPRISE=Android Baseline" onChange={(event) => setExpectedPolicies(event.target.value)} /></label>
+          <label>Platforms<input disabled={loading} value={platforms} onChange={(event) => setPlatforms(event.target.value)} /></label>
+          <label>Statuses<input disabled={loading} value={statuses} placeholder="COMPLIANT,INACTIVE" onChange={(event) => setStatuses(event.target.value)} /></label>
+          <label>Expected policies<input disabled={loading} value={expectedPolicies} placeholder="IOS=Baseline iOS;ANDROID_ENTERPRISE=Android Baseline" onChange={(event) => setExpectedPolicies(event.target.value)} /></label>
           <button type="button" disabled={loading || !session.configured} onClick={() => void runAudit()}>Run audit</button>
           <button type="button" disabled={loading || assessment === undefined} onClick={() => void writeReport()}>Write report</button>
         </div>
@@ -224,9 +268,13 @@ export function RelutionDashboardPanel(): JSX.Element {
       {assessment !== undefined ? (
         <section className="preview-block">
           <h3>Devices</h3>
-          {devices?.truncated === true ? (
+          {assessment.completeness.status === "partial" ? (
             <p className="warning" role="alert">
-              Showing {devices.count} of {devices.total ?? "unknown"} enrolled devices; compliance results are incomplete.
+              Showing {assessment.completeness.assessedCount} of {assessment.completeness.total ?? "unknown"} enrolled devices; compliance results are incomplete.
+            </p>
+          ) : assessment.completeness.status === "unknown" ? (
+            <p className="warning" role="alert">
+              The server did not report a total device count; audit completeness is unknown.
             </p>
           ) : null}
           <div className="recommendation-controls">

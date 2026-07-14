@@ -1,5 +1,5 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import {
   createDdmArtifact,
   createMdmCommandArtifact,
@@ -12,6 +12,7 @@ import {
 import { inspectMobileConfigText } from "./plist.js";
 import type { PolicyWorkspace } from "./workspace.js";
 import { assertNoSymlinkPath } from "./utils/path-safety.js";
+import { writePrivateFileAtomic } from "./utils/atomic-private-file.js";
 import type { JsonRecord } from "./utils/json-guards.js";
 
 export interface EditorSidecarState {
@@ -68,8 +69,10 @@ export function loadEditorSidecar(workspaceDir: string): EditorSidecarState {
 
 export function saveEditorSidecar(workspaceDir: string, sidecar: EditorSidecarState): void {
   const path = resolveEditorSidecarPath(workspaceDir);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(sidecar, null, 2)}\n`);
+  writePrivateFileAtomic(path, Buffer.from(`${JSON.stringify(sidecar, null, 2)}\n`), {
+    force: true,
+    label: "Workspace sidecar path",
+  });
 }
 
 export function resetEditorSidecar(workspaceDir: string): void {

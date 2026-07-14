@@ -325,9 +325,9 @@ test("rejects duplicate managed archive entries before verifying or extracting",
   );
   writeFileSync(duplicateArchive, writeZip([...entries, { name: policyEntry.name, data: maliciousPolicy }]));
 
-  assert.throws(() => inspectRexp(duplicateArchive), /Duplicate managed archive entry/u);
-  assert.throws(() => verifyRexp(duplicateArchive, password), /Duplicate managed archive entry/u);
-  assert.throws(() => extractRexp(duplicateArchive, duplicateOutput, password), /Duplicate managed archive entry/u);
+  assert.throws(() => inspectRexp(duplicateArchive), /Duplicate or colliding managed archive entry/u);
+  assert.throws(() => verifyRexp(duplicateArchive, password), /Duplicate or colliding managed archive entry/u);
+  assert.throws(() => extractRexp(duplicateArchive, duplicateOutput, password), /Duplicate or colliding managed archive entry/u);
   assert.equal(existsSync(join(duplicateOutput, policyEntry.name)), false);
 });
 

@@ -1,6 +1,8 @@
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { saveWorkspace, type PolicyWorkspace } from "./workspace.js";
+import { writePrivateFileAtomic } from "./utils/atomic-private-file.js";
+import { assertNoSymlinkPath } from "./utils/path-safety.js";
 
 export type SidecarPathState =
   | { kind: "missing" }
@@ -9,6 +11,7 @@ export type SidecarPathState =
   | { kind: "symlink"; target: string };
 
 export function captureSidecarState(workspaceDir: string): SidecarPathState {
+  assertNoSymlinkPath(workspaceDir, "", "Workspace sidecar path");
   const path = join(workspaceDir, "editor-sidecar.json");
   let stat;
   try {
@@ -34,6 +37,7 @@ function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
 }
 
 function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): void {
+  assertNoSymlinkPath(workspaceDir, "", "Workspace sidecar path");
   const path = join(workspaceDir, "editor-sidecar.json");
   rmSync(path, { recursive: true, force: true });
 
@@ -41,14 +45,14 @@ function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): 
     return;
   }
   if (snapshot.kind === "directory") {
-    mkdirSync(path, { recursive: true });
+    mkdirSync(path, { recursive: true, mode: 0o700 });
     return;
   }
   if (snapshot.kind === "symlink") {
     symlinkSync(snapshot.target, path);
     return;
   }
-  writeFileSync(path, snapshot.contents);
+  writePrivateFileAtomic(path, Buffer.from(snapshot.contents), { force: false, label: "Workspace sidecar path" });
 }
 
 export function rollbackPersistedEditorState(
