@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
@@ -82,6 +82,42 @@ test("saveWorkspace rejects symlinked managed files that point outside the works
 
   assert.throws(() => saveWorkspace(workspaceDir, original), /symlink/i);
   assert.equal(readFileSync(outsidePath, "utf8"), "{\"outside\":true}\n");
+});
+
+test("saveWorkspace rejects a symlinked workspace ancestor", () => {
+  const bundle = loadTemplateBundle();
+  const root = mkdtempSync(join(tmpdir(), "relution-workspace-parent-symlink-"));
+  const source = join(root, "source");
+  const outside = join(root, "outside");
+  const alias = join(root, "alias");
+  mkdirSync(outside);
+  const workspace = createNewWorkspace({
+    workspace: source,
+    platform: "IOS",
+    name: "Ancestor Symlink Test",
+    serverVersion: bundle.serverVersion,
+  });
+  symlinkSync(outside, alias);
+
+  assert.throws(() => saveWorkspace(join(alias, "workspace"), workspace), /symlink/i);
+  assert.equal(existsSync(join(outside, "workspace")), false);
+});
+
+test("saveWorkspace writes private managed files", { skip: process.platform === "win32" }, () => {
+  const bundle = loadTemplateBundle();
+  const workspaceDir = join(mkdtempSync(join(tmpdir(), "relution-workspace-private-")), "workspace");
+  const workspace = createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name: "Private Workspace Test",
+    serverVersion: bundle.serverVersion,
+  });
+
+  assert.equal(lstatSync(workspaceDir).mode & 0o777, 0o700);
+  assert.equal(lstatSync(join(workspaceDir, "metadata.json")).mode & 0o777, 0o600);
+  assert.equal(lstatSync(join(workspaceDir, "report.json")).mode & 0o777, 0o600);
+  assert.equal(lstatSync(join(workspaceDir, "policies")).mode & 0o777, 0o700);
+  assert.equal(lstatSync(join(workspaceDir, workspace.policies[0]!.path)).mode & 0o777, 0o600);
 });
 
 function createWorkspaceWithPolicyFile(name: string): { workspaceDir: string; policyFile: string } {

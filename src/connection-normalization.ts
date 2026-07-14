@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 export type HttpProtocol = "http" | "https";
 
 export interface NormalizedConnectionBase {
@@ -6,6 +8,7 @@ export interface NormalizedConnectionBase {
   port?: number;
   basePath: string;
   baseUrl: string;
+  allowLocalServiceHosts: boolean;
 }
 
 export function normalizeHttpConnectionInput(input: {
@@ -13,20 +16,38 @@ export function normalizeHttpConnectionInput(input: {
   readonly host: string;
   readonly port?: number;
   readonly basePath?: string;
+  readonly allowLocalServiceHosts?: boolean;
   readonly serviceName: string;
 }): NormalizedConnectionBase {
   const parsed = parseHostInput(input.host);
   const protocol = input.protocol ?? parsed.protocol ?? "https";
   assertHttpProtocol(protocol, input.serviceName);
-  const host = parsed.host;
+  const host = normalizeHttpHostname(parsed.host);
   if (host.length === 0) {
     throw new Error(`${input.serviceName} host is required`);
   }
   const basePath = normalizeBasePath(input.basePath ?? parsed.basePath ?? "");
   const port = input.port ?? parsed.port;
   assertOptionalPort(port, input.serviceName);
-  const authority = port === undefined ? host : `${host}:${String(port)}`;
-  return { protocol, host, ...(port === undefined ? {} : { port }), basePath, baseUrl: `${protocol}://${authority}${basePath}` };
+  const authority = formatHttpUrlAuthority(host, port);
+  return {
+    protocol,
+    host,
+    ...(port === undefined ? {} : { port }),
+    basePath,
+    baseUrl: `${protocol}://${authority}${basePath}`,
+    allowLocalServiceHosts: input.allowLocalServiceHosts === true,
+  };
+}
+
+export function formatHttpUrlAuthority(host: string, port?: number): string {
+  const normalizedHost = normalizeHttpHostname(host);
+  const authorityHost = isIP(normalizedHost) === 6 ? `[${normalizedHost}]` : normalizedHost;
+  return port === undefined ? authorityHost : `${authorityHost}:${String(port)}`;
+}
+
+export function normalizeHttpHostname(host: string): string {
+  return host.replace(/^\[(.*)\]$/u, "$1");
 }
 
 function assertHttpProtocol(protocol: string, serviceName: string): asserts protocol is HttpProtocol {

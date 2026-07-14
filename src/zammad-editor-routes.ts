@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HttpError, assignOptionalHttpConnectionFields, badRequest, optionalRecord, optionalString, readJsonBody, requireString } from "./editor-server-helpers.js";
+import { assignOptionalHttpConnectionFields, badRequest, optionalRecord, optionalString, readJsonBody, requireString } from "./editor-server-helpers.js";
 import { requireRuntimeConnection, sendJson } from "./editor-routes-utils.js";
-import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
+import { literalServiceHostPolicyError } from "./outbound-host-policy.js";
 import {
   createZammadTicket,
   normalizeZammadConnection,
@@ -49,17 +49,10 @@ export async function handleZammadApiRequest(
 }
 
 async function parseAllowedZammadConnection(body: Record<string, unknown>, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {
-  const connection = normalizeZammadConnection(parseZammadConnectionInput(body));
-  const policyError = await outboundHostPolicyError("Zammad", connection.host, allowLocalServiceHosts);
-  if (policyError === undefined) {
-    return connection;
-  }
-  if (policyError.kind === "blocked") {
-    console.warn(`[zammad outbound host blocked] ${policyError.reason}`);
-    throw badRequest(policyError.reason);
-  }
-  console.warn(`[zammad outbound host dns-failure] ${policyError.error}`);
-  throw new HttpError(502, policyError.error);
+  const connection = normalizeZammadConnection({ ...parseZammadConnectionInput(body), allowLocalServiceHosts });
+  const policyError = literalServiceHostPolicyError("Zammad", connection.host, allowLocalServiceHosts);
+  if (policyError !== undefined) throw badRequest(policyError);
+  return connection;
 }
 
 function parseZammadConnectionInput(body: Record<string, unknown>): ZammadConnectionInput {
@@ -75,8 +68,7 @@ function parseZammadConnectionInput(body: Record<string, unknown>): ZammadConnec
 
 async function requireOutboundConnection(runtime: ZammadEditorRuntime, allowLocalServiceHosts: boolean): Promise<ZammadConnection> {
   const connection = requireRuntimeConnection(runtime, "Zammad");
-  await assertOutboundHostAllowed("Zammad", connection.host, allowLocalServiceHosts);
-  return connection;
+  return connection.allowLocalServiceHosts === allowLocalServiceHosts ? connection : { ...connection, allowLocalServiceHosts };
 }
 
 function parseTicketDraft(body: Record<string, unknown>): ZammadTicketDraft {

@@ -1,5 +1,5 @@
 import { normalizeHttpConnectionInput } from "./connection-normalization.js";
-import { fetchHttpServiceUrl, httpServiceRequestUrl } from "./http-service-transport.js";
+import { fetchHttpServiceUrl, httpServiceRequestUrl, type HttpServiceTransportOptions } from "./http-service-transport.js";
 import { asRecord } from "./utils/json-guards.js";
 
 export type RelutionProtocol = "http" | "https";
@@ -10,6 +10,7 @@ export interface RelutionConnectionInput {
   port?: number;
   basePath?: string;
   apiToken: string;
+  allowLocalServiceHosts?: boolean;
 }
 
 export interface RelutionConnection {
@@ -19,6 +20,7 @@ export interface RelutionConnection {
   basePath: string;
   apiToken: string;
   baseUrl: string;
+  allowLocalServiceHosts: boolean;
   mode: "read-only";
 }
 
@@ -64,6 +66,7 @@ export function applyRelutionDeviceQueryOptions(
 }
 
 export type RelutionDeviceSortField = "lastConnectionDate" | "name" | "platform" | "status" | "policyStatus";
+export const MAX_RELUTION_DEVICE_QUERY_LIMIT = 1_000;
 
 export interface RelutionDeviceQueryResult {
   baseUrl: string;
@@ -115,6 +118,7 @@ export interface RelutionDeviceAssessment {
 export interface RelutionAssessmentReport {
   generatedAt: string;
   baseUrl: string;
+  completeness: RelutionAssessmentCompleteness;
   summary: {
     totalDevices: number;
     compliant: number;
@@ -128,6 +132,14 @@ export interface RelutionAssessmentReport {
     byPolicyStatus: Record<string, number>;
   };
   devices: RelutionDeviceAssessment[];
+}
+
+/** Describes whether a report covers every device returned by the server query. */
+export interface RelutionAssessmentCompleteness {
+  assessedCount: number;
+  total?: number;
+  truncated: boolean;
+  status: "complete" | "partial" | "unknown";
 }
 
 export interface RelutionAssessmentOptions {
@@ -153,6 +165,9 @@ export function normalizeRelutionConnection(input: RelutionConnectionInput): Rel
     throw new Error("Relution API token is required");
   }
   const connection = normalizeHttpConnectionInput({ ...input, serviceName: "Relution" });
+  if (connection.protocol === "http" && !connection.allowLocalServiceHosts) {
+    throw new Error("Relution HTTP connections require --allow-local-service-hosts; use HTTPS for remote services");
+  }
   return {
     ...connection,
     apiToken,
@@ -167,11 +182,11 @@ export function publicRelutionSession(connection: RelutionConnection | undefined
   return { configured: true, baseUrl: connection.baseUrl, tokenConfigured: connection.apiToken.length > 0, mode: "read-only" };
 }
 
-export async function testRelutionConnection(connection: RelutionConnection): Promise<RelutionConnectionTestResult> {
+export async function testRelutionConnection(connection: RelutionConnection, transportOptions: HttpServiceTransportOptions = {}): Promise<RelutionConnectionTestResult> {
   const response = await relutionFetch(connection, "/api/v2/devices/baseInfo/query", {
     method: "POST",
     body: JSON.stringify(buildDeviceQueryBody({ limit: 1 })),
-  });
+  }, transportOptions);
   try {
     relutionQueryResponse(await response.json());
   } catch {
@@ -187,14 +202,18 @@ export async function testRelutionConnection(connection: RelutionConnection): Pr
 export async function queryRelutionDevices(
   connection: RelutionConnection,
   input: RelutionDeviceQueryInput,
+  transportOptions: HttpServiceTransportOptions = {},
 ): Promise<RelutionDeviceQueryResult> {
   const response = await relutionFetch(connection, "/api/v2/devices/baseInfo/query", {
     method: "POST",
     body: JSON.stringify(buildDeviceQueryBody(input)),
-  });
+  }, transportOptions);
   const body = relutionQueryResponse(await response.json());
   const devices = body.results.map(normalizeDevice);
   const total = relutionResultTotal(body);
+  if (total !== undefined && total < devices.length) {
+    throw new Error("Malformed Relution device query response: total is smaller than the returned device count.");
+  }
   return {
     baseUrl: connection.baseUrl,
     count: devices.length,
@@ -205,7 +224,7 @@ export async function queryRelutionDevices(
 }
 
 function relutionResultTotal(body: RelutionQueryResponse): number | undefined {
-  return typeof body.total === "number" ? body.total : body.nonpagedCount;
+  return typeof body.nonpagedCount === "number" ? body.nonpagedCount : body.total;
 }
 
 function relutionQueryResponse(value: unknown): RelutionQueryResponse {
@@ -213,52 +232,87 @@ function relutionQueryResponse(value: unknown): RelutionQueryResponse {
   if (body === undefined || !Array.isArray(body.results)) {
     throw new Error("Malformed Relution device query response: expected results array.");
   }
+  const nonpagedCount = optionalDeviceCount(body.nonpagedCount, "nonpagedCount");
+  const total = optionalDeviceCount(body.total, "total");
   return {
     results: body.results,
-    ...(typeof body.nonpagedCount === "number" ? { nonpagedCount: body.nonpagedCount } : {}),
-    ...(typeof body.total === "number" ? { total: body.total } : {}),
+    ...(nonpagedCount === undefined ? {} : { nonpagedCount }),
+    ...(total === undefined ? {} : { total }),
   };
 }
 
-export function assessRelutionDevices(baseUrl: string, devices: RelutionDeviceSummary[]): RelutionAssessmentReport {
-  return createRelutionAssessmentReport(baseUrl, devices, {});
+function optionalDeviceCount(value: unknown, field: string): number | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error(`Malformed Relution device query response: ${field} must be a non-negative safe integer.`);
+  }
+  return value;
+}
+
+export function assessRelutionDevices(
+  baseUrl: string,
+  devices: RelutionDeviceSummary[],
+  completeness: RelutionAssessmentCompleteness = assessmentCompleteness({ count: devices.length, truncated: false }),
+): RelutionAssessmentReport {
+  return createRelutionAssessmentReport(baseUrl, devices, {}, completeness);
 }
 
 export async function auditRelutionDevices(
   connection: RelutionConnection,
   query: RelutionDeviceQueryInput,
   options: RelutionAssessmentOptions = {},
+  transportOptions: HttpServiceTransportOptions = {},
 ): Promise<{ query: RelutionDeviceQueryResult; report: RelutionAssessmentReport }> {
-  const result = await queryRelutionDevices(connection, query);
-  return { query: result, report: createRelutionAssessmentReport(connection.baseUrl, result.devices, options) };
+  validateRelutionAssessmentOptions(options);
+  const result = await queryRelutionDevices(connection, query, transportOptions);
+  return { query: result, report: createRelutionAssessmentReport(connection.baseUrl, result.devices, options, assessmentCompleteness(result)) };
 }
 
 export function createRelutionAssessmentReport(
   baseUrl: string,
   devices: RelutionDeviceSummary[],
   options: RelutionAssessmentOptions = {},
+  completeness: RelutionAssessmentCompleteness = assessmentCompleteness({ count: devices.length, truncated: false }),
 ): RelutionAssessmentReport {
-  const assessments = devices.map((device) => assessDevice(device, normalizeAssessmentOptions(options)));
+  const normalizedOptions = normalizeAssessmentOptions(options);
+  const assessments = devices.map((device) => assessDevice(device, normalizedOptions));
   const summary = {
     totalDevices: assessments.length,
     compliant: assessments.filter((entry) => entry.status === "compliant").length,
     issue: assessments.filter((entry) => entry.status === "issue").length,
     notCheckable: assessments.filter((entry) => entry.status === "not-checkable").length,
     missingPolicy: assessments.filter((entry) => entry.issues.some((issue) => issue.id === "missing-policy")).length,
-    inactiveWarning: assessments.filter((entry) => entry.issues.some((issue) => issue.id === "inactive-warning")).length,
+    inactiveWarning: assessments.filter((entry) => entry.issues.some((issue) => issue.id === "inactive-warning" || issue.id === "inactive-problem")).length,
     inactiveProblem: assessments.filter((entry) => entry.issues.some((issue) => issue.id === "inactive-problem")).length,
     byPlatform: countBy(devices.map((device) => device.platform ?? "UNKNOWN")),
     byStatus: countBy(devices.map((device) => device.status ?? "UNKNOWN")),
     byPolicyStatus: countBy(devices.map((device) => device.policyStatus ?? "UNKNOWN")),
   };
-  return { generatedAt: new Date().toISOString(), baseUrl, summary, devices: assessments };
+  return { generatedAt: new Date().toISOString(), baseUrl, completeness, summary, devices: assessments };
+}
+
+export function assessmentCompleteness(query: Pick<RelutionDeviceQueryResult, "count" | "total" | "truncated">): RelutionAssessmentCompleteness {
+  return {
+    assessedCount: query.count,
+    ...(query.total === undefined ? {} : { total: query.total }),
+    truncated: query.truncated,
+    status: query.total === undefined ? "unknown" : query.truncated ? "partial" : "complete",
+  };
 }
 
 function buildDeviceQueryBody(input: RelutionDeviceQueryInput): Record<string, unknown> {
+  const limit = input.limit ?? 100;
+  const offset = input.offset ?? 0;
+  if (!Number.isSafeInteger(limit) || limit < 0 || limit > MAX_RELUTION_DEVICE_QUERY_LIMIT) {
+    throw new Error(`Relution device query limit must be an integer between 0 and ${String(MAX_RELUTION_DEVICE_QUERY_LIMIT)}`);
+  }
+  if (!Number.isSafeInteger(offset) || offset < 0) {
+    throw new Error("Relution device query offset must be a non-negative safe integer");
+  }
   const filters = deviceQueryFilters(input);
   return {
-    limit: input.limit ?? 100,
-    offset: input.offset ?? 0,
+    limit,
+    offset,
     getNonpagedCount: true,
     sortOrder: { sortFields: [{ name: input.sortField ?? "lastConnectionDate", ascending: input.sortAscending ?? false }] },
     ...(filters.length === 0 ? {} : { filter: { type: "logOp", operation: "AND", filters } }),
@@ -283,7 +337,7 @@ function searchFilter(search: string | undefined): Array<Record<string, unknown>
   return value === undefined || value.length === 0 ? [] : [{ type: "string", fieldName: "name", value, comparator: "CONTAINS" }];
 }
 
-async function relutionFetch(connection: RelutionConnection, path: string, init: RequestInit): Promise<Response> {
+async function relutionFetch(connection: RelutionConnection, path: string, init: RequestInit, transportOptions: HttpServiceTransportOptions): Promise<Response> {
   assertRelutionReadOnlyRequest(init.method, path);
   const url = httpServiceRequestUrl(connection, path, "Relution");
   let response: Response;
@@ -297,7 +351,7 @@ async function relutionFetch(connection: RelutionConnection, path: string, init:
         "X-User-Access-Token": connection.apiToken,
         ...init.headers,
       },
-    }, "Relution");
+    }, "Relution", transportOptions);
   } catch (error) {
     throw new RelutionNetworkError(`Relution API request failed before an HTTP response: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }
@@ -445,12 +499,31 @@ function addInactiveIssues(
 }
 
 function normalizeAssessmentOptions(options: RelutionAssessmentOptions): Required<RelutionAssessmentOptions> {
+  const inactiveWarningDays = options.inactiveWarningDays ?? 30;
+  const inactiveProblemDays = options.inactiveProblemDays ?? 90;
+  if (!Number.isSafeInteger(inactiveWarningDays) || inactiveWarningDays < 0) {
+    throw new Error("Inactive warning days must be a non-negative safe integer");
+  }
+  if (!Number.isSafeInteger(inactiveProblemDays) || inactiveProblemDays < 0) {
+    throw new Error("Inactive problem days must be a non-negative safe integer");
+  }
+  if (inactiveProblemDays < inactiveWarningDays) {
+    throw new Error("Inactive problem days must be greater than or equal to inactive warning days");
+  }
+  const now = options.now ?? new Date();
+  if (!Number.isFinite(now.getTime())) {
+    throw new Error("Relution assessment time must be a valid date");
+  }
   return {
     expectedPoliciesByPlatform: options.expectedPoliciesByPlatform ?? {},
-    inactiveWarningDays: options.inactiveWarningDays ?? 30,
-    inactiveProblemDays: options.inactiveProblemDays ?? 90,
-    now: options.now ?? new Date(),
+    inactiveWarningDays,
+    inactiveProblemDays,
+    now,
   };
+}
+
+export function validateRelutionAssessmentOptions(options: RelutionAssessmentOptions): void {
+  normalizeAssessmentOptions(options);
 }
 
 function inactiveDaysSince(value: string | undefined, now: Date): number | undefined {
@@ -496,6 +569,9 @@ function assignedPolicyNames(record: Record<string, unknown>): string[] | undefi
 function stringList(value: unknown): string[] | undefined {
   if (!Array.isArray(value)) {
     return undefined;
+  }
+  if (value.length === 0) {
+    return [];
   }
   const names = value.flatMap((entry) => {
     if (typeof entry === "string" && entry.length > 0) {

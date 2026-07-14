@@ -1,8 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { normalizeZammadConnection, publicZammadSession, createZammadTicket, testZammadConnection } from "../src/zammad-api.js";
+import {
+  normalizeZammadConnection,
+  publicZammadSession,
+  createZammadTicket as createZammadTicketWithTransport,
+  testZammadConnection as testZammadConnectionWithTransport,
+} from "../src/zammad-api.js";
 import { handleZammadApiRequest } from "../src/zammad-editor-routes.js";
 import { buildZammadTicketDraft } from "../src/zammad-ticket-drafts.js";
+import { TEST_HTTP_SERVICE_TRANSPORT } from "./http-service-test-adapter.js";
+
+async function createZammadTicket(
+  connection: Parameters<typeof createZammadTicketWithTransport>[0],
+  draft: Parameters<typeof createZammadTicketWithTransport>[1],
+) {
+  return await createZammadTicketWithTransport(connection, draft, TEST_HTTP_SERVICE_TRANSPORT);
+}
+
+async function testZammadConnection(connection: Parameters<typeof testZammadConnectionWithTransport>[0]) {
+  return await testZammadConnectionWithTransport(connection, TEST_HTTP_SERVICE_TRANSPORT);
+}
 
 test("normalizes Zammad connection settings without exposing the token publicly", () => {
   const connection = normalizeZammadConnection({
@@ -10,6 +27,7 @@ test("normalizes Zammad connection settings without exposing the token publicly"
     apiToken: "secret-token",
     group: "IT",
     customer: "it@example.test",
+    allowLocalServiceHosts: true,
   });
 
   assert.equal(connection.baseUrl, "http://zammad.example.test:8080/helpdesk");
@@ -20,6 +38,18 @@ test("normalizes Zammad connection settings without exposing the token publicly"
     group: "IT",
     customer: "it@example.test",
   });
+});
+
+test("rejects cleartext Zammad connections without explicit local/lab opt-in", () => {
+  assert.throws(
+    () => normalizeZammadConnection({
+      host: "http://zammad.example.test",
+      apiToken: "secret-token",
+      group: "IT",
+      customer: "it@example.test",
+    }),
+    /HTTP connections require --allow-local-service-hosts/u,
+  );
 });
 
 test("builds non-compliant-device ticket drafts through the dispatcher", () => {
@@ -325,6 +355,7 @@ test("Zammad editor routes re-check outbound host policy before each request", a
             apiToken: "secret-token",
             group: "IT",
             customer: "it@example.test",
+            allowLocalServiceHosts: true,
           }),
         },
         false,

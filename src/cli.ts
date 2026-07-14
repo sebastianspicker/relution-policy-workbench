@@ -384,7 +384,7 @@ async function serveEditor(args: ParsedArgs, workspace: string, out: string, key
     options.bundlePath = bundlePath;
   }
   const handle = await startEditorServer(options);
-  console.log(`Relution policy workbench: ${handle.url}`);
+  console.log(`Relution policy workbench: ${handle.browserUrl}`);
   console.log(`Workspace: ${resolve(workspace)}`);
   console.log(`Output: ${resolve(out)}`);
   if (key.length === 0) {
@@ -540,10 +540,10 @@ function printHelp(): void {
   rexp apple-schema refresh [--revision <ref>] [--source <apple-device-management-dir>] [--out <catalog.json>] [--json]
   rexp apple-schema list [--kind profile|ddm-configuration|mdm-command] [--catalog <catalog.json>] [--json]
   rexp apple-schema audit [--catalog <catalog.json>] [--json]
-  rexp relution test --host <server> --token <api-token> [--protocol http|https] [--port <port>] [--json]       # read-only
-  rexp relution devices --host <server> --token <api-token> [--platform <csv>] [--status <csv>] [--ownership <csv>] [--limit <n>] [--offset <n>] [--json]  # read-only
-  rexp relution assess --host <server> --token <api-token> [--workspace <dir>] [--platform <csv>] [--status <csv>] [--json]  # read-only remote API
-  rexp relution audit --host <server> --token <api-token> [--expected-policy IOS=Policy] [--inactive-warning-days 30] [--inactive-problem-days 90] [--json]  # read-only remote API
+  rexp relution test --host <server> --token <api-token> [--protocol http|https] [--port <port>] [--base-path <path>] [--allow-local-service-hosts] [--json]  # read-only
+  rexp relution devices --host <server> --token <api-token> [--protocol http|https] [--port <port>] [--base-path <path>] [--allow-local-service-hosts] [--platform <csv>] [--status <csv>] [--ownership <csv>] [--limit <n>] [--offset <n>] [--json]  # read-only
+  rexp relution assess --host <server> --token <api-token> [--protocol http|https] [--port <port>] [--base-path <path>] [--allow-local-service-hosts] [--workspace <dir>] [--platform <csv>] [--status <csv>] [--json]  # read-only remote API
+  rexp relution audit --host <server> --token <api-token> [--protocol http|https] [--port <port>] [--base-path <path>] [--allow-local-service-hosts] [--expected-policy IOS=Policy] [--inactive-warning-days 30] [--inactive-problem-days 90] [--json]  # read-only remote API
   rexp mdm verify-sources [--json]  # offline
   rexp mdm validate [--json]        # offline
   rexp mdm generate [--json]        # offline, LAB only
@@ -551,7 +551,7 @@ function printHelp(): void {
   rexp mdm manifest [--json]        # offline
   rexp new --platform <Platform> --name <name> --workspace <dir> [--force]
   rexp edit <file.rexp> --key <password> --workspace <dir> --out <file.rexp> [--port 8787] [--force] [--allow-local-service-hosts]
-  rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-network-editor] [--allow-local-service-hosts]
+  rexp serve [--workspace <dir>] [--out <file.rexp>] [--key <password>] [--platform <Platform>] [--name <policy name>] [--port 8787] [--allow-local-service-hosts]
 
 With no arguments, rexp starts the local browser editor using ${DEFAULT_SERVE_WORKSPACE}.
 The password can also be supplied through RELUTION_REXP_KEY.

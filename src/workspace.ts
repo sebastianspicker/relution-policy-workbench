@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve, sep } from "node:path";
 import { appleCompatSettingsForPlatform, createAppleCompatConfiguration, findAppleCompatSetting } from "./apple-compat.js";
 import {
@@ -14,6 +14,7 @@ import { findTemplate, defaultValueForSchema, objectProperties, type Configurati
 import { asRecord, requireRecord, stringValue } from "./utils/json-guards.js";
 import type { JsonRecord as SharedJsonRecord } from "./utils/json-guards.js";
 import { assertNoSymlinkPath } from "./utils/path-safety.js";
+import { isPolicyPath, policyPathCollisionKey } from "./policy-path.js";
 
 export interface PolicyWorkspace {
   metadata: SharedJsonRecord;
@@ -103,8 +104,6 @@ interface CreatedPolicy {
   document: SharedJsonRecord;
 }
 
-const POLICY_PATH_PATTERN = /^policies\/policy_[^/]+\.json$/u;
-
 export function createNewWorkspace(options: NewWorkspaceOptions): PolicyWorkspace {
   prepareWorkspace(options.workspace, options.force === true);
   const policy = createPolicyDocument({ platform: options.platform, name: options.name });
@@ -144,7 +143,7 @@ export function saveWorkspace(workspaceDir: string, workspace: PolicyWorkspace):
   // half-updated metadata/report/policies set behind.
   const serialized = serializeWorkspace(workspace);
   const resolvedWorkspaceDir = resolve(workspaceDir);
-  mkdirSync(resolvedWorkspaceDir, { recursive: true });
+  mkdirSync(resolvedWorkspaceDir, { recursive: true, mode: 0o700 });
   const stagingDir = mkdtempSync(join(dirname(resolvedWorkspaceDir), `${workspaceTempPrefix(resolvedWorkspaceDir)}stage-`));
 
   try {
@@ -452,7 +451,7 @@ function prepareWorkspace(workspaceDir: string, force: boolean): void {
   if (existsSync(workspaceDir) && statSync(workspaceDir).isDirectory() && readdirSync(workspaceDir).length > 0 && !force) {
     throw new Error(`Workspace directory is not empty: ${workspaceDir}`);
   }
-  mkdirSync(workspaceDir, { recursive: true });
+  mkdirSync(workspaceDir, { recursive: true, mode: 0o700 });
 }
 
 function assertPersistableWorkspace(workspace: PolicyWorkspace): void {
@@ -470,13 +469,14 @@ function assertPersistableWorkspace(workspace: PolicyWorkspace): void {
     if (typeof policy.path !== "string" || policy.path.length === 0) {
       throw new Error("Workspace policy path must be a non-empty string");
     }
-    if (!POLICY_PATH_PATTERN.test(policy.path)) {
+    if (!isPolicyPath(policy.path)) {
       throw new Error(`Workspace policy path is invalid: ${policy.path}`);
     }
-    if (seenPaths.has(policy.path)) {
-      throw new Error(`Workspace policy path is duplicated: ${policy.path}`);
+    const collisionKey = policyPathCollisionKey(policy.path);
+    if (seenPaths.has(collisionKey)) {
+      throw new Error(`Workspace policy path is duplicated or collides on a portable filesystem: ${policy.path}`);
     }
-    seenPaths.add(policy.path);
+    seenPaths.add(collisionKey);
     if (!asRecord(policy.document)) {
       throw new Error(`Workspace policy document must be an object: ${policy.path}`);
     }
@@ -491,7 +491,7 @@ function listPolicyFiles(workspaceDir: string): string[] {
   }
   assertWorkspacePathUsesNoSymlink(workspaceDir, "policies");
   return readdirSync(policiesDir)
-    .filter((name) => name.startsWith("policy_") && name.endsWith(".json"))
+    .filter((name) => isPolicyPath(`policies/${name}`))
     .sort()
     .map((name) => `policies/${name}`);
 }
@@ -516,11 +516,6 @@ function readJsonFile(path: string): SharedJsonRecord {
     );
   }
   return requireRecord(parsed, path);
-}
-
-function writeJsonFile(path: string, value: unknown): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 function serializeWorkspace(workspace: PolicyWorkspace): SerializedWorkspace {
@@ -552,14 +547,17 @@ function writeSerializedWorkspace(workspaceDir: string, serialized: SerializedWo
 }
 
 function writeSerializedJson(path: string, value: string): void {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, value);
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  chmodSync(dirname(path), 0o700);
+  writeFileSync(path, value, { mode: 0o600 });
+  chmodSync(path, 0o600);
 }
 
 function replaceManagedWorkspaceSurface(workspaceDir: string, stagingDir: string): void {
   const backupDir = mkdtempSync(join(dirname(workspaceDir), `${workspaceTempPrefix(workspaceDir)}backup-`));
   const movedToBackup: string[] = [];
   const movedFromStage: string[] = [];
+  let cleanupBackup = true;
 
   try {
     for (const entry of ["metadata.json", "report.json", "policies"] as const) {
@@ -573,10 +571,18 @@ function replaceManagedWorkspaceSurface(workspaceDir: string, stagingDir: string
       }
     }
   } catch (error) {
-    rollbackManagedWorkspaceSurface(workspaceDir, backupDir, movedToBackup, movedFromStage);
+    try {
+      rollbackManagedWorkspaceSurface(workspaceDir, backupDir, movedToBackup, movedFromStage);
+    } catch (rollbackError) {
+      cleanupBackup = false;
+      throw new AggregateError(
+        [error, rollbackError],
+        `Workspace save failed and rollback was incomplete; recover managed files from ${backupDir}`,
+      );
+    }
     throw error;
   } finally {
-    rmSync(backupDir, { recursive: true, force: true });
+    if (cleanupBackup) rmSync(backupDir, { recursive: true, force: true });
   }
 }
 
@@ -651,7 +657,7 @@ function configurationDetails(value: unknown): SharedJsonRecord | undefined {
 }
 
 function resolveWorkspacePath(workspaceDir: string, relativePath: string): string {
-  if (relativePath !== "metadata.json" && relativePath !== "report.json" && !POLICY_PATH_PATTERN.test(relativePath)) {
+  if (relativePath !== "metadata.json" && relativePath !== "report.json" && !isPolicyPath(relativePath)) {
     throw new Error(`Workspace path must stay within the managed workspace surface: ${relativePath}`);
   }
   const resolvedRoot = resolve(workspaceDir);

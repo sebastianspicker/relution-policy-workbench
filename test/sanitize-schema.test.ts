@@ -171,7 +171,7 @@ test("build response includes removed regex constraints with affected schema pat
     port: 0,
   });
   try {
-    const response = await postJson(handle.url, "/api/build", {});
+    const response = await postJson(handle.url, handle.apiToken, "/api/build", {});
     const result = await response.json() as {
       constraintsRemoved?: Array<{ path?: string; constraint?: string; original?: string }>;
       validation?: { schemaCompatibilityIssues?: Array<{ path?: string; pattern?: string }> };
@@ -276,10 +276,10 @@ function objectSchema(options: { required: string[]; properties: Record<string, 
   };
 }
 
-async function postJson(baseUrl: string, path: string, body: unknown): Promise<Response> {
+async function postJson(baseUrl: string, apiToken: string, path: string, body: unknown): Promise<Response> {
   return fetch(new URL(path, baseUrl), {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-relution-editor-token": apiToken },
     body: JSON.stringify(body),
   });
 }

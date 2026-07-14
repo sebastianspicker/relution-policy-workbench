@@ -38,17 +38,20 @@ async function handleAppleProfileApiRequest(
   const { options, bundle, appleSchema } = context;
   if (url.pathname === "/api/apple-profile/add" && request.method === "POST") {
     const body = await readJsonBody(request);
+    const sidecar = loadEditorSidecar(options.workspace);
     const workspace = addAppleSchemaProfileToWorkspace(options.workspace, appleSchema, {
       policyPath: requireString(body, "policyPath"),
       versionIndex: requireNumber(body, "versionIndex"),
       schemaId: requireString(body, "schemaId"),
     });
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar: loadEditorSidecar(options.workspace) });
+    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar });
     return true;
   }
   if (url.pathname === "/api/custom-settings/add" && request.method === "POST") {
-    const workspace = addCustomSettingsFromBody(options.workspace, await readJsonBody(request));
-    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar: loadEditorSidecar(options.workspace) });
+    const body = await readJsonBody(request);
+    const sidecar = loadEditorSidecar(options.workspace);
+    const workspace = addCustomSettingsFromBody(options.workspace, body);
+    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), sidecar });
     return true;
   }
   return false;

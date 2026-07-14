@@ -1,6 +1,6 @@
 import type { ZammadTicketDraft } from "./zammad-ticket-drafts.js";
 import { normalizeHttpConnectionInput } from "./connection-normalization.js";
-import { fetchHttpServiceUrl, httpServiceRequestUrl } from "./http-service-transport.js";
+import { fetchHttpServiceUrl, httpServiceRequestUrl, type HttpServiceTransportOptions } from "./http-service-transport.js";
 import { asRecord } from "./utils/json-guards.js";
 
 export type ZammadProtocol = "http" | "https";
@@ -13,6 +13,7 @@ export interface ZammadConnectionInput {
   apiToken: string;
   group: string;
   customer: string;
+  allowLocalServiceHosts?: boolean;
 }
 
 export interface ZammadConnection {
@@ -24,6 +25,7 @@ export interface ZammadConnection {
   group: string;
   customer: string;
   baseUrl: string;
+  allowLocalServiceHosts: boolean;
 }
 
 export interface ZammadPublicSession {
@@ -70,6 +72,9 @@ export function normalizeZammadConnection(input: ZammadConnectionInput): ZammadC
     throw new Error("Zammad customer is required");
   }
   const connection = normalizeHttpConnectionInput({ ...input, serviceName: "Zammad" });
+  if (connection.protocol === "http" && !connection.allowLocalServiceHosts) {
+    throw new Error("Zammad HTTP connections require --allow-local-service-hosts; use HTTPS for remote services");
+  }
   return { ...connection, apiToken, group, customer };
 }
 
@@ -86,8 +91,8 @@ export function publicZammadSession(connection: ZammadConnection | undefined): Z
   };
 }
 
-export async function testZammadConnection(connection: ZammadConnection): Promise<ZammadConnectionTestResult> {
-  const response = await zammadFetch(connection, "/api/v1/users/me", { method: "GET" });
+export async function testZammadConnection(connection: ZammadConnection, transportOptions: HttpServiceTransportOptions = {}): Promise<ZammadConnectionTestResult> {
+  const response = await zammadFetch(connection, "/api/v1/users/me", { method: "GET" }, transportOptions);
   let rawValue: unknown;
   try {
     rawValue = await response.json() as unknown;
@@ -113,7 +118,7 @@ export async function testZammadConnection(connection: ZammadConnection): Promis
   return { ok: true, baseUrl: connection.baseUrl };
 }
 
-export async function createZammadTicket(connection: ZammadConnection, draft: ZammadTicketDraft): Promise<ZammadTicketResult> {
+export async function createZammadTicket(connection: ZammadConnection, draft: ZammadTicketDraft, transportOptions: HttpServiceTransportOptions = {}): Promise<ZammadTicketResult> {
   const response = await zammadFetch(connection, "/api/v1/tickets", {
     method: "POST",
     body: JSON.stringify({
@@ -128,7 +133,7 @@ export async function createZammadTicket(connection: ZammadConnection, draft: Za
         content_type: "text/plain",
       },
     }),
-  });
+  }, transportOptions);
   let rawValue: unknown;
   try {
     rawValue = await response.json() as unknown;
@@ -156,7 +161,7 @@ export async function createZammadTicket(connection: ZammadConnection, draft: Za
   throw new Error("Zammad ticket creation returned no ticket id or number");
 }
 
-async function zammadFetch(connection: ZammadConnection, path: string, init: RequestInit): Promise<Response> {
+async function zammadFetch(connection: ZammadConnection, path: string, init: RequestInit, transportOptions: HttpServiceTransportOptions): Promise<Response> {
   const url = httpServiceRequestUrl(connection, path, "Zammad");
   let response: Response;
   try {
@@ -168,7 +173,7 @@ async function zammadFetch(connection: ZammadConnection, path: string, init: Req
         "Authorization": `Token token=${connection.apiToken}`,
         ...init.headers,
       },
-    }, "Zammad");
+    }, "Zammad", transportOptions);
   } catch (error) {
     throw new ZammadNetworkError(`Zammad API request failed before an HTTP response: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
   }

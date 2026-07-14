@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import test from "node:test";
 import type { RelutionAssessmentReport } from "../src/relution-api.js";
-import { runRelutionCliCommand } from "../src/relution-cli.js";
+import { runRelutionCliCommand as runRelutionCliCommandWithTransport } from "../src/relution-cli.js";
+import { TEST_HTTP_SERVICE_TRANSPORT } from "./http-service-test-adapter.js";
+
+async function runRelutionCliCommand(args: Parameters<typeof runRelutionCliCommandWithTransport>[0]): Promise<void> {
+  await runRelutionCliCommandWithTransport(args, TEST_HTTP_SERVICE_TRANSPORT);
+}
 
 test("Relution CLI queries devices with environment credentials", async () => {
   const originalFetch = globalThis.fetch;
@@ -83,6 +88,15 @@ test("Relution CLI assessment writes local report files when workspace is provid
     assert.equal(report.summary.issue, stdoutIssueCount);
     assert.equal(issueCount, stdoutIssueCount);
     assert.equal(report.devices[0]?.issues.some((issue) => issue.id === "policy-status-not-applied"), true);
+
+    const jsonOutput = await captureStdout(() => runRelutionCliCommand({
+      positionals: ["assess"],
+      options: { host: "relution.example.test", token: "secret-token", workspace, json: true },
+    }));
+    const structured = JSON.parse(jsonOutput) as { files: { jsonPath: string; markdownPath: string } };
+    assert.equal(isAbsolute(structured.files.jsonPath), true);
+    assert.equal(isAbsolute(structured.files.markdownPath), true);
+    assert.equal(existsSync(structured.files.jsonPath), true);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -106,6 +120,54 @@ test("Relution CLI assessment warns when device query results are truncated", as
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("Relution CLI assessment warns when the server omits the total device count", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    results: [{ uuid: "DEVICE-1", name: "Dorm Android", platform: "ANDROID_ENTERPRISE", status: "COMPLIANT", policyStatus: "APPLIED" }],
+  }));
+  try {
+    const stderr = await captureStderr(() => runRelutionCliCommand({
+      positionals: ["assess"],
+      options: {
+        host: "relution.example.test",
+        token: "secret-token",
+      },
+    }));
+    assert.match(stderr, /assessed 1 enrolled devices, but the server did not report the total; compliance coverage is unknown/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Relution CLI audit reports configured thresholds and warns for a partial query", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({
+    nonpagedCount: 2_001,
+    results: [{ uuid: "DEVICE-1", name: "Dorm Android", platform: "ANDROID_ENTERPRISE", status: "COMPLIANT", policyStatus: "APPLIED" }],
+  }));
+  try {
+    const { stdout, stderr } = await captureOutput(() => runRelutionCliCommand({
+        positionals: ["audit"],
+        options: { host: "relution.example.test", token: "secret-token", "inactive-warning-days": "7", "inactive-problem-days": "14" },
+      }));
+    assert.match(stdout, /Inactive 7\+: 0/u);
+    assert.match(stdout, /Inactive 14\+: 0/u);
+    assert.match(stderr, /showing 1 of 2001 enrolled devices; compliance results are incomplete/u);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("Relution CLI audit rejects misordered inactivity thresholds", async () => {
+  await assert.rejects(
+    runRelutionCliCommand({
+      positionals: ["audit"],
+      options: { host: "relution.example.test", token: "secret-token", "inactive-warning-days": "90", "inactive-problem-days": "30" },
+    }),
+    /problem days must be greater than or equal to inactive warning days/u,
+  );
 });
 
 async function captureStdout(run: () => Promise<void>): Promise<string> {
@@ -135,6 +197,28 @@ async function captureStderr(run: () => Promise<void>): Promise<string> {
     return output;
   } finally {
     process.stderr.write = originalWrite;
+  }
+}
+
+async function captureOutput(run: () => Promise<void>): Promise<{ stdout: string; stderr: string }> {
+  const originalStdoutWrite = process.stdout.write;
+  const originalStderrWrite = process.stderr.write;
+  let stdout = "";
+  let stderr = "";
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    stdout += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+    return true;
+  }) as typeof process.stdout.write;
+  process.stderr.write = ((chunk: string | Uint8Array) => {
+    stderr += typeof chunk === "string" ? chunk : Buffer.from(chunk).toString("utf8");
+    return true;
+  }) as typeof process.stderr.write;
+  try {
+    await run();
+    return { stdout, stderr };
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    process.stderr.write = originalStderrWrite;
   }
 }
 

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import {
   applyRelutionDeviceQueryOptions,
+  assessmentCompleteness,
   assessRelutionDevices,
   auditRelutionDevices,
   normalizeRelutionConnection,
@@ -13,16 +14,17 @@ import {
   type RelutionProtocol,
 } from "./relution-api.js";
 import { writeRelutionReport } from "./relution-reports.js";
+import type { HttpServiceTransportOptions } from "./http-service-transport.js";
 
 interface RelutionCliArgs {
   positionals: string[];
   options: Record<string, string | boolean>;
 }
 
-export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void> {
+export async function runRelutionCliCommand(args: RelutionCliArgs, transportOptions: HttpServiceTransportOptions = {}): Promise<void> {
   const action = args.positionals[0];
   if (action === "test") {
-    const result = await testRelutionConnection(connectionFromArgs(args));
+    const result = await testRelutionConnection(connectionFromArgs(args), transportOptions);
     if (!result.ok) {
       throw new Error(`Relution API connection failed: ${result.reason}`);
     }
@@ -30,19 +32,19 @@ export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void
     return;
   }
   if (action === "devices") {
-    const result = await queryRelutionDevices(connectionFromArgs(args), queryFromArgs(args));
+    const result = await queryRelutionDevices(connectionFromArgs(args), queryFromArgs(args), transportOptions);
     printResult(args, result, `Devices: ${String(result.count)}${result.total === undefined ? "" : ` of ${String(result.total)}`}`);
     return;
   }
   if (action === "assess") {
     const connection = connectionFromArgs(args);
-    const devices = await queryRelutionDevices(connection, queryFromArgs(args));
-    warnIfDeviceQueryTruncated(devices);
-    const report = assessRelutionDevices(connection.baseUrl, devices.devices);
+    const devices = await queryRelutionDevices(connection, queryFromArgs(args), transportOptions);
+    warnIfDeviceQueryIncomplete(devices);
+    const report = assessRelutionDevices(connection.baseUrl, devices.devices, assessmentCompleteness(devices));
     const workspace = optionalString(args, "workspace");
     const output = workspace === undefined ? { report } : { report, files: writeRelutionReport(workspace, report) };
     if (args.options.json === true) {
-      printJson(output);
+      printJson(workspace !== undefined && "files" in output ? { report, files: absoluteReportPaths(workspace, output.files) } : output);
       return;
     }
     console.log(`Devices: ${String(report.summary.totalDevices)}`);
@@ -50,8 +52,8 @@ export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void
     console.log(`Issues: ${String(report.summary.issue)}`);
     console.log(`Not checkable: ${String(report.summary.notCheckable)}`);
     if (workspace !== undefined && "files" in output) {
-      console.log(`Report JSON: ${resolve(output.files.jsonPath)}`);
-      console.log(`Report Markdown: ${resolve(output.files.markdownPath)}`);
+      console.log(`Report JSON: ${resolve(workspace, output.files.jsonPath)}`);
+      console.log(`Report Markdown: ${resolve(workspace, output.files.markdownPath)}`);
     }
     return;
   }
@@ -70,31 +72,40 @@ export async function runRelutionCliCommand(args: RelutionCliArgs): Promise<void
     if (inactiveProblemDays !== undefined) {
       auditOptions.inactiveProblemDays = inactiveProblemDays;
     }
-    const output = await auditRelutionDevices(connection, queryFromArgs(args), auditOptions);
+    const output = await auditRelutionDevices(connection, queryFromArgs(args), auditOptions, transportOptions);
+    warnIfDeviceQueryIncomplete(output.query);
     const workspace = optionalString(args, "workspace");
     const files = workspace === undefined ? undefined : writeRelutionReport(workspace, output.report);
     if (args.options.json === true) {
-      printJson(files === undefined ? output : { ...output, files });
+      printJson(files === undefined || workspace === undefined ? output : { ...output, files: absoluteReportPaths(workspace, files) });
       return;
     }
     console.log(`Devices: ${String(output.report.summary.totalDevices)}`);
     console.log(`Issues: ${String(output.report.summary.issue)}`);
     console.log(`Missing policy: ${String(output.report.summary.missingPolicy)}`);
-    console.log(`Inactive 30+: ${String(output.report.summary.inactiveWarning)}`);
-    console.log(`Inactive 90+: ${String(output.report.summary.inactiveProblem)}`);
-    if (files !== undefined) {
-      console.log(`Report JSON: ${resolve(files.jsonPath)}`);
-      console.log(`Report Markdown: ${resolve(files.markdownPath)}`);
+    console.log(`Inactive ${String(inactiveWarningDays ?? 30)}+: ${String(output.report.summary.inactiveWarning)}`);
+    console.log(`Inactive ${String(inactiveProblemDays ?? 90)}+: ${String(output.report.summary.inactiveProblem)}`);
+    if (files !== undefined && workspace !== undefined) {
+      console.log(`Report JSON: ${resolve(workspace, files.jsonPath)}`);
+      console.log(`Report Markdown: ${resolve(workspace, files.markdownPath)}`);
     }
     return;
   }
   throw new Error("relution requires an action: test, devices, assess, or audit");
 }
 
+function absoluteReportPaths(workspace: string, files: { jsonPath: string; markdownPath: string }): { jsonPath: string; markdownPath: string } {
+  return {
+    jsonPath: resolve(workspace, files.jsonPath),
+    markdownPath: resolve(workspace, files.markdownPath),
+  };
+}
+
 function connectionFromArgs(args: RelutionCliArgs): ReturnType<typeof normalizeRelutionConnection> {
   const input: RelutionConnectionInput = {
     host: requireString(args, "host", "Missing --host <relution-host> or RELUTION_BASE_URL"),
     apiToken: requireString(args, "token", "Missing --token <api-token> or RELUTION_ACCESS_TOKEN"),
+    allowLocalServiceHosts: args.options["allow-local-service-hosts"] === true,
   };
   const protocol = optionalProtocol(args);
   const port = optionalInteger(args, "port");
@@ -124,12 +135,15 @@ function queryFromArgs(args: RelutionCliArgs): RelutionDeviceQueryInput {
   return applyRelutionDeviceQueryOptions(query, { limit, offset, platforms, statuses, ownerships, search, sortField, sortAscending });
 }
 
-function warnIfDeviceQueryTruncated(result: RelutionDeviceQueryResult): void {
+function warnIfDeviceQueryIncomplete(result: RelutionDeviceQueryResult): void {
+  if (result.total === undefined) {
+    console.error(`Warning: assessed ${String(result.count)} enrolled devices, but the server did not report the total; compliance coverage is unknown.`);
+    return;
+  }
   if (!result.truncated) {
     return;
   }
-  const total = result.total === undefined ? "an unknown total" : String(result.total);
-  console.error(`Warning: showing ${String(result.count)} of ${total} enrolled devices; compliance results are incomplete.`);
+  console.error(`Warning: showing ${String(result.count)} of ${String(result.total)} enrolled devices; compliance results are incomplete.`);
 }
 
 function optionalProtocol(args: RelutionCliArgs): RelutionProtocol | undefined {

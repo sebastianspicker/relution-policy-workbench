@@ -1,11 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HttpError, assignOptionalHttpConnectionFields, badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
+import { randomUUID } from "node:crypto";
+import { assignOptionalHttpConnectionFields, badRequest, optionalRecord, optionalString, readJsonBody, requireNumber, requireString } from "./editor-server-helpers.js";
 import { requireRuntimeConnection, sendJson } from "./editor-routes-utils.js";
-import { assertOutboundHostAllowed, outboundHostPolicyError } from "./outbound-host-policy.js";
+import { literalServiceHostPolicyError } from "./outbound-host-policy.js";
 import {
   applyRelutionDeviceQueryOptions,
+  assessmentCompleteness,
   assessRelutionDevices,
   auditRelutionDevices,
+  MAX_RELUTION_DEVICE_QUERY_LIMIT,
   normalizeRelutionConnection,
   publicRelutionSession,
   queryRelutionDevices,
@@ -15,6 +18,7 @@ import {
   type RelutionConnection,
   type RelutionConnectionInput,
   type RelutionDeviceQueryInput,
+  type RelutionDeviceQueryResult,
   type RelutionDeviceSummary,
   type RelutionDeviceSortField,
 } from "./relution-api.js";
@@ -23,8 +27,11 @@ import { listRelutionReports, writeRelutionReport } from "./relution-reports.js"
 export interface RelutionEditorRuntime {
   connection?: RelutionConnection;
   lastDevices: RelutionDeviceSummary[];
-  lastAssessment?: RelutionAssessmentReport;
+  lastDeviceQuery?: Pick<RelutionDeviceQueryResult, "count" | "total" | "truncated">;
+  assessments?: Map<string, RelutionAssessmentReport>;
 }
+
+const MAX_CACHED_ASSESSMENTS = 16;
 
 type RelutionRouteHandler = (
   url: URL,
@@ -67,6 +74,9 @@ async function handleRelutionSessionRoute(
   }
   if (url.pathname === "/api/relution/session" && request.method === "POST") {
     runtime.connection = await parseAllowedRelutionConnection(await readJsonBody(request), allowLocalServiceHosts);
+    runtime.lastDevices = [];
+    delete runtime.lastDeviceQuery;
+    runtime.assessments?.clear();
     sendJson(response, 200, publicRelutionSession(runtime.connection));
     return true;
   }
@@ -88,23 +98,27 @@ async function handleRelutionDeviceRoute(
   if (url.pathname === "/api/relution/devices/query" && request.method === "POST") {
     const result = await queryRelutionDevices(await requireOutboundConnection(runtime, allowLocalServiceHosts), parseDeviceQuery(await readJsonBody(request)));
     runtime.lastDevices = result.devices;
+    runtime.lastDeviceQuery = result;
     sendJson(response, 200, result);
     return true;
   }
   if (url.pathname === "/api/relution/devices/assess" && request.method === "POST") {
     const body = await readJsonBody(request);
-    const devices = parseDevices(body) ?? runtime.lastDevices;
-    const report = assessRelutionDevices(requireRuntimeConnection(runtime, "Relution").baseUrl, devices);
-    runtime.lastAssessment = report;
-    sendJson(response, 200, { report });
+    const suppliedDevices = parseDevices(body);
+    const devices = suppliedDevices ?? runtime.lastDevices;
+    const completeness = suppliedDevices === undefined && runtime.lastDeviceQuery !== undefined
+      ? assessmentCompleteness(runtime.lastDeviceQuery)
+      : assessmentCompleteness({ count: devices.length, truncated: false });
+    const report = assessRelutionDevices(requireRuntimeConnection(runtime, "Relution").baseUrl, devices, completeness);
+    sendJson(response, 200, { report, assessmentId: rememberAssessment(runtime, report) });
     return true;
   }
   if (url.pathname === "/api/relution/devices/audit" && request.method === "POST") {
     const body = await readJsonBody(request);
     const result = await auditRelutionDevices(await requireOutboundConnection(runtime, allowLocalServiceHosts), parseDeviceQuery(body), parseAssessmentOptions(body));
     runtime.lastDevices = result.query.devices;
-    runtime.lastAssessment = result.report;
-    sendJson(response, 200, result);
+    runtime.lastDeviceQuery = result.query;
+    sendJson(response, 200, { ...result, assessmentId: rememberAssessment(runtime, result.report) });
     return true;
   }
   return false;
@@ -119,11 +133,13 @@ async function handleRelutionReportRoute(
 ): Promise<boolean> {
   if (url.pathname === "/api/relution/reports/compliance" && request.method === "POST") {
     const body = await readJsonBody(request);
-    const report = parseAssessmentReport(body) ?? runtime.lastAssessment;
-    if (report === undefined) {
-      throw badRequest("No Relution assessment report is available");
+    if (Object.keys(body).length !== 1 || typeof body.assessmentId !== "string") {
+      throw badRequest("Compliance report writes require one assessmentId");
     }
-    runtime.lastAssessment = report;
+    const report = runtime.assessments?.get(requireString(body, "assessmentId"));
+    if (report === undefined) {
+      throw badRequest("Relution assessment is unavailable or expired");
+    }
     sendJson(response, 200, writeRelutionReport(workspace, report));
     return true;
   }
@@ -140,18 +156,24 @@ const RELUTION_ROUTE_HANDLERS: readonly RelutionRouteHandler[] = [
   handleRelutionReportRoute,
 ];
 
+function rememberAssessment(runtime: RelutionEditorRuntime, report: RelutionAssessmentReport): string {
+  const assessments = runtime.assessments ?? new Map<string, RelutionAssessmentReport>();
+  runtime.assessments = assessments;
+  while (assessments.size >= MAX_CACHED_ASSESSMENTS) {
+    const oldestId = assessments.keys().next().value as string | undefined;
+    if (oldestId === undefined) break;
+    assessments.delete(oldestId);
+  }
+  const assessmentId = randomUUID();
+  assessments.set(assessmentId, report);
+  return assessmentId;
+}
+
 async function parseAllowedRelutionConnection(body: Record<string, unknown>, allowLocalServiceHosts: boolean): Promise<RelutionConnection> {
-  const connection = normalizeRelutionConnection(parseRelutionConnectionInput(body));
-  const policyError = await outboundHostPolicyError("Relution", connection.host, allowLocalServiceHosts);
-  if (policyError === undefined) {
-    return connection;
-  }
-  if (policyError.kind === "blocked") {
-    console.warn(`[relution outbound host blocked] ${policyError.reason}`);
-    throw badRequest(policyError.reason);
-  }
-  console.warn(`[relution outbound host dns-failure] ${policyError.error}`);
-  throw new HttpError(502, policyError.error);
+  const connection = normalizeRelutionConnection({ ...parseRelutionConnectionInput(body), allowLocalServiceHosts });
+  const policyError = literalServiceHostPolicyError("Relution", connection.host, allowLocalServiceHosts);
+  if (policyError !== undefined) throw badRequest(policyError);
+  return connection;
 }
 
 function parseRelutionConnectionInput(body: Record<string, unknown>): RelutionConnectionInput {
@@ -177,12 +199,19 @@ function parseAssessmentOptions(body: Record<string, unknown>): RelutionAssessme
   if (inactiveProblemDays !== undefined) {
     options.inactiveProblemDays = inactiveProblemDays;
   }
+  if ((inactiveProblemDays ?? 90) < (inactiveWarningDays ?? 30)) {
+    throw badRequest("inactiveProblemDays must be greater than or equal to inactiveWarningDays");
+  }
   return options;
 }
 
 function parseDeviceQuery(body: Record<string, unknown>): RelutionDeviceQueryInput {
+  const limit = optionalPositiveInteger(body, "limit") ?? 100;
+  if (limit > MAX_RELUTION_DEVICE_QUERY_LIMIT) {
+    throw badRequest(`Relution device query limit must not exceed ${String(MAX_RELUTION_DEVICE_QUERY_LIMIT)}`);
+  }
   const query: RelutionDeviceQueryInput = {
-    limit: optionalPositiveInteger(body, "limit") ?? 100,
+    limit,
     offset: optionalPositiveInteger(body, "offset") ?? 0,
   };
   const platforms = optionalStringArray(body, "platforms");
@@ -196,8 +225,7 @@ function parseDeviceQuery(body: Record<string, unknown>): RelutionDeviceQueryInp
 
 async function requireOutboundConnection(runtime: RelutionEditorRuntime, allowLocalServiceHosts: boolean): Promise<RelutionConnection> {
   const connection = requireRuntimeConnection(runtime, "Relution");
-  await assertOutboundHostAllowed("Relution", connection.host, allowLocalServiceHosts);
-  return connection;
+  return connection.allowLocalServiceHosts === allowLocalServiceHosts ? connection : { ...connection, allowLocalServiceHosts };
 }
 
 function parseDevices(body: Record<string, unknown>): RelutionDeviceSummary[] | undefined {
@@ -215,17 +243,6 @@ function parseDevices(body: Record<string, unknown>): RelutionDeviceSummary[] | 
     }
     return record as unknown as RelutionDeviceSummary;
   });
-}
-
-function parseAssessmentReport(body: Record<string, unknown>): RelutionAssessmentReport | undefined {
-  const report = optionalRecord(body, "report");
-  if (report === undefined) {
-    return undefined;
-  }
-  if (typeof report.generatedAt !== "string" || typeof report.baseUrl !== "string" || !Array.isArray(report.devices)) {
-    throw badRequest("Invalid Relution assessment report");
-  }
-  return report as unknown as RelutionAssessmentReport;
 }
 
 function optionalPositiveInteger(body: Record<string, unknown>, key: string): number | undefined {

@@ -3,7 +3,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { startEditorServer } from "../src/editor-server.js";
 import { inspectRexp, verifyRexp } from "../src/rexp.js";
 import { loadEditorSidecar, recordMobileConfigRestoreEntries } from "../src/sidecar.js";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
@@ -21,6 +20,7 @@ import {
   password,
   postJson,
   requirePolicyPath,
+  startRegisteredTestEditor as startEditorServer,
   startTestEditor,
   type ReconcileResponse,
   type SidecarResponse,

@@ -19,7 +19,7 @@ test("serve rejects junk-suffixed numeric flags", () => {
   assert.match(result.stderr, /ERROR: Expected integer for --port/u);
 });
 
-test("serve rejects non-loopback hosts unless network editor mode is explicit", () => {
+test("serve rejects non-loopback hosts even when the legacy network editor flag is present", () => {
   const root = mkdtempSync(join(tmpdir(), "relution-cli-host-guard-"));
   const workspace = join(root, "workspace");
   const out = join(root, "out.rexp");
@@ -30,16 +30,16 @@ test("serve rejects non-loopback hosts unless network editor mode is explicit", 
   );
 
   assert.notEqual(rejected.status, 0, `${rejected.stderr}\n${rejected.stdout}`);
-  assert.match(rejected.stderr, /--allow-network-editor/u);
+  assert.match(rejected.stderr, /loopback/u);
 
-  const allowed = spawnSync(
+  const stillRejected = spawnSync(
     process.execPath,
     ["dist/src/cli.js", "serve", "--workspace", workspace, "--out", out, "--host", "0.0.0.0", "--port", "0", "--allow-network-editor", "--once"],
     { encoding: "utf8" },
   );
 
-  assert.equal(allowed.status, 0, `${allowed.stderr}\n${allowed.stdout}`);
-  assert.match(allowed.stdout, /Relution policy workbench/u);
+  assert.notEqual(stillRejected.status, 0, `${stillRejected.stderr}\n${stillRejected.stdout}`);
+  assert.match(stillRejected.stderr, /loopback/u);
 });
 
 test("new --force resets stale editor sidecar state", () => {

@@ -5,7 +5,7 @@ import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { startEditorServer } from "../src/editor-server.js";
-import { assertSafeEditorHost } from "../src/editor-server-helpers.js";
+import { assertSafeEditorHost, editorUrlWithNetworkToken } from "../src/editor-server-helpers.js";
 import { loadEditorSidecar, saveEditorSidecar, type EditorSidecarState } from "../src/sidecar.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { createNewWorkspace } from "../src/workspace.js";
@@ -106,9 +106,9 @@ test("GET state surfaces malformed sidecar state without overwriting it", async 
   writeFileSync(sidecarPath, malformedSidecar);
 
   await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: 0 }, async (handle) => {
-    const response = await fetch(new URL("api/state", handle.url));
+    const response = await fetch(new URL("api/state", handle.url), { headers: { "x-relution-editor-token": handle.apiToken } });
     assert.equal(response.status, 500);
-    assert.match(await response.text(), /Malformed editor-sidecar\.json: invalid mobileConfigRestore\[0\]/u);
+    assert.match(await response.text(), /Internal editor error/u);
   });
 
   assert.equal(readFileSync(sidecarPath, "utf8"), malformedSidecar);
@@ -135,7 +135,7 @@ test("editor mutation endpoints return 400 for malformed client requests", async
   });
 
   try {
-    const moveResponse = await postJson(new URL("api/configuration/move", handle.url), {
+    const moveResponse = await postJson(new URL("api/configuration/move", handle.url), handle.apiToken, {
       policyPath: "policies/policy_missing.json",
       versionIndex: 0,
       configurationIndex: 0,
@@ -144,14 +144,14 @@ test("editor mutation endpoints return 400 for malformed client requests", async
     assert.equal(moveResponse.status, 400);
     assert.match(await moveResponse.text(), /Unsupported move direction/u);
 
-    const ddmResponse = await postJson(new URL("api/ddm/artifact", handle.url), {
+    const ddmResponse = await postJson(new URL("api/ddm/artifact", handle.url), handle.apiToken, {
       schemaId: "missing-schema",
       values: {},
     });
     assert.equal(ddmResponse.status, 400);
     assert.match(await ddmResponse.text(), /Unknown Apple schema entry/u);
 
-    const importResponse = await postJson(new URL("api/import", handle.url), {
+    const importResponse = await postJson(new URL("api/import", handle.url), handle.apiToken, {
       dataBase64: "AA==",
     });
     assert.equal(importResponse.status, 400);
@@ -161,7 +161,7 @@ test("editor mutation endpoints return 400 for malformed client requests", async
   }
 });
 
-test("network editor mode requires the fragment capability token for API requests", async () => {
+test("editor API requires its capability token and rejects non-loopback Host headers even with the allow flag", async () => {
   const root = mkdtempSync(join(tmpdir(), "relution-network-token-"));
   const workspace = join(root, "workspace");
   const out = join(root, "output.rexp");
@@ -183,11 +183,11 @@ test("network editor mode requires the fragment capability token for API request
   });
 
   try {
-    const url = new URL(handle.url);
-    const token = url.hash.startsWith("#editorToken=") ? decodeURIComponent(url.hash.slice("#editorToken=".length)) : null;
-    assert.equal(url.searchParams.get("editorToken"), null);
-    assert.equal(typeof token, "string");
-    assert.notEqual(token, "");
+    const browserUrl = new URL(handle.browserUrl);
+    const token = browserUrl.hash.startsWith("#editorToken=") ? decodeURIComponent(browserUrl.hash.slice("#editorToken=".length)) : null;
+    assert.equal(new URL(handle.url).hash, "");
+    assert.equal(browserUrl.searchParams.get("editorToken"), null);
+    assert.equal(token, handle.apiToken);
 
     const blocked = await postJsonWithHost(handle.url, {
       host: "attacker.example.test",
@@ -207,9 +207,18 @@ test("network editor mode requires the fragment capability token for API request
     assert.equal(wrongToken.status, 403);
     assert.match(wrongToken.body, /editor token/u);
 
-    const allowed = await postJsonWithHost(handle.url, {
+    const rejectedHost = await postJsonWithHost(handle.url, {
       host: "attacker.example.test",
       origin: "http://attacker.example.test",
+      token: token ?? "",
+      body: { key: "operator-approved" },
+    });
+    assert.equal(rejectedHost.status, 403);
+    assert.match(rejectedHost.body, /loopback Host header/u);
+
+    const allowed = await postJsonWithHost(handle.url, {
+      host: "127.0.0.1",
+      origin: "http://127.0.0.1",
       token: token ?? "",
       body: { key: "operator-approved" },
     });
@@ -240,11 +249,11 @@ test("default loopback editor mode rejects API reads with non-loopback Host head
   });
 
   try {
-    const blockedGet = await getWithHost(new URL("api/state", handle.url), "attacker.example.test");
+    const blockedGet = await getWithHost(new URL("api/state", handle.url), "attacker.example.test", handle.apiToken);
     assert.equal(blockedGet.status, 403);
     assert.match(blockedGet.body, /loopback Host header/u);
 
-    const allowedGet = await getWithHost(new URL("api/state", handle.url), "127.0.0.1");
+    const allowedGet = await getWithHost(new URL("api/state", handle.url), "127.0.0.1", handle.apiToken);
     assert.equal(allowedGet.status, 200);
     assert.match(allowedGet.body, /Loopback host guard/u);
   } finally {
@@ -276,6 +285,7 @@ test("mutating API origin checks treat default HTTP ports as equivalent", async 
     const allowed = await postJsonWithHost(handle.url, {
       host: "127.0.0.1:80",
       origin: "http://127.0.0.1",
+      token: handle.apiToken,
       body: { key: "same-origin-default-port" },
     });
     assert.equal(allowed.status, 200);
@@ -286,6 +296,14 @@ test("mutating API origin checks treat default HTTP ports as equivalent", async 
 
 test("loopback host validation accepts IPv4-mapped IPv6 loopback addresses", () => {
   assert.doesNotThrow(() => assertSafeEditorHost("::ffff:127.0.0.1", false));
+});
+
+test("editor URLs bracket raw IPv6 loopback hosts", () => {
+  assert.equal(editorUrlWithNetworkToken("::1", 8787, undefined), "http://[::1]:8787/");
+  assert.equal(
+    editorUrlWithNetworkToken("::ffff:127.0.0.1", 8787, "token"),
+    "http://[::ffff:127.0.0.1]:8787/#editorToken=token",
+  );
 });
 
 test("editor JSON body reader rejects excessively deep JSON before parsing", async () => {
@@ -313,6 +331,7 @@ test("editor JSON body reader rejects excessively deep JSON before parsing", asy
     const rejected = await postRawWithHost(new URL("api/workspace", handle.url), {
       host: "127.0.0.1",
       origin: "http://127.0.0.1",
+      token: handle.apiToken,
       body: deepJson,
     });
     assert.equal(rejected.status, 413);
@@ -347,6 +366,7 @@ test("editor JSON body reader counts only direct array items", async () => {
     const accepted = await postRawWithHost(new URL("api/key", handle.url), {
       host: "127.0.0.1",
       origin: "http://127.0.0.1",
+      token: handle.apiToken,
       body: `{"key":"array-object-commas","items":[${manyObjectFields},${manyObjectFields}]}`,
     });
     assert.equal(accepted.status, 200);
@@ -354,6 +374,7 @@ test("editor JSON body reader counts only direct array items", async () => {
     const rejected = await postRawWithHost(new URL("api/key", handle.url), {
       host: "127.0.0.1",
       origin: "http://127.0.0.1",
+      token: handle.apiToken,
       body: `{"key":"too-many-items","items":[${Array.from({ length: 10_001 }, () => "0").join(",")}]}`,
     });
     assert.equal(rejected.status, 413);
@@ -377,7 +398,7 @@ test("editor server closes gracefully and releases its port", async () => {
 
   let releasedPort = 0;
   await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: 0 }, async (handle) => {
-    const response = await fetch(new URL("api/state", handle.url));
+    const response = await fetch(new URL("api/state", handle.url), { headers: { "x-relution-editor-token": handle.apiToken } });
     assert.equal(response.status, 200, "server should respond before close");
     releasedPort = Number(new URL(handle.url).port);
   });
@@ -407,29 +428,29 @@ test("workspace save double-fault reports rollback failures and leaves the serve
   await withEditorServer({ workspace, key: "", out, host: "127.0.0.1", port: 0 }, async (handle) => {
     chmodSync(workspace, 0o500);
     try {
-      const failed = await postJson(new URL("api/workspace", handle.url), { workspace: nextWorkspace });
+      const failed = await postJson(new URL("api/workspace", handle.url), handle.apiToken, { workspace: nextWorkspace });
       const failedBody = await failed.text();
       assert.equal(failed.status, 500);
-      assert.match(failedBody, /workspace rollback failed/u);
-      assert.match(failedBody, /sidecar rollback failed/u);
+      assert.match(failedBody, /Internal editor error/u);
+      assert.doesNotMatch(failedBody, /rollback failed/u);
     } finally {
       chmodSync(workspace, 0o700);
     }
 
-    const state = await fetch(new URL("api/state", handle.url));
+    const state = await fetch(new URL("api/state", handle.url), { headers: { "x-relution-editor-token": handle.apiToken } });
     assert.equal(state.status, 200, await state.text());
   });
 });
 
-async function postJson(url: URL, value: unknown): Promise<Response> {
+async function postJson(url: URL, apiToken: string, value: unknown): Promise<Response> {
   return fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-relution-editor-token": apiToken },
     body: JSON.stringify(value),
   });
 }
 
-function getWithHost(url: URL, host: string): Promise<{ status: number; body: string }> {
+function getWithHost(url: URL, host: string, apiToken: string): Promise<{ status: number; body: string }> {
   return new Promise((resolveRequest, rejectRequest) => {
     const request = httpRequest(
       {
@@ -437,7 +458,7 @@ function getWithHost(url: URL, host: string): Promise<{ status: number; body: st
         port: Number(url.port),
         path: url.pathname,
         method: "GET",
-        headers: { host },
+        headers: { host, "x-relution-editor-token": apiToken },
       },
       (response) => {
         const chunks: Buffer[] = [];
@@ -503,7 +524,7 @@ function postJsonWithHost(
 
 function postRawWithHost(
   url: URL,
-  options: { host: string; origin: string; body: string },
+  options: { host: string; origin: string; token: string; body: string },
 ): Promise<{ status: number; body: string }> {
   return new Promise((resolveRequest, rejectRequest) => {
     const request = httpRequest(
@@ -517,6 +538,7 @@ function postRawWithHost(
           "content-length": Buffer.byteLength(options.body),
           "host": options.host,
           "origin": options.origin,
+          "x-relution-editor-token": options.token,
         },
       },
       (response) => {

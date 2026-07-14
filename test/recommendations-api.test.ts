@@ -41,20 +41,20 @@ test("editor recommendation APIs expose source summaries and vendor Android impo
   });
 
   try {
-    await assertRecommendationSummaryApi(handle.url);
-    await assertVendorRecommendationApi(handle.url);
-    await assertCisRecommendationApi(handle.url);
-    await assertRecommendationCoverageApi(handle.url);
-    await assertRecommendationSemanticsApi(handle.url);
-    await assertRecommendationSemanticAnalysisApi(handle.url);
-    await assertMissingRecommendationSource(handle.url);
+    await assertRecommendationSummaryApi(handle.url, handle.apiToken);
+    await assertVendorRecommendationApi(handle.url, handle.apiToken);
+    await assertCisRecommendationApi(handle.url, handle.apiToken);
+    await assertRecommendationCoverageApi(handle.url, handle.apiToken);
+    await assertRecommendationSemanticsApi(handle.url, handle.apiToken);
+    await assertRecommendationSemanticAnalysisApi(handle.url, handle.apiToken);
+    await assertMissingRecommendationSource(handle.url, handle.apiToken);
   } finally {
     await handle.close();
   }
 });
 
-async function assertRecommendationSummaryApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations", baseUrl));
+async function assertRecommendationSummaryApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const summary = await response.json() as {
     sources: Array<{
@@ -71,8 +71,8 @@ async function assertRecommendationSummaryApi(baseUrl: string): Promise<void> {
   assert.equal(summary.sources.some((entry) => entry.coverageSummary.partialRecommendations > 0), true);
 }
 
-async function assertVendorRecommendationApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations/vendor", baseUrl));
+async function assertVendorRecommendationApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations/vendor", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const vendor = await response.json() as {
     source: string;
@@ -92,8 +92,8 @@ async function assertVendorRecommendationApi(baseUrl: string): Promise<void> {
   assert.equal((vendor.ruleset?.policies.length ?? 0) > 0, true);
 }
 
-async function assertCisRecommendationApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations/cis", baseUrl));
+async function assertCisRecommendationApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations/cis", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const cis = await response.json() as {
     source: string;
@@ -109,8 +109,8 @@ async function assertCisRecommendationApi(baseUrl: string): Promise<void> {
   assert.equal(cis.recommendations.some((entry) => entry.platform === "MACOS" && entry.implementation?.category === "relution-achievable" && entry.implementation.surfaces.includes("apple-schema-profile")), true);
 }
 
-async function assertRecommendationCoverageApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations/coverage", baseUrl));
+async function assertRecommendationCoverageApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations/coverage", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const coverage = await response.json() as {
     summary: { totalRecommendations: number; bySource: Record<string, number>; byCategory: Record<string, number> };
@@ -126,8 +126,8 @@ async function assertRecommendationCoverageApi(baseUrl: string): Promise<void> {
   assert.equal(vendorOtaCoverage?.candidateTargetTypes.some((target) => target.startsWith("ANDROID_IFP")), false);
 }
 
-async function assertRecommendationSemanticsApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations/semantics", baseUrl));
+async function assertRecommendationSemanticsApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations/semantics", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const semantics = await response.json() as {
     summary: { totalConcepts: number; bySource: Record<string, number> };
@@ -140,8 +140,8 @@ async function assertRecommendationSemanticsApi(baseUrl: string): Promise<void> 
   assert.equal(semantics.recommendations.some((entry) => entry.source === "vendor" && entry.recommendationId === "android-001-enforcegoogleplayprotectonmanageddevices" && entry.semanticConceptIds.includes("malware_protection")), true);
 }
 
-async function assertRecommendationSemanticAnalysisApi(baseUrl: string): Promise<void> {
-  const response = await fetch(new URL("api/recommendations/semantic-analysis", baseUrl));
+async function assertRecommendationSemanticAnalysisApi(baseUrl: string, apiToken: string): Promise<void> {
+  const response = await fetch(new URL("api/recommendations/semantic-analysis", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(response.status, 200);
   const semanticAnalysis = await response.json() as {
     precedence: { authoritativeSource: string; behavior: string };
@@ -157,8 +157,8 @@ async function assertRecommendationSemanticAnalysisApi(baseUrl: string): Promise
   assert.equal(semanticAnalysis.contradictions.every((entry) => entry.severity === "error"), true);
 }
 
-async function assertMissingRecommendationSource(baseUrl: string): Promise<void> {
-  const missingResponse = await fetch(new URL("api/recommendations/not-a-source", baseUrl));
+async function assertMissingRecommendationSource(baseUrl: string, apiToken: string): Promise<void> {
+  const missingResponse = await fetch(new URL("api/recommendations/not-a-source", baseUrl), { headers: { "x-relution-editor-token": apiToken } });
   assert.equal(missingResponse.status, 404);
   assert.match(await missingResponse.text(), /unknown recommendation source/iu);
 }
