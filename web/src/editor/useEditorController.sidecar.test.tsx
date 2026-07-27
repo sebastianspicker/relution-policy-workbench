@@ -1,3 +1,4 @@
+/** Verifies sidecar actions serialize mutations and do not apply stale artifact responses. */
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { currentReady, installFetchMock, waitForReady } from "./useEditorController.test-helpers.js";

@@ -1,3 +1,4 @@
+/** Renders retryable inline feedback with severity-appropriate live-region behavior. */
 import type { JSX, ReactNode } from "react";
 
 export type InlineStatusKind = "loading" | "info" | "warning" | "error" | "success";

@@ -1,3 +1,4 @@
+/** Validates an editor archive passphrase against the current built output. */
 import { statSync } from "node:fs";
 import { inspectRexp } from "./rexp.js";
 
@@ -10,16 +11,16 @@ export interface EditorKeyValidationResponse {
 export function validateEditorKeyForOutput(outputPath: string, key: string): EditorKeyValidationResponse {
   const keySet = key.length > 0;
   if (!keySet) {
-    return { keySet, validated: false, reason: "No encryption key was provided." };
+    return { keySet, validated: false, reason: "No archive passphrase was provided." };
   }
   if (!isExistingFile(outputPath)) {
-    return { keySet, validated: false, reason: "No built .rexp output is available to validate this key." };
+    return { keySet, validated: false, reason: "No built .rexp output is available to validate this passphrase." };
   }
   try {
     inspectRexp(outputPath, key);
     return { keySet, validated: true };
   } catch {
-    return { keySet, validated: false, reason: "Key does not decrypt the current output archive." };
+    return { keySet, validated: false, reason: "Passphrase does not decrypt the current output archive." };
   }
 }
 

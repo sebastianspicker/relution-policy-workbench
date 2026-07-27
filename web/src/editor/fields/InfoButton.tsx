@@ -1,3 +1,4 @@
+/** Provides an accessible disclosure control for field-specific implementation guidance. */
 import { useEffect, useRef, useId, useState, type JSX } from "react";
 
 export function InfoButton(props: {

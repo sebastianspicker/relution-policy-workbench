@@ -1,3 +1,4 @@
+/** Builds grouped configuration choices while excluding types already present in the policy. */
 import type { AppleCompatSetting } from "../../../src/apple-compat.js";
 import type { AppleSchemaEntry } from "../../../src/apple-schema.js";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
@@ -77,8 +78,4 @@ export function configurationOptions(props: {
       ? [{ group: "custom-settings" as const, value: CUSTOM_SETTINGS_ADD_VALUE, label: "Application & Custom Settings", meta: "macOS" }]
       : []),
   ];
-}
-
-function parseAddGroup(value: string): AddGroup {
-  return value === "native" || value === "apple-compat" || value === "apple-profile" || value === "custom-settings" ? value : "all";
 }

@@ -1,3 +1,4 @@
+/** Verifies mobileconfig fields preserve payload, metadata, and validation state. */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createAppleCompatConfiguration } from "../../../../src/apple-compat.js";

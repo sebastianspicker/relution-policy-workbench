@@ -1,5 +1,6 @@
+/** Shares response and request parsing helpers across editor API routes. */
 import type { ServerResponse } from "node:http";
-import { badRequest } from "./editor-server-helpers.js";
+import { badRequest } from "./editor-http-input.js";
 
 export interface RuntimeConnectionState<T> {
   readonly connection?: T;
@@ -9,7 +10,13 @@ export function sendJson(response: ServerResponse, status: number, value: unknow
   response.on("error", (error) => {
     console.error("[editor response error]", error.message);
   });
-  response.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+  response.writeHead(status, {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store",
+    "pragma": "no-cache",
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+  });
   response.end(JSON.stringify(value));
 }
 

@@ -1,6 +1,6 @@
 # Phase B source gates
 
-Status: **REFERENCE_VALIDATED source contract; not production ready**.
+Status: `REFERENCE_VALIDATED` source contract; not approved for production.
 
 Phase B sources use JSON Schema draft 2020-12 in `mdm/schemas/`. Every source
 record must be machine-valid, have a unique policy ID, use the naming convention

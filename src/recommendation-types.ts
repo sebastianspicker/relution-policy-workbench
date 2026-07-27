@@ -1,10 +1,11 @@
+/** Declares the normalized recommendation catalog and mapping data model. */
 export const RECOMMENDATION_SOURCES = ["bsi", "vendor", "cis"] as const;
-export const RECOMMENDATION_MAPPING_STATUSES = ["exact", "parameterized", "partial", "suggested", "none"] as const;
+const RECOMMENDATION_MAPPING_STATUSES = ["exact", "parameterized", "partial", "suggested", "none"] as const;
 
 export type RecommendationSource = (typeof RECOMMENDATION_SOURCES)[number];
-export type RecommendationMappingStatus = (typeof RECOMMENDATION_MAPPING_STATUSES)[number];
+type RecommendationMappingStatus = (typeof RECOMMENDATION_MAPPING_STATUSES)[number];
 
-export interface RecommendationMappingCandidate {
+interface RecommendationMappingCandidate {
   kind: string;
   target: string;
   fieldPaths: string[];
@@ -12,14 +13,14 @@ export interface RecommendationMappingCandidate {
   match?: RecommendationMappingMatch;
 }
 
-export interface RecommendationMappingMatch {
+interface RecommendationMappingMatch {
   score: number;
   matchedTerms: string[];
   valueCompatibility: string;
   reason: string;
 }
 
-export interface RecommendationParameterRequirement {
+interface RecommendationParameterRequirement {
   id: string;
   path: string;
   label: string;
@@ -27,15 +28,15 @@ export interface RecommendationParameterRequirement {
   defaultValue?: unknown;
 }
 
-export interface RecommendationProcessSupport {
+interface RecommendationProcessSupport {
   id: string;
   relutionFunction: string;
   evidence: string;
 }
 
-export type RecommendationValueConstraintOperator = "atLeast" | "atMost" | "containsAll";
+type RecommendationValueConstraintOperator = "atLeast" | "atMost" | "containsAll";
 
-export interface RecommendationValueConstraint {
+interface RecommendationValueConstraint {
   path: string;
   operator: RecommendationValueConstraintOperator;
   value: unknown;
@@ -63,7 +64,7 @@ export type RecommendationImplementationSurface =
   | "apple-schema-profile"
   | "helper";
 
-export type RecommendationImportSurface = "apply-json" | "ruleset-import";
+type RecommendationImportSurface = "apply-json" | "ruleset-import";
 
 export interface RecommendationImplementation {
   category: RecommendationImplementationCategory;
@@ -72,7 +73,7 @@ export interface RecommendationImplementation {
   blockingReasons: string[];
 }
 
-export interface RecommendationRelutionMapping {
+interface RecommendationRelutionMapping {
   status: RecommendationMappingStatus;
   mergeableInImportableRuleset: boolean;
   candidates: RecommendationMappingCandidate[];
@@ -82,18 +83,18 @@ export interface RecommendationRelutionMapping {
   notes: string[];
 }
 
-export interface RecommendationThreatContext {
+interface RecommendationThreatContext {
   title: string;
   text: string;
 }
 
-export interface RecommendationErratum {
+interface RecommendationErratum {
   sourceId?: string;
   section?: string;
   text?: string;
 }
 
-export interface BsiGrundschutzKompendiumRelatedChecklistItem {
+interface BsiGrundschutzKompendiumRelatedChecklistItem {
   moduleId: string;
   moduleTitle: string;
   requirementId: string;
@@ -105,7 +106,7 @@ export interface BsiGrundschutzKompendiumRelatedChecklistItem {
   text: string;
 }
 
-export interface BsiGrundschutzKompendiumContext {
+interface BsiGrundschutzKompendiumContext {
   individualChecklistSourcePath?: string;
   individualChecklistRequirementType?: string;
   individualChecklistMatchesDocBook?: boolean;
@@ -115,7 +116,7 @@ export interface BsiGrundschutzKompendiumContext {
   relatedChecklistItems: BsiGrundschutzKompendiumRelatedChecklistItem[];
 }
 
-export interface BsiGrundschutzPlusPlusControlReference {
+interface BsiGrundschutzPlusPlusControlReference {
   id: string;
   title: string;
   practiceId: string;
@@ -138,7 +139,7 @@ export interface BsiGrundschutzPlusPlusControlReference {
   matchReason: string;
 }
 
-export interface BsiGrundschutzPlusPlusContext {
+interface BsiGrundschutzPlusPlusContext {
   methodDocument: string;
   methodVersion: string;
   catalogVersion: string;
@@ -153,7 +154,7 @@ export interface BsiGrundschutzPlusPlusContext {
   notes: string[];
 }
 
-export interface BsiSemanticConceptEvidenceSource {
+interface BsiSemanticConceptEvidenceSource {
   source: string;
   sourceId?: string;
   gsControlId?: string;
@@ -164,7 +165,7 @@ export interface BsiSemanticConceptEvidenceSource {
   excerpt: string;
 }
 
-export interface BsiSemanticConceptCandidateTarget {
+interface BsiSemanticConceptCandidateTarget {
   platform: string;
   kind: string;
   target: string;
@@ -172,7 +173,7 @@ export interface BsiSemanticConceptCandidateTarget {
   reason: string;
 }
 
-export interface BsiSemanticConceptEvidence {
+interface BsiSemanticConceptEvidence {
   id: string;
   label: {
     de: string;
@@ -185,7 +186,7 @@ export interface BsiSemanticConceptEvidence {
   candidateTargets: BsiSemanticConceptCandidateTarget[];
 }
 
-export type RecommendationFallbackMethod =
+type RecommendationFallbackMethod =
   | "powershell"
   | "auditpol"
   | "terminal"
@@ -193,7 +194,7 @@ export type RecommendationFallbackMethod =
   | "group-policy-path"
   | "registry-reference";
 
-export interface RecommendationFallbackProfileKey {
+interface RecommendationFallbackProfileKey {
   key: string;
   value: string;
 }
@@ -211,7 +212,7 @@ export interface RecommendationFallbackTranslation {
   profileKeys?: RecommendationFallbackProfileKey[];
 }
 
-export interface RecommendationRecordBase {
+interface RecommendationRecordBase {
   id: string;
   platform: string;
   title: string;
@@ -222,7 +223,7 @@ export interface RecommendationRecordBase {
   semanticNoConceptReason?: string;
 }
 
-export interface RecommendationRecordSharedSourceFields {
+interface RecommendationRecordSharedSourceFields {
   sourceIds: string[];
   fallbackTranslations?: RecommendationFallbackTranslation[];
 }
@@ -291,14 +292,14 @@ export type RecommendationRecord =
   | CisRecommendationRecord
   | VendorRecommendationRecord;
 
-export interface RecommendationRulesetRule {
+interface RecommendationRulesetRule {
   id: string;
   title: string;
   informational?: boolean;
   mappings?: RecommendationRulesetMapping[];
 }
 
-export interface RecommendationRulesetPolicy {
+interface RecommendationRulesetPolicy {
   platform: string;
   name: string;
   description?: string;
@@ -328,7 +329,7 @@ export interface RecommendationSettingBundle {
   mergeStrategy: string;
 }
 
-export interface RecommendationSettingVariantGroup {
+interface RecommendationSettingVariantGroup {
   groupId: string;
   policyPlatform: string;
   targetType: string;
@@ -340,7 +341,7 @@ export interface RecommendationSettingVariantGroup {
   }>;
 }
 
-export interface RecommendationNonImportableRecommendation {
+interface RecommendationNonImportableRecommendation {
   recommendationId: string;
   mappingStatus: RecommendationMappingStatus;
   candidateTargets: string[];
@@ -388,7 +389,7 @@ export interface RecommendationCatalogResponse extends RecommendationSourceSumma
   ruleset?: RecommendationRuleset;
 }
 
-export interface RecommendationCoverageRow {
+interface RecommendationCoverageRow {
   source: RecommendationSource;
   recommendationId: string;
   platform: string;
@@ -416,7 +417,7 @@ export interface RecommendationCoverageMatrix {
   };
 }
 
-export interface RecommendationSemanticIndexConcept {
+interface RecommendationSemanticIndexConcept {
   id: string;
   label: Record<string, string>;
   matchedTerms: string[];
@@ -426,7 +427,7 @@ export interface RecommendationSemanticIndexConcept {
   candidateRecommendationIds: string[];
 }
 
-export interface RecommendationSemanticIndexTarget {
+interface RecommendationSemanticIndexTarget {
   id: string;
   platform: string;
   kind: string;
@@ -438,7 +439,7 @@ export interface RecommendationSemanticIndexTarget {
   candidateRecommendationIds: string[];
 }
 
-export interface RecommendationSemanticIndexRecommendation {
+interface RecommendationSemanticIndexRecommendation {
   source: RecommendationSource;
   recommendationId: string;
   platform: string;
@@ -464,20 +465,20 @@ export interface RecommendationSemanticIndex {
   };
 }
 
-export interface RecommendationUnifiedAnalysisPrecedence {
+interface RecommendationUnifiedAnalysisPrecedence {
   authoritativeSource: RecommendationSource;
   behavior: "rank-and-annotate";
   note: string;
 }
 
-export interface RecommendationUnifiedAnalysisSample {
+interface RecommendationUnifiedAnalysisSample {
   source: RecommendationSource;
   recommendationId: string;
   title: string;
   mappingStatus: RecommendationMappingStatus;
 }
 
-export interface RecommendationUnifiedAnalysisGroup {
+interface RecommendationUnifiedAnalysisGroup {
   id: string;
   platform: string;
   conceptId: string;
@@ -493,16 +494,16 @@ export interface RecommendationUnifiedAnalysisGroup {
   sharedRelutionTargetIds: string[];
 }
 
-export type RecommendationUnifiedAnalysisDifferenceSeverity = "error" | "warning" | "info";
+type RecommendationUnifiedAnalysisDifferenceSeverity = "error" | "warning" | "info";
 
-export interface RecommendationUnifiedAnalysisExactValue {
+interface RecommendationUnifiedAnalysisExactValue {
   recommendationId: string;
   title: string;
   value: unknown;
   constraints: RecommendationValueConstraint[];
 }
 
-export interface RecommendationUnifiedAnalysisDifference {
+interface RecommendationUnifiedAnalysisDifference {
   id: string;
   type: string;
   severity: RecommendationUnifiedAnalysisDifferenceSeverity;

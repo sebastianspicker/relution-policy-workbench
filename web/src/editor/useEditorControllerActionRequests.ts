@@ -1,3 +1,4 @@
+/** Centralizes typed API request construction for editor actions. */
 import { asRecord, isEditorSidecarState, parseAddSelection, postJson, readJsonResponse } from "./editor-utils.js";
 import type { AppState, JsonRecord } from "./types.js";
 

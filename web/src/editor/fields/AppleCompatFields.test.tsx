@@ -1,3 +1,4 @@
+/** Verifies Apple compatibility controls preserve documented setting semantics. */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {

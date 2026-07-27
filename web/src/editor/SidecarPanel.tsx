@@ -1,5 +1,5 @@
+/** Displays generated policy artifacts and separates them from editable configuration data. */
 import { useEffect, useState, type JSX } from "react";
-import type { DdmArtifact, MdmCommandArtifact } from "../../../src/apple-schema.js";
 import type { MobileConfigRestoreEntry } from "../../../src/sidecar.js";
 import type { EditorController, JsonRecord } from "./types.js";
 

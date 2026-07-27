@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://relution-policy-workbench.example/schemas/mdm-policy-source.schema.json",
+  "$id": "https://rexp-studio.example/schemas/mdm-policy-source.schema.json",
   "title": "MdmPolicySource",
   "type": "object",
   "additionalProperties": false,

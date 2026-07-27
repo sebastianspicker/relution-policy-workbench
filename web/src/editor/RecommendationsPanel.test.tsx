@@ -1,3 +1,4 @@
+/** Verifies recommendation filtering preserves actionable versus informational distinctions. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { BsiRecommendationRecord } from "../../../src/recommendation-types.js";
@@ -85,5 +86,27 @@ describe("RecommendationsPanel", () => {
 
     expect(screen.getByText(/use a strong passcode/i)).toBeTruthy();
     expect(screen.getByText(/review unmanaged device exceptions/i)).toBeTruthy();
+  });
+
+  it("moves source-tab focus with the keyboard while selecting the adjacent source", () => {
+    const setRecommendationSource = vi.fn();
+    const controller = createEditorControllerStub({
+      recommendationSource: "bsi",
+      recommendationIndex: {
+        sources: [
+          { source: "bsi", label: "BSI", available: true, verifiedAsOf: "2026-04-23", recommendationCount: 1, displayPlatforms: ["IOS"], importPlatforms: ["IOS"], displayToImportPlatform: { IOS: "IOS" } },
+          { source: "cis", label: "CIS", available: true, verifiedAsOf: "2026-04-23", recommendationCount: 0, displayPlatforms: [], importPlatforms: [], displayToImportPlatform: {} },
+        ],
+      },
+      recommendationCatalog: createRecommendationCatalog(),
+      setRecommendationSource,
+    });
+
+    render(<RecommendationsPanel controller={controller} />);
+
+    fireEvent.keyDown(screen.getByRole("tab", { name: "BSI" }), { key: "ArrowRight" });
+
+    expect(setRecommendationSource).toHaveBeenCalledWith("cis");
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "CIS" }));
   });
 });

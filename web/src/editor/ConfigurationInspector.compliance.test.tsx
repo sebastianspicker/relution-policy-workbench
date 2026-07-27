@@ -1,3 +1,4 @@
+/** Verifies compliance findings expose exact remediation controls and accessible inspection details. */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { CompliancePanel } from "./CompliancePanel.js";
@@ -90,6 +91,11 @@ describe("ConfigurationInspector compliance", () => {
     expect(screen.getByText(/terminal fallback/i)).toBeTruthy();
     expect(screen.getByText(/profiles show -type configuration/i)).toBeTruthy();
     expect(screen.getByText(/run a terminal profile check/i)).toBeTruthy();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: /search/i }), { target: { value: "not present" } });
+    expect(screen.getByText(/no compliance results match the current filters/i)).toBeTruthy();
+    fireEvent.change(screen.getByRole("searchbox", { name: /search/i }), { target: { value: "" } });
+    expect(screen.getByRole("button", { name: /use a strong passcode/i })).toBeTruthy();
   });
 
   it("renders degraded compliance source warnings", () => {

@@ -1,3 +1,4 @@
+/** Defines the supported Apple configuration settings and their editor metadata. */
 import type {
   AppleCompatField,
   AppleCompatFieldKind,
@@ -340,17 +341,7 @@ export const APPLE_COMPAT_SETTINGS: AppleCompatSetting[] = [
     description: "Creates a certificate preference item in the user's keychain referencing a certificate payload in the same profile.",
     sourceUrls: [APPLE_PROFILE_SOURCE, JAMF_MACOS_UPLOAD_SOURCE],
     builder: "generic-json",
-    fields: [
-      field("name", "Name", "string", "Email address or other name for which a preferred certificate is requested.", "", "Name"),
-      field("payloadCertificateUuid", "Certificate payload UUID", "string", "UUID of the certificate payload within the same profile.", "", "PayloadCertificateUUID"),
-      field(
-        "payloadKeysJson",
-        "Payload keys JSON",
-        "json",
-        "JSON object merged into the Apple payload.",
-        "{\n  \"Name\": \"\",\n  \"PayloadCertificateUUID\": \"\"\n}",
-      ),
-    ],
+    fields: certificatePreferenceFields("preferred certificate"),
   },
   {
     id: "certificate-revocation",
@@ -417,17 +408,7 @@ export const APPLE_COMPAT_SETTINGS: AppleCompatSetting[] = [
     description: "Configures the user's preferred identity for an email address or other name.",
     sourceUrls: [APPLE_PROFILE_SOURCE, JAMF_MACOS_UPLOAD_SOURCE],
     builder: "generic-json",
-    fields: [
-      field("name", "Name", "string", "Email address or other name for which an identity is requested.", "", "Name"),
-      field("payloadCertificateUuid", "Certificate payload UUID", "string", "UUID of the certificate payload within the same profile.", "", "PayloadCertificateUUID"),
-      field(
-        "payloadKeysJson",
-        "Payload keys JSON",
-        "json",
-        "JSON object merged into the Apple payload.",
-        "{\n  \"Name\": \"\",\n  \"PayloadCertificateUUID\": \"\"\n}",
-      ),
-    ],
+    fields: certificatePreferenceFields("identity"),
   },
   {
     id: "lights-out-management",
@@ -558,6 +539,20 @@ function field(
   options?: string[],
 ): AppleCompatField {
   return buildField({ id, label, kind, description, defaultValue }, { payloadKey, options });
+}
+
+function certificatePreferenceFields(subject: "preferred certificate" | "identity"): AppleCompatField[] {
+  return [
+    field("name", "Name", "string", `Email address or other name for which a ${subject} is requested.`, "", "Name"),
+    field("payloadCertificateUuid", "Certificate payload UUID", "string", "UUID of the certificate payload within the same profile.", "", "PayloadCertificateUUID"),
+    field(
+      "payloadKeysJson",
+      "Payload keys JSON",
+      "json",
+      "JSON object merged into the Apple payload.",
+      "{\n  \"Name\": \"\",\n  \"PayloadCertificateUUID\": \"\"\n}",
+    ),
+  ];
 }
 
 function objectListField(

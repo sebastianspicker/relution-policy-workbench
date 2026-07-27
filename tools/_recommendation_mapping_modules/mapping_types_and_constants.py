@@ -299,19 +299,22 @@ class ScoredField:
     field: FieldEntry
 
 
+AnalogValues = tuple[tuple[str, Any], ...]
+AnalogRequired = tuple[tuple[str, ...], ...]
+AnalogConstraints = tuple[tuple[str, str, Any], ...]
+
+
 @dataclass(frozen=True)
 class AppleAnalogRule:
     """Curated Apple payload analog for non-exact recommendation matching."""
 
     platforms: frozenset[str]
     schema_id: str
-    values: tuple[tuple[str, Any], ...]
-    required: tuple[tuple[str, ...], ...]
+    values: AnalogValues
+    required: AnalogRequired
     excluded: tuple[str, ...] = ()
-    constraints: tuple[tuple[str, str, Any], ...] = ()
-    reason: str = (
-        "Curated Apple schema analog matched managed-device recommendation wording."
-    )
+    constraints: AnalogConstraints = ()
+    reason: str = "Curated Apple schema analog matched managed-device recommendation wording."
 
 
 @dataclass(frozen=True)
@@ -319,10 +322,10 @@ class AndroidAnalogRule:
     """Curated Android Enterprise analog for recommendation matching."""
 
     target: str
-    values: tuple[tuple[str, Any], ...]
-    required: tuple[tuple[str, ...], ...]
+    values: AnalogValues
+    required: AnalogRequired
     excluded: tuple[str, ...] = ()
-    constraints: tuple[tuple[str, str, Any], ...] = ()
+    constraints: AnalogConstraints = ()
     reason: str = "Curated Android Enterprise analog matched managed-device recommendation wording."
 
 

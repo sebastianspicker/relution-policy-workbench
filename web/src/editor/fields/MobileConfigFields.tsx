@@ -1,3 +1,4 @@
+/** Edits mobileconfig payload metadata while preserving the source content and signature state. */
 import { useState, type JSX } from "react";
 import { invalidateMobileConfigDetails, updateMobileConfigDetails } from "../mobileconfig-editor.js";
 import type { JsonRecord } from "../types.js";

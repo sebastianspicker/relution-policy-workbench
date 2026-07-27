@@ -1,43 +1,39 @@
 ## Summary
 
--
+- What changed:
+- Why:
 
-## Scope
+## Release impact
 
-- [ ] Documentation, metadata, or repository hygiene only
-- [ ] Local-only artifact routing changed
-- [ ] Runtime code or generated artifacts changed
-- [ ] Local editor/API behavior changed
-- [ ] Relution/Zammad integration behavior changed
+- [ ] User-visible behavior
+- [ ] Security or data boundary
+- [ ] Generated evidence or MDM artifacts
+- [ ] Documentation or repository metadata only
+- [ ] No alpha release-note impact
 
 ## Verification
 
-- [ ] `pnpm verify:pre-pr`
-- [ ] `pnpm verify:ci`
-- [ ] `pnpm build`
-- [ ] `pnpm typecheck`
-- [ ] `pnpm test`
-- [ ] `pnpm test:meta`
-- [ ] `ruff check .`
-- [ ] `pytest`
-- [ ] `pnpm codacy:cloud:inspect`
-- [ ] `pnpm codacy:cloud`
-- [ ] `git diff --check`
-- [ ] Other relevant checks:
-- If `pnpm verify:pre-pr` was skipped, explain why:
+List the exact commands and results. Explain every skipped or blocked check.
 
-## Runtime And Data Impact
+```text
 
-- Relution production API impact:
+```
+
+- [ ] The narrow regression test passes.
+- [ ] `pnpm verify:ci` passes, or limitations are recorded above.
+- [ ] `git diff --check` passes.
+- [ ] UI changes include current screenshots and relevant browser evidence.
+- [ ] MDM changes pass `pnpm rexp mdm validate` and `pnpm rexp mdm diff`.
+
+## Safety and data handling
+
+- Production Relution impact:
+- Zammad or other external side effects:
 - Local workspace/archive impact:
-- Security or network exposure impact:
-- Codacy/local analysis impact:
-- Excluded generated or local paths touched: no / yes, details:
-- Codacy Cloud closure claimed: no / yes, evidence:
+- Sensitive or tenant data added: no / yes, explain
 
-## Notes
+## Documentation
 
-- Tests or checks skipped:
-- Remaining risks:
-- Release notes or docs updated:
-- Local-only artifacts checked with `git check-ignore -v`:
+- [ ] Public behavior and support boundaries are current.
+- [ ] `CHANGELOG.md` is updated when alpha users are affected.
+- [ ] Remaining risks and unverified environments are stated.

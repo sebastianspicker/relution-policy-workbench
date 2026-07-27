@@ -1,3 +1,4 @@
+/** Normalizes recommendation display platforms separately from import-platform rules. */
 import type { RecommendationRuleset, RecommendationSourceSummary } from "../../../src/recommendation-types.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
 import { hasBuiltInRulesetMapping } from "./ruleset-import.js";

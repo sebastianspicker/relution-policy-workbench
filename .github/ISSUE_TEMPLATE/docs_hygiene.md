@@ -1,38 +1,27 @@
 ---
-name: Docs or repository hygiene
-about: Request documentation, GitHub metadata, ignore-rule, or archive-boundary cleanup.
+name: Documentation issue
+about: Report missing, outdated, unclear, or inaccurate public documentation.
 title: ""
 labels: "documentation"
 assignees: ""
 ---
 
-## Requested Cleanup
+## Page or file
+
+- Link or path:
+- Section:
+
+## Problem
+
+- What is missing, outdated, or unclear?
+- What does the current product or command do instead?
+
+## Proposed correction
 
 -
 
-## Scope Boundary
+## Evidence
 
-- [ ] Public docs
-- [ ] GitHub templates or workflows
-- [ ] `.gitignore` or generated/local artifact boundary
-- [ ] Local-only artifact cleanup
-- [ ] Codacy/GitHub analysis exclusion boundary
-- [ ] Other:
-
-## Current Evidence
-
-- Relevant files:
-- Outdated or superseded material:
-- Checks already run:
-
-## Expected Result
-
--
-
-## Local Artifact Boundary
-
-- Public summary needed:
-- Local-only file to ignore:
-- Excluded generated or local path involved:
-- Superseded material to retire:
-- Ignore-boundary proof expected:
+- Project commit or release:
+- Command, screenshot, or source reference:
+- Sensitive or tenant data removed: yes / no

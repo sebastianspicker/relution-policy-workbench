@@ -1,22 +1,35 @@
+/** Provides workspace-level save, history, import, and build actions with guarded availability. */
 import type { JSX } from "react";
-import { networkEditorAuthHeaders } from "./editor-utils.js";
 import { IconInspector, IconRedo, IconUndo } from "./icons.js";
+import type { AppSection } from "./SectionRoute.js";
 import type { EditorController } from "./types.js";
+import { downloadOutputArchive, reportDownloadError, workspaceContext } from "./workspace-toolbar-actions.js";
 
 export function WorkspaceToolbar(props: {
+  readonly appSection?: AppSection;
   readonly controller: EditorController;
+  readonly inspectorAvailable?: boolean;
   readonly inspectorPinned: boolean;
   readonly onToggleInspector: () => void;
 }): JSX.Element {
   const c = props.controller;
+  const context = workspaceContext(props.appSection ?? "policies", c);
 
   return (
     <header className="toolbar">
       <div className="toolbar-main">
-        <div className="toolbar-brand">
-          <strong>Relution Policy Workbench</strong>
-          {c.isDirty ? <span className="dirty-dot" aria-label="Unsaved changes" role="status" /> : null}
+        <div className="toolbar-product">
+          <span className="toolbar-product-name">REXP Studio</span>
+          <span className="toolbar-product-version">v0.1.0</span>
         </div>
+        <nav className="toolbar-context" aria-label="Workspace context">
+          {context.map((segment, index) => (
+            <span className={index === context.length - 1 ? "toolbar-context-segment toolbar-context-segment--current" : "toolbar-context-segment"} key={`${segment}-${index}`}>
+              {index > 0 ? <span className="toolbar-context-separator" aria-hidden="true">/</span> : null}
+              {segment}
+            </span>
+          ))}
+        </nav>
         <div className="toolbar-primary">
           <button
             type="button"
@@ -39,12 +52,18 @@ export function WorkspaceToolbar(props: {
             <IconRedo />
           </button>
           <div className="toolbar-separator" aria-hidden="true" />
+          {c.isDirty ? (
+            <span className="toolbar-status" aria-label="Unsaved changes" role="status">
+              <span className="dirty-dot" aria-hidden="true" />
+              Unsaved changes
+            </span>
+          ) : null}
           <button
             type="button"
             disabled={!c.isDirty}
-            className="btn-primary"
+            className="btn-save"
             onClick={() => void c.saveWorkspace()}
-            title="Save (⌘S)"
+            title="Save changes"
           >
             Save
           </button>
@@ -57,7 +76,7 @@ export function WorkspaceToolbar(props: {
             title="Build .rexp (⌘B)"
           >
             {c.isBuildLoading ? <span className="loading-spinner" aria-hidden="true" /> : null}
-            Build .rexp
+            Build archive
           </button>
           {c.hasFreshBuild ? (
             <button type="button" className="button-link" onClick={() => void downloadOutputArchive().catch((error) => reportDownloadError(error, c.setStatus))}>
@@ -73,43 +92,23 @@ export function WorkspaceToolbar(props: {
               </span>
             </>
           )}
-          <div className="toolbar-separator" aria-hidden="true" />
-          <button
-            type="button"
-            className="toolbar-icon-btn"
-            onClick={props.onToggleInspector}
-            aria-pressed={props.inspectorPinned}
-            title={props.inspectorPinned ? "Hide inspector (⌘I)" : "Show inspector (⌘I)"}
-            aria-label="Toggle inspector panel"
-          >
-            <IconInspector />
-          </button>
+          {props.inspectorAvailable !== false ? (
+            <>
+              <div className="toolbar-separator" aria-hidden="true" />
+              <button
+                type="button"
+                className="toolbar-icon-btn"
+                onClick={props.onToggleInspector}
+                aria-pressed={props.inspectorPinned}
+                title={props.inspectorPinned ? "Hide inspector (⌘I)" : "Show inspector (⌘I)"}
+                aria-label="Toggle inspector panel"
+              >
+                <IconInspector />
+              </button>
+            </>
+          ) : null}
         </div>
       </div>
     </header>
   );
-}
-
-function reportDownloadError(error: unknown, setStatus: (status: string) => void): void {
-  setStatus(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
-}
-
-async function downloadOutputArchive(): Promise<void> {
-  const response = await fetch("/api/output", { headers: networkEditorAuthHeaders() });
-  if (!response.ok) {
-    throw new Error(`Failed to download output archive (${response.status}${response.statusText.length > 0 ? ` ${response.statusText}` : ""})`);
-  }
-  const blobUrl = URL.createObjectURL(await response.blob());
-  const link = document.createElement("a");
-  link.href = blobUrl;
-  link.download = outputArchiveFileName(response.headers.get("content-disposition"));
-  document.body.append(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(blobUrl);
-}
-
-function outputArchiveFileName(contentDisposition: string | null): string {
-  const match = /filename="([^"]+)"/u.exec(contentDisposition ?? "");
-  return match?.[1] ?? "relution-policy.rexp";
 }

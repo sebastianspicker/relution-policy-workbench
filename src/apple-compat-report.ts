@@ -1,3 +1,4 @@
+/** Renders Apple compatibility findings for template and policy review. */
 import type { RelutionTemplateBundle } from "./templates.js";
 import type { AppleCompatReport, AppleCompatReportEntry } from "./apple-compat-types.js";
 import {

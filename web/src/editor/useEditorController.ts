@@ -1,9 +1,11 @@
+/** Composes workspace, recommendation, compliance, and action state into the editor's public controller. */
 import type { EditorControllerResult } from "./types.js";
 import { useComplianceState } from "./useEditorComplianceState.js";
-import { useEditorControllerActions } from "./useEditorControllerActions.js";
+import { createEditorControllerActions } from "./useEditorControllerActions.js";
 import { useRecommendationState } from "./useEditorRecommendationState.js";
 import { useWorkspaceState } from "./useEditorWorkspaceState.js";
 
+/** Returns the coordinated editor contract so UI surfaces share one source of truth. */
 export function useEditorController(): EditorControllerResult {
   const workspace = useWorkspaceState();
   const recommendations = useRecommendationState({ policy: workspace.policy });
@@ -14,7 +16,7 @@ export function useEditorController(): EditorControllerResult {
   }
 
   const currentState = workspace.state;
-  const actions = useEditorControllerActions({
+  const actions = createEditorControllerActions({
     workspace: {
       currentState,
       isDirty: workspace.isDirty,
@@ -74,7 +76,7 @@ export function useEditorController(): EditorControllerResult {
     },
     complianceSetters: {
       setComplianceSources: compliance.setComplianceSources,
-      setComplianceReport: compliance.setComplianceReport,
+      setComplianceReportForWorkspace: compliance.setComplianceReportForWorkspace,
       setComplianceLoading: compliance.setComplianceLoading,
       setComplianceError: compliance.setComplianceError,
     },

@@ -1,176 +1,37 @@
-import { useState, type JSX } from "react";
-import { JsonTemplateImportControl } from "./JsonTemplateImportControl.js";
-import { FieldFrame } from "./FieldFrame.js";
+/** Renders editor preferences, masked credential inputs, and theme controls. */
+import type { JSX } from "react";
+import { SectionHeader } from "./SectionHeader.js";
 import { ThemeSwitcher } from "./ThemeSwitcher.js";
-import type { CorporateTheme } from "./theme.js";
+import type { CorporateTheme } from "./theme-contract.js";
 import type { EditorController } from "./types.js";
-import { keyBadgeState } from "./key-validation.js";
+import { SettingsGuidance, SettingsIndex } from "./settings-navigation.js";
+import { EncryptionSettings, ImportSettings } from "./settings-security-import.js";
+import { AboutSettings, DangerSettings, ShortcutSettings } from "./settings-workspace-sections.js";
 
 export function SettingsPanel(props: {
   readonly controller: EditorController;
   readonly theme: CorporateTheme;
   readonly onThemeChange: (theme: CorporateTheme) => void;
 }): JSX.Element {
-  const c = props.controller;
-  const [rexpFileName, setRexpFileName] = useState<string>();
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
-  const shortcuts = shortcutLabels();
-  const keyBadge = keyBadgeState(c.state);
-
   return (
-    <div className="settings-panel">
-      <div className="settings-panel-header">
-        <h2>Settings</h2>
-      </div>
-
-      <div className="settings-panel-body">
-        <section className="settings-section">
-          <h3>Appearance</h3>
-          <ThemeSwitcher theme={props.theme} onThemeChange={props.onThemeChange} />
-        </section>
-
-        <section className="settings-section">
-          <h3>Encryption</h3>
-          <p className="settings-hint">Required to build or import encrypted archives.</p>
-          <div className="settings-field-row">
-            <span className={keyBadge.warn ? "settings-key-badge settings-key-badge--warn" : "settings-key-badge"}>
-              {keyBadge.label}
-            </span>
-            <FieldFrame className="settings-key-field" label="Encryption key" description="Stored only in the local editor process." required>
-              <input
-                className="key-input"
-                type="password"
-                value={c.keyValue}
-                onChange={(event) => c.setKeyValue(event.target.value)}
-                placeholder="Enter encryption key…"
-              />
-            </FieldFrame>
-            <button type="button" onClick={() => void c.setActiveKey()}>
-              Set key
-            </button>
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <h3>Import</h3>
-          <div className="settings-import-group">
-            <p className="settings-hint">Import a .rexp policy archive.</p>
-            <div className="settings-field-row">
-              <label className="btn file-input-label" title={rexpFileName ?? "Select .rexp file"}>
-                {rexpFileName ?? "Choose .rexp…"}
-                <input
-                  type="file"
-                  accept=".rexp"
-                  aria-label="Relution .rexp file"
-                  className="visually-hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    c.setImportFile(file);
-                    setRexpFileName(file?.name);
-                  }}
-                />
-              </label>
-              <button type="button" onClick={() => void c.importArchive()}>
-                Import
-              </button>
-            </div>
-          </div>
-          <div className="settings-import-group">
-            <p className="settings-hint">Import a BSI-style ruleset JSON.</p>
-            <JsonTemplateImportControl
-              label="Import ruleset"
-              ariaLabel="Ruleset JSON file"
-              disabled={false}
-              onFileChange={c.setRulesetFile}
-              onImport={() => void c.importRuleset()}
-            />
-          </div>
-        </section>
-
-        <section className="settings-section">
-          <h3>Keyboard shortcuts</h3>
-          <dl className="settings-shortcuts">
-            <div>
-              <dt><kbd>{shortcuts.save}</kbd></dt>
-              <dd>Save workspace</dd>
-            </div>
-            <div>
-              <dt><kbd>{shortcuts.build}</kbd></dt>
-              <dd>Build .rexp archive</dd>
-            </div>
-            <div>
-              <dt><kbd>{shortcuts.inspector}</kbd></dt>
-              <dd>Toggle inspector panel</dd>
-            </div>
-            <div>
-              <dt><kbd>{shortcuts.undo}</kbd></dt>
-              <dd>Undo last change</dd>
-            </div>
-            <div>
-              <dt><kbd>{shortcuts.redo}</kbd></dt>
-              <dd>Redo</dd>
-            </div>
-          </dl>
-        </section>
-
-        <section className="settings-section">
-          <h3>Danger zone</h3>
-          <p className="settings-hint">Permanently removes all local policy data. This cannot be undone.</p>
-          {showClearConfirm ? (
-            <div className="settings-field-row">
-              <button
-                type="button"
-                className="btn-danger"
-                onClick={() => {
-                  c.clearWorkspace();
-                  setShowClearConfirm(false);
-                }}
-              >
-                Yes, clear workspace
-              </button>
-              <button type="button" onClick={() => setShowClearConfirm(false)}>
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="btn-danger"
-              disabled={c.state.workspace.policies.length === 0 && !c.isDirty}
-              onClick={() => setShowClearConfirm(true)}
-            >
-              Clear workspace
-            </button>
-          )}
-        </section>
-
-        <section className="settings-section">
-          <h3>About</h3>
-          <p className="settings-hint">
-            Server version: <code>{c.state.bundle.serverVersion}</code>
-          </p>
-        </section>
+    <div className="settings-workspace">
+      <SectionHeader title="Settings" description="Configure the local workbench, archive encryption, imports, and accessibility preferences." />
+      <div className="settings-layout">
+        <SettingsIndex />
+        <div className="settings-panel">
+          <section className="settings-section" id="settings-appearance">
+            <h2>Appearance</h2>
+            <p className="settings-hint">Choose one of the built-in themes or use a contrast-validated custom palette.</p>
+            <ThemeSwitcher theme={props.theme} onThemeChange={props.onThemeChange} />
+          </section>
+          <EncryptionSettings controller={props.controller} />
+          <ImportSettings controller={props.controller} />
+          <ShortcutSettings />
+          <DangerSettings controller={props.controller} />
+          <AboutSettings controller={props.controller} />
+        </div>
+        <SettingsGuidance />
       </div>
     </div>
   );
-}
-
-function shortcutLabels(): {
-  readonly save: string;
-  readonly build: string;
-  readonly inspector: string;
-  readonly undo: string;
-  readonly redo: string;
-} {
-  const platform = globalThis.navigator?.platform ?? "";
-  const applePlatform = /Mac|iPhone|iPad|iPod/u.test(platform);
-  const command = applePlatform ? "⌘" : "Ctrl+";
-  const shift = applePlatform ? "⇧" : "Shift+";
-  return {
-    save: `${command}S`,
-    build: `${command}B`,
-    inspector: `${command}I`,
-    undo: `${command}Z`,
-    redo: `${shift}${command}Z`,
-  };
 }

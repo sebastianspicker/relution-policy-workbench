@@ -1,3 +1,4 @@
+# Keep dependencies, build output, caches, local evidence, and private work out of Git.
 node_modules/
 .pnpm-store/
 dist/
@@ -9,6 +10,7 @@ dist-web/
 .pyright/
 .cache/
 .vite/
+.vitest/
 vite.config.*.timestamp-*
 *.tsbuildinfo
 .coverage
@@ -17,8 +19,6 @@ coverage.xml
 *.cover
 *.junit.xml
 *.sarif
-*.jsonl
-*.ndjson
 *.har
 *.trace
 *.dump
@@ -28,6 +28,7 @@ coverage.xml
 lcov.info
 .nyc_output/
 .hypothesis/
+htmlcov/
 .DS_Store
 __pycache__/
 *.pyc
@@ -110,17 +111,29 @@ example/**/*.inf
 example/**/*.csv
 example/**/*.cmtx
 example/**/*.PolicyRules
-example/**/*.md
 
-# Local audit, agent, and review artifacts.
-AUDIT*.md
-FUNCTION_AUDIT*.md
-LIVE_AUDIT*.md
-Plan.md
-FINDINGS*.md
-REVIEW*.md
-SECURITY_NOTES*.md
-TODO*.md
+# Local audit, planning, and review artifacts.
+/AUDIT*.md
+/FUNCTION_AUDIT*.md
+/LIVE_AUDIT*.md
+/Plan.md
+/FINDINGS*.md
+/REVIEW*.md
+/SECURITY_NOTES*.md
+/TODO*.md
+/CODEBASE_AUDIT*.md
+/RELEASE_STATUS*.md
+/REMEDIATION*.md
+/codebase-audit*.md
+/release-status*.md
+/remediation*.md
+/conversation*.json
+/conversation*.jsonl
+/conversation*.ndjson
+/chat-export*.json
+/chat-export*.jsonl
+/transcript*.json
+/transcript*.jsonl
 /plan.md
 /status.md
 /ledger.md
@@ -134,47 +147,35 @@ TODO*.md
 /*_ledger.md
 /*_audit.md
 
-# Internal or superseded documentation packets. Keep them local-only.
-docs/*-audit.md
-docs/*-audit-*.md
-docs/*-plan.md
-docs/*-plan-*.md
-docs/*-ledger.md
-docs/*-ledger-*.md
-docs/*-status.md
-docs/*-status-*.md
-docs/*_audit.md
-docs/*_plan.md
-docs/*_ledger.md
-docs/*_status.md
-docs/*-readout.md
-docs/*-readout-*.md
-docs/*_readout.md
+# Internal or superseded documentation packets. Keep them in explicit lanes.
 docs/overengineering-index.md
 docs/agent/
 docs/archive/
 
-.agents/
-.impeccable/
-.codacy/
-.codex/
-.claude/
-.cursor/
-.serena/
+/.agents/
+/.impeccable/
+/.codacy/
+/.codex/
+/.codegraph/
+/.claude/
+/.cursor/
+/.serena/
 .idea/
 .vscode/
 .fleet/
 .zed/
 *.code-workspace
-AGENTS.md
-CLAUDE.md
-playwright-report/
-test-results/
-coverage/
-reports/
-private/
-scratch/
-tmp/
+/AGENTS.md
+/CLAUDE.md
+/playwright-report/
+/blob-report/
+/.playwright/
+/test-results/
+/coverage/
+/reports/
+/private/
+/scratch/
+/tmp/
 /temp/
 /exports/
 /imports/

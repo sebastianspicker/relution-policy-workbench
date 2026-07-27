@@ -1,3 +1,4 @@
+/** Verifies baseline-template HTTP parsing and import-name construction at the client boundary. */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchBaselineTemplateRuleset } from "./baseline-template-client.js";
 import { readJsonResponse } from "./editor-utils.js";

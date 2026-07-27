@@ -1,3 +1,4 @@
+# Run the opt-in Relution Docker integration suite on demand and each week.
 name: Relution Docker E2E
 
 on:
@@ -15,16 +16,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
 
       - name: Setup pnpm
         uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
         with:
-          version: 10
+          version: 10.34.5
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
@@ -37,7 +40,7 @@ jobs:
       - name: Capture Docker logs
         if: always()
         run: |
-          docker compose -p relution-policy-workbench-e2e -f docker-compose.relution-e2e.yml logs --no-color > relution-e2e.log || true
+          docker compose -p rexp-studio-e2e -f tests/relution-docker/compose.yml logs --no-color > relution-e2e.log || true
 
       - name: Upload Docker logs
         if: always()
@@ -46,3 +49,4 @@ jobs:
           name: relution-e2e-logs
           path: relution-e2e.log
           if-no-files-found: ignore
+          retention-days: 5

@@ -1,45 +1,36 @@
-# Relution Policy Workbench Docs
+# Documentation
 
-This directory contains the small public documentation surface that complements
-the root README.
+The root [README](../README.md) is the primary installation, configuration,
+usage, testing, operation, and troubleshooting guide.
 
-## Current Checkout
+## Technical references
 
-The 2026-07-11 local checkout is a release-quality frontend alpha plus a Phase
-B, LAB-only MDM source contract. The frontend conventions document records the
-verified browser boundary; the MDM package records its own measured source and
-generated-artifact state. Neither surface is a production-support claim.
+- [Frontend conventions](frontend.md): routes, interaction contracts,
+  responsive behavior, accessibility, and browser testing.
+- [Release procedure](alpha-release.md): source release scope and release
+  checks.
+- [Apple compatibility matrix](JAMF_RELUTION_APPLE_GAP.md): Apple payloads
+  bridged through Relution `APPLE_MOBILECONFIG`.
+- [Mapping candidate review](MAPPING_CANDIDATE_REVIEW.md): current non-exact
+  mapping queues and promotion rules.
+- [MDM reference package](../mdm/README.md): LAB source records, schemas,
+  evidence states, runbooks, and output validation.
+- [Frontend design reference](../DESIGN.md): current tokens and layout
+  conventions.
+- [Product scope](../PRODUCT.md): users, workflows, and product boundaries.
+- [Security policy](../SECURITY.md): reporting and data boundaries.
+- [Contribution guide](../CONTRIBUTING.md): setup, change rules, and
+  verification.
 
-## Active Public Documents
+## Screenshots
 
-- [Jamf / Relution Apple Gap Matrix](JAMF_RELUTION_APPLE_GAP.md): Apple settings that the editor can bridge through Relution `APPLE_MOBILECONFIG`, plus one DDM-only gap.
-- [LLM Relution Mapping Review](LLM_RELUTION_MAPPING.md): dated offline BSI, CIS, and vendor recommendation mapping snapshot built from committed evidence.
-- [Mapping Candidate Review](MAPPING_CANDIDATE_REVIEW.md): dated non-exact mapping review queues and promotion rules.
-- [MDM reference architecture](../mdm/README.md): current LAB-only Apple,
-  Windows, and Android policy sources, provenance manifests, deterministic
-  Relution 26.1.1 artifacts, and rollout gates.
-- [Frontend conventions and support](frontend.md): navigation, responsive pane,
-  accessibility, browser, bundle-budget, and alpha support contracts.
-- [README tour screenshots](readme-tour/): checked-in screenshots rendered in the root README.
+`readme-tour/` contains seven 1440 by 1000 PNG captures used by the root README.
+`pnpm screenshots:readme` rebuilds the application and captures them from
+deterministic fixtures. Browser visual baselines under `tests/e2e/` are a separate
+test surface.
 
-The two mapping-review documents are April 2026 generated snapshots retained as
-historical mapping evidence, not claims about current external sources or the
-current MDM reference status. Their headers record the generation time and
-source snapshot dates. Current Phase B status is maintained under `mdm/`.
+## Private and local files
 
-## Local-Only Material
-
-Planning notes, scratch reports, superseded packets, and generated local check
-output are not current project documentation. Store them under the ignored
-`docs/archive/`, `reports/`, `private/`, or `scratch/` paths as appropriate.
-Never commit real Relution exports, decrypted workspaces, tenant inventories,
-credentials, tokens, or archive keys.
-
-Relution exports, Apple configuration profiles, certificates, and key stores
-are ignored globally. The only public `.rexp` files are the explicit reviewed
-fixtures under `example/` that support tests and historical comparison.
-
-Public-candidate meta tests reject private-lane files, unapproved `.rexp`
-archives, credential/key formats, editor sidecars, environment files, and local
-absolute paths. Ignored local data remains outside the public documentation
-surface even when it exists in this checkout.
+Do not place tenant exports, decrypted workspaces, credentials, tokens,
+certificates, local reports, or source documents in this directory. Use the
+ignored `private/`, `reports/`, or `scratch/` lanes as appropriate.

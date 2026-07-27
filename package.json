@@ -1,9 +1,10 @@
 {
-  "name": "relution-policy-workbench",
+  "name": "rexp-studio",
   "version": "0.1.0",
-  "description": "Local Relution .rexp policy workbench for editing exports, Apple payloads, BSI/CIS baselines, and read-only device audits.",
+  "description": "CLI and loopback browser editor for Relution .rexp archives, Apple payloads, baseline data, and read-only device audits.",
   "license": "MIT",
   "private": true,
+  "packageManager": "pnpm@10.34.5",
   "type": "module",
   "bin": {
     "rexp": "./dist/src/cli.js"
@@ -14,18 +15,19 @@
     "check:bundle:web": "node tools/check-web-bundle-budget.mjs",
     "build": "pnpm build:node && pnpm build:web",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "python:clean-cache": "find test tools -type d -name __pycache__ -prune -exec rm -rf {} +",
+    "knip": "knip --config knip.json",
+    "python:clean-cache": "find tests/python tools -type d -name __pycache__ -prune -exec rm -rf {} + && find tests/python tools -type f \\( -name '*.pyc' -o -name '*.pyo' \\) -delete",
     "python:lint": "uv run --locked ruff check .",
-    "python:test": "uv run --locked pytest",
-    "test:node:built": "node --test dist/test/*.test.js",
+    "python:test": "uv run --locked pytest --ignore=.env.example",
+    "test:node:built": "node --test dist/tests/*.test.js dist/tests/relution-docker/*.test.js",
     "test:node": "pnpm build:node && pnpm test:node:built",
-    "test:fuzz:built": "node --test dist/test/fuzz.test.js",
+    "test:fuzz:built": "node --test dist/tests/fuzz.test.js",
     "test:fuzz": "pnpm build:node && pnpm test:fuzz:built",
-    "test:meta:built": "node --test dist/test/meta/*.test.js",
+    "test:meta:built": "node --test dist/tests/meta/*.test.js",
     "test:meta": "pnpm build:node && pnpm test:meta:built",
     "test:web": "vitest run",
     "test": "pnpm test:node && pnpm test:web",
-    "verify:ci": "pnpm python:clean-cache && pnpm typecheck && pnpm build && pnpm check:bundle:web && pnpm test:node:built && pnpm test:web && pnpm python:lint && pnpm python:test && pnpm test:meta:built && pnpm python:clean-cache",
+    "verify:ci": "pnpm python:clean-cache && pnpm typecheck && pnpm knip && pnpm build && pnpm check:bundle:web && pnpm test:node:built && pnpm test:web && pnpm python:lint && pnpm python:test && pnpm test:meta:built && pnpm python:clean-cache",
     "verify:pre-pr": "pnpm verify:ci && pnpm codacy:cloud:inspect && pnpm codacy:cloud",
     "codacy:cloud-config": "node tools/run_codacy_cloud.mjs config",
     "codacy:cloud:inspect": "node tools/run_codacy_cloud.mjs inspect",
@@ -33,14 +35,14 @@
     "playwright:ci": "env -u FORCE_COLOR PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright playwright",
     "test:e2e:web": "pnpm build && pnpm playwright:ci test",
     "screenshots:readme": "pnpm build && pnpm playwright:ci test -c playwright.readme.config.ts",
-    "test:e2e:relution": "pnpm build:node && node --test dist/test/relution-docker.e2e.js",
-    "test:e2e:relution-dashboard": "pnpm build:node && node --test dist/test/relution-dashboard-docker.e2e.js",
+    "test:e2e:relution": "pnpm build:node && node --test dist/tests/relution-docker/relution-docker.e2e.js",
+    "test:e2e:relution-dashboard": "pnpm build:node && node --test dist/tests/relution-docker/relution-dashboard-docker.e2e.js",
     "rexp:evidence": "pnpm build && node tools/build_windows_rexp_evidence.mjs",
     "rexp:built": "node dist/src/cli.js",
     "rexp": "pnpm build && node dist/src/cli.js"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.12"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
@@ -52,7 +54,8 @@
     "@vitejs/plugin-react": "^6.0.1",
     "fast-check": "4.8.0",
     "jsdom": "^29.0.2",
-    "typescript": "^6.0.3",
+    "knip": "6.27.0",
+    "typescript": "7.0.2",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
   },

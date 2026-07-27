@@ -1,3 +1,4 @@
+/** Verifies baseline selections produce the intended preview and import workflow. */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PolicyWizardPanel } from "./PolicyWizardPanel.js";
@@ -70,7 +71,7 @@ describe("PolicyWizardPanel", () => {
     fireEvent.click(await screen.findByRole("tab", { name: /^expert$/i }));
     await screen.findByLabelText(/3 of 4 settings selected/i);
 
-    // Uncheck BSI — tier 3 has only BSI-sourced settings, so selection should drop to 0.
+    // Tier 3 has only BSI-sourced settings, so clearing BSI drops the selection to 0.
     fireEvent.click(screen.getByRole("checkbox", { name: /^bsi$/i }));
 
     expect(screen.getByLabelText(/0 of 4 settings selected/i)).toBeTruthy();

@@ -1,3 +1,4 @@
+// Configure strict TypeScript compilation for application, browser, test, and E2E sources.
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -6,6 +7,17 @@
     "moduleResolution": "NodeNext",
     "jsx": "react-jsx",
     "strict": true,
+    "noEmitOnError": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    "noUncheckedSideEffectImports": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
     "exactOptionalPropertyTypes": true,
     "noUncheckedIndexedAccess": true,
     "forceConsistentCasingInFileNames": true,
@@ -16,9 +28,7 @@
   },
   "include": [
     "src/**/*.ts",
-    "test/**/*.ts",
-    "e2e/**/*.ts",
-    "e2e-readme/**/*.ts",
+    "tests/**/*.ts",
     "web/src/**/*.ts",
     "web/src/**/*.tsx",
     "vite.config.ts",

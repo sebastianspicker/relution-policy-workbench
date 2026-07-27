@@ -1,3 +1,4 @@
+# Scan TypeScript changes and the main branch for CodeQL security findings.
 name: CodeQL
 
 on:
@@ -15,6 +16,7 @@ jobs:
   analyze:
     name: Analyze TypeScript
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       actions: read
       contents: read

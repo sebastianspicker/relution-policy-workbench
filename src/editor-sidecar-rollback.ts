@@ -1,54 +1,26 @@
-import { lstatSync, mkdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+/** Restores bounded sidecar snapshots through the fixed safe-sidecar path. */
 import { saveWorkspace, type PolicyWorkspace } from "./workspace.js";
+import { deleteEditorSidecarFile, readEditorSidecarBytes, writeEditorSidecarBytes } from "./sidecar-path.js";
+import { MAX_EDITOR_SIDECAR_JSON_BYTES } from "./sidecar-types.js";
 
 export type SidecarPathState =
   | { kind: "missing" }
-  | { kind: "directory" }
-  | { kind: "file"; contents: string }
-  | { kind: "symlink"; target: string };
+  | { kind: "file"; contents: Buffer };
 
 export function captureSidecarState(workspaceDir: string): SidecarPathState {
-  const path = join(workspaceDir, "editor-sidecar.json");
-  let stat;
-  try {
-    stat = lstatSync(path);
-  } catch (error) {
-    if (isMissingPathError(error)) return { kind: "missing" };
-    throw error;
-  }
-  if (stat.isSymbolicLink()) {
-    return { kind: "symlink", target: readlinkSync(path) };
-  }
-  if (stat.isDirectory()) {
-    return { kind: "directory" };
-  }
-  if (!stat.isFile()) {
-    throw new Error(`Unsupported editor sidecar path type: ${path}`);
-  }
-  return { kind: "file", contents: readFileSync(path, "utf8") };
+  const contents = readEditorSidecarBytes(workspaceDir);
+  return contents === undefined ? { kind: "missing" } : { kind: "file", contents };
 }
 
-function isMissingPathError(error: unknown): error is NodeJS.ErrnoException {
-  return typeof error === "object" && error !== null && "code" in error && error.code === "ENOENT";
-}
-
-function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): void {
-  const path = join(workspaceDir, "editor-sidecar.json");
-  rmSync(path, { recursive: true, force: true });
-
+export function restoreSidecarState(workspaceDir: string, snapshot: SidecarPathState): void {
   if (snapshot.kind === "missing") {
+    deleteEditorSidecarFile(workspaceDir);
     return;
   }
-  if (snapshot.kind === "directory") {
-    mkdirSync(path, { recursive: true });
-    return;
+  if (snapshot.contents.length > MAX_EDITOR_SIDECAR_JSON_BYTES) {
+    throw new Error(`Editor sidecar snapshot exceeds the ${String(MAX_EDITOR_SIDECAR_JSON_BYTES)} byte limit`);
   }
-  if (snapshot.kind === "symlink") {
-    symlinkSync(snapshot.target, path);
-    return;
-  }
-  writeFileSync(path, snapshot.contents);
+  writeEditorSidecarBytes(workspaceDir, snapshot.contents);
 }
 
 export function rollbackPersistedEditorState(

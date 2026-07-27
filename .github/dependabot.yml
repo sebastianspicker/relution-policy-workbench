@@ -1,3 +1,4 @@
+# Group weekly GitHub Actions and npm dependency updates into reviewable pull requests.
 version: 2
 updates:
   - package-ecosystem: "github-actions"

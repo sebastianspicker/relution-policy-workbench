@@ -1,51 +1,17 @@
+// Mirror Codacy Cloud configuration locally and clean repository-local analyzer caches.
 import { spawnSync } from "node:child_process";
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { cleanPythonCaches } from "./codacy-cloud-cache.mjs";
+import { syncLocalConfigFromRemote } from "./codacy-cloud-config.mjs";
 
 const mode = process.argv[2] ?? "analyze";
 const configPath = ".codacy/generated/remote.config.json";
 const localConfigPath = ".codacy/codacy.config.json";
 const generatedDir = ".codacy/generated";
 const pylintHome = join(generatedDir, "pylint-cache");
-const policyExcludes = [
-  "AGENTS.md",
-  "private/**",
-  "node_modules/**",
-  "docs/archive/**",
-];
 
-function cleanPythonCaches() {
-  for (const root of ["test", "tools"]) {
-    if (!existsSync(root)) {
-      continue;
-    }
-    removePycacheDirs(root);
-  }
-}
-
-function removePycacheDirs(path) {
-  for (const entry of readdirSync(path)) {
-    const child = join(path, entry);
-    const stat = statSync(child);
-    if (stat.isDirectory() && entry === "__pycache__") {
-      rmSync(child, { recursive: true, force: true });
-      continue;
-    }
-    if (stat.isDirectory()) {
-      removePycacheDirs(child);
-    }
-  }
-}
-
+/** Run one Codacy subprocess with inherited output and an isolated writable Pylint cache. */
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: "inherit",
@@ -61,26 +27,28 @@ function run(command, args, options = {}) {
   return result.status ?? 1;
 }
 
-function normalizeRepositoryConfigPaths(path) {
-  const config = JSON.parse(readFileSync(path, "utf8"));
-  for (const tool of config.tools ?? []) {
-    if (tool.localConfigurationFile?.endsWith("/pyproject.toml")) {
-      tool.localConfigurationFile = "pyproject.toml";
-    }
+/** Resolve the Codacy remote from the configured GitHub origin without hard-coded repository metadata. */
+function githubRemoteCoordinates() {
+  const result = spawnSync("git", ["remote", "get-url", "origin"], {
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (result.error) {
+    throw result.error;
   }
-  const excludes = new Set(config.exclude ?? []);
-  for (const exclude of policyExcludes) {
-    excludes.add(exclude);
+  if (result.status !== 0) {
+    throw new Error("Cannot resolve the Git origin required for Codacy initialization");
   }
-  config.exclude = [...excludes];
-  writeJson(path, config);
-  return config;
+  const match = result.stdout.trim().match(/github\.com(?::|\/)([^/]+)\/([^/]+)$/u);
+  const owner = match?.[1];
+  const repository = match?.[2]?.replace(/\.git$/u, "");
+  if (owner === undefined || repository === undefined || repository.length === 0) {
+    throw new Error("Codacy initialization requires a GitHub origin URL");
+  }
+  return { owner, repository };
 }
 
-function writeJson(path, value) {
-  writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
-}
-
+/** Update the existing remote config, falling back to initialization on first use. */
 function refreshRemoteConfig() {
   const updateStatus = run("codacy-analysis", [
     "update-config",
@@ -90,34 +58,16 @@ function refreshRemoteConfig() {
   if (updateStatus === 0) {
     return 0;
   }
+  const { owner, repository } = githubRemoteCoordinates();
   return run("codacy-analysis", [
     "init",
     "--remote",
     "gh",
-    "sebastianspicker",
-    "relution-policy-workbench",
+    owner,
+    repository,
     "--config-file",
     configPath,
   ]);
-}
-
-function comparableConfig(path) {
-  const config = normalizeRepositoryConfigPaths(path);
-  delete config.metadata?.createdAt;
-  delete config.metadata?.updatedAt;
-  return JSON.stringify(config);
-}
-
-function syncLocalConfigFromRemote() {
-  normalizeRepositoryConfigPaths(configPath);
-  copyFileSync(configPath, localConfigPath);
-  if (comparableConfig(configPath) !== comparableConfig(localConfigPath)) {
-    console.error(
-      `Local Codacy config ${localConfigPath} does not match fetched remote config ${configPath}`,
-    );
-    return 1;
-  }
-  return 0;
 }
 
 cleanPythonCaches();
@@ -127,7 +77,7 @@ let status = 0;
 try {
   status = refreshRemoteConfig();
   if (status === 0) {
-    status = syncLocalConfigFromRemote();
+    status = syncLocalConfigFromRemote(configPath, localConfigPath);
   }
   if (status === 0 && mode === "inspect") {
     status = run("codacy-analysis", [

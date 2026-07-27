@@ -1,3 +1,4 @@
+/** Verifies inspector tabs expose validation, preview, JSON, and artifacts accessibly. */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState, type JSX } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -31,7 +32,7 @@ describe("ConfigurationInspector", () => {
     expect(screen.getByLabelText(/configuration raw json/i)).toBeTruthy();
   });
 
-  it("does not render a status region inside the inspector (status lives in StatusBar)", () => {
+  it("does not surface save status as an alert (status lives in StatusBar)", () => {
     const controller = createEditorControllerStub({
       inspectorTab: "validation",
       setInspectorTab: vi.fn(),
@@ -43,7 +44,23 @@ describe("ConfigurationInspector", () => {
     render(<ConfigurationInspector controller={controller} />);
 
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("status").textContent).toMatch(/LOCAL · not a live tenant/i);
+    expect(screen.queryByText(/Save failed/i)).toBeNull();
+  });
+
+  it("shows Assurance heading with local checks chip and boundary badge", () => {
+    const controller = createEditorControllerStub({
+      inspectorTab: "validation",
+      setInspectorTab: vi.fn(),
+      isDirty: false,
+      rulesetReport: undefined,
+    });
+
+    render(<ConfigurationInspector controller={controller} />);
+
+    expect(screen.getByRole("heading", { name: /^Assurance$/i })).toBeTruthy();
+    expect(screen.getByText(/local checks/i)).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toMatch(/LOCAL · not a live tenant/i);
   });
 
   it("shows schema compatibility warnings when validation succeeds with weakened schemas", () => {

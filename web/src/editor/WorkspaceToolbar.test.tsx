@@ -1,3 +1,4 @@
+/** Verifies workspace commands reflect dirty, undo, build, and request-in-flight state. */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEditorControllerStub } from "./useEditorController.test-helpers.js";
@@ -13,6 +14,13 @@ afterEach(() => {
 });
 
 describe("WorkspaceToolbar", () => {
+  it("identifies the active workspace context", () => {
+    render(<WorkspaceToolbar controller={createEditorControllerStub()} {...defaultProps} />);
+
+    expect(screen.getByRole("navigation", { name: "Workspace context" })).toBeTruthy();
+    expect(screen.getByText("Policies")).toBeTruthy();
+  });
+
   it("keeps download unavailable until a fresh build exists", () => {
     render(<WorkspaceToolbar controller={createEditorControllerStub({ hasFreshBuild: false })} {...defaultProps} />);
 
@@ -77,7 +85,7 @@ describe("WorkspaceToolbar", () => {
     const controller = createEditorControllerStub({ isBuildLoading: false });
     const { rerender } = render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
 
-    const buildButton = screen.getByRole("button", { name: /build .rexp/i }) as HTMLButtonElement;
+    const buildButton = screen.getByRole("button", { name: /build archive/i }) as HTMLButtonElement;
 
     expect(buildButton.disabled).toBe(false);
     fireEvent.click(buildButton);
@@ -86,7 +94,7 @@ describe("WorkspaceToolbar", () => {
     const loadingController = createEditorControllerStub({ isBuildLoading: true });
     rerender(<WorkspaceToolbar controller={loadingController} {...defaultProps} />);
 
-    const loadingBuildButton = screen.getByRole("button", { name: /build .rexp/i }) as HTMLButtonElement;
+    const loadingBuildButton = screen.getByRole("button", { name: /build archive/i }) as HTMLButtonElement;
 
     expect(loadingBuildButton.disabled).toBe(true);
     fireEvent.click(loadingBuildButton);

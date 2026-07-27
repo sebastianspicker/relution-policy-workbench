@@ -1,9 +1,10 @@
+/** Filters and navigates workspace policies while retaining the active selection. */
 import { useEffect, useState, type JSX } from "react";
-import { findAppleCompatSettingForDetails } from "../../../src/apple-compat.js";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
-import { asRecord } from "./editor-utils.js";
+import { PolicyNavigatorCreate } from "./PolicyNavigatorCreate.js";
 import { PolicyTree } from "./PolicyTree.js";
+import { policyMatches } from "./policy-navigation-search.js";
 import type { Selection } from "./types.js";
 
 export function PolicyNavigator(props: {
@@ -33,10 +34,16 @@ export function PolicyNavigator(props: {
     .filter(({ policy }) => policyMatches(policy, query, props.templatesByType));
   return (
     <div className="policy-navigator">
+      <div className="pane-head nav-pane-head">
+        <h2>Policies</h2>
+      </div>
       <div className="nav-toolbar">
         <input
           aria-label="Search policies"
-          placeholder="Search policies"
+          name="policy-search"
+          type="search"
+          autoComplete="off"
+          placeholder="Find a policy"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
         />
@@ -48,51 +55,20 @@ export function PolicyNavigator(props: {
           aria-expanded={showCreate}
           onClick={() => setShowCreate((s) => !s)}
         >
-          +
+          <span aria-hidden="true">+</span>
+          <span>New policy</span>
         </button>
       </div>
-      <div className={showCreate ? "new-policy-form-wrapper new-policy-form-wrapper--open" : "new-policy-form-wrapper"}>
-        <div className="new-policy-form">
-          <label>
-            <span className="field-label">Name</span>
-            <input
-              aria-label="New policy name"
-              placeholder="Policy name"
-              value={props.newPolicyName}
-              onChange={(e) => props.onNewPolicyNameChange(e.target.value)}
-            />
-          </label>
-          <label>
-            <span className="field-label">Platform</span>
-            <select
-              aria-label="New policy platform"
-              value={props.newPolicyPlatform}
-              onChange={(e) => props.onNewPolicyPlatformChange(e.target.value)}
-            >
-              {props.creatablePlatforms.map((platform) => (
-                <option key={platform} value={platform}>
-                  {platform}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="new-policy-form-actions">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                props.onCreatePolicy();
-                setShowCreate(false);
-              }}
-            >
-              Create
-            </button>
-            <button type="button" onClick={() => setShowCreate(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
-      </div>
+      <PolicyNavigatorCreate
+        visible={showCreate}
+        name={props.newPolicyName}
+        platform={props.newPolicyPlatform}
+        platforms={props.creatablePlatforms}
+        onNameChange={props.onNewPolicyNameChange}
+        onPlatformChange={props.onNewPolicyPlatformChange}
+        onCreate={props.onCreatePolicy}
+        onClose={() => setShowCreate(false)}
+      />
       {visiblePolicies.length === 0 && !showCreate ? (
         <p className="empty-state">
           {props.policies.length === 0
@@ -117,50 +93,4 @@ export function PolicyNavigator(props: {
   );
 }
 
-export function policyMatches(
-  policy: WorkspacePolicy,
-  query: string,
-  templatesByType: ReadonlyMap<string, ConfigurationTemplate> = new Map<string, ConfigurationTemplate>(),
-): boolean {
-  const normalized = query.trim().toLowerCase();
-  if (normalized.length === 0) {
-    return true;
-  }
-  const haystack = [
-    policy.path,
-    textValue(policy.document.name),
-    textValue(policy.document.platform),
-    ...configurationSearchTerms(policy, templatesByType),
-  ].join(" ");
-  return haystack.toLowerCase().includes(normalized);
-}
-
-function configurationSearchTerms(policy: WorkspacePolicy, templatesByType: ReadonlyMap<string, ConfigurationTemplate>): string[] {
-  const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
-  return versions.flatMap((version, versionIndex) => {
-    const versionRecord = asRecord(version);
-    const versionName = textValue(versionRecord?.name) || `Version ${versionIndex + 1}`;
-    const configurations = Array.isArray(versionRecord?.configurations) ? versionRecord.configurations : [];
-    return [versionName, ...configurations.flatMap((configuration) => configurationTerms(configuration, templatesByType))];
-  });
-}
-
-function configurationTerms(configuration: unknown, templatesByType: ReadonlyMap<string, ConfigurationTemplate>): string[] {
-  const details = asRecord(asRecord(configuration)?.details);
-  const type = textValue(details?.type);
-  const template = templatesByType.get(type);
-  const appleCompatSetting = findAppleCompatSettingForDetails(details);
-  const templateTerms = template === undefined ? [] : [template.label, template.schemaName];
-  const appleTerms = appleCompatSetting === undefined ? [] : [appleCompatSetting.label, appleCompatSetting.payloadType];
-  return [
-    type,
-    ...templateTerms,
-    ...appleTerms,
-    textValue(details?.displayName),
-    textValue(details?.secondLevelPayloadType),
-  ];
-}
-
-function textValue(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
+export { policyMatches } from "./policy-navigation-search.js";

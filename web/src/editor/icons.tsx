@@ -1,3 +1,4 @@
+/** Provides consistent, decorative SVG icons that remain hidden from assistive technology. */
 import type { JSX } from "react";
 
 type IconProps = {

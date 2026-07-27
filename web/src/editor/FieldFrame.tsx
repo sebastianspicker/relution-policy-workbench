@@ -1,3 +1,4 @@
+/** Connects field labels, descriptions, requirements, and errors to a single form control. */
 import { cloneElement, useId, type JSX, type ReactElement } from "react";
 
 type FieldControlProps = {
@@ -28,21 +29,23 @@ export function FieldFrame(props: {
 
   return (
     <div className={props.className ?? "field"}>
-      <div className="field-label-row">
-        <span>
+      <div className="field-main">
+        <div className="field-label-row">
           <label className="field-label" htmlFor={controlId}>{props.label}{props.required ? " *" : ""}</label>
-          {props.path !== undefined ? <code className="field-path">{props.path}</code> : null}
-          {props.description !== undefined ? <span className="field-description" id={descriptionId}>{props.description}</span> : null}
-          {!props.required && props.nullable ? <span className="field-constraint">Optional; null is accepted.</span> : null}
-        </span>
-        {props.trailing}
+          {props.trailing}
+        </div>
+        {props.description !== undefined ? <span className="field-description" id={descriptionId}>{props.description}</span> : null}
+        {props.path !== undefined ? <code className="field-path">{props.path}</code> : null}
+        {!props.required && props.nullable ? <span className="field-constraint">Optional; null is accepted.</span> : null}
       </div>
-      {cloneElement(props.children, {
-        id: controlId,
-        ...(describedBy === undefined ? {} : { "aria-describedby": describedBy }),
-        ...(props.error === undefined ? {} : { "aria-invalid": true }),
-        ...(props.required ? { "aria-required": true } : {}),
-      })}
+      <div className="field-control">
+        {cloneElement(props.children, {
+          id: controlId,
+          ...(describedBy === undefined ? {} : { "aria-describedby": describedBy }),
+          ...(props.error === undefined ? {} : { "aria-invalid": true }),
+          ...(props.required ? { "aria-required": true } : {}),
+        })}
+      </div>
       {props.footer}
       {props.error !== undefined ? <p className="field-error" id={errorId} role="alert">{props.error}</p> : null}
     </div>

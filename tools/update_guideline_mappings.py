@@ -22,6 +22,17 @@ from _build_relution_import_artifacts_modules.relution_mapping_updates import (
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SUPPORTED_SOURCES = ("bsi", "cis", "vendor")
+OFFLINE_SOURCE_COMMANDS = {
+    "bsi": ("tools/harvest_bsi_grundschutz.py",),
+    "cis": ("tools/harvest_cis_benchmarks.py",),
+    "vendor": ("tools/harvest_vendor_guidance.py", "--offline"),
+}
+BUILD_COMMAND_ARGS = {
+    ("bsi",): ("bsi",),
+    ("cis",): ("cis",),
+    ("vendor",): ("vendor",),
+    SUPPORTED_SOURCES: SUPPORTED_SOURCES,
+}
 EXPECTED_UPDATE_ARTIFACT_PATHS = (
     REPO_ROOT / "example" / "recommendation-coverage" / "source-change-report.json",
     REPO_ROOT / "example" / "recommendation-coverage" / "ruleset-update-plan.json",
@@ -99,12 +110,8 @@ def rebuild_sources_offline(sources: list[str]) -> None:
     """Rebuild selected guideline sources from checked-in inputs."""
 
     for source in sources:
-        if source == "bsi":
-            run_repo_python_tool("tools/harvest_bsi_grundschutz.py")
-        elif source == "cis":
-            run_repo_python_tool("tools/harvest_cis_benchmarks.py")
-        elif source == "vendor":
-            run_repo_python_tool("tools/harvest_vendor_guidance.py", "--offline")
+        script, *args = OFFLINE_SOURCE_COMMANDS[source]
+        run_repo_python_tool(script, *args)
 
 
 def refresh_sources(sources: list[str]) -> None:
@@ -123,18 +130,10 @@ def run_build_relution_import_artifacts(sources: list[str]) -> None:
     """Run the import artifact builder with the selected source arguments."""
 
     source_key = tuple(sources)
-    if source_key == ("bsi",):
-        run_repo_python_tool("tools/build_relution_import_artifacts.py", "bsi")
-    elif source_key == ("cis",):
-        run_repo_python_tool("tools/build_relution_import_artifacts.py", "cis")
-    elif source_key == ("vendor",):
-        run_repo_python_tool("tools/build_relution_import_artifacts.py", "vendor")
-    elif source_key == SUPPORTED_SOURCES:
-        run_repo_python_tool(
-            "tools/build_relution_import_artifacts.py", "bsi", "cis", "vendor"
-        )
-    else:
+    build_args = BUILD_COMMAND_ARGS.get(source_key)
+    if build_args is None:
         raise AssertionError(f"Unsupported source selection: {sources}")
+    run_repo_python_tool("tools/build_relution_import_artifacts.py", *build_args)
 
 
 def run_repo_python_tool(script: str, *args: str) -> None:

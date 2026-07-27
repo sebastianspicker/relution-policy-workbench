@@ -1,3 +1,4 @@
+/** Verifies policy search and selection retain the expected workspace navigation contract. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ConfigurationTemplate } from "../../../src/templates.js";
@@ -32,6 +33,8 @@ describe("PolicyNavigator", () => {
         onCreatePolicy={vi.fn()}
       />,
     );
+
+    expect(screen.getByRole("heading", { name: /^Policies$/i })).toBeTruthy();
 
     const search = screen.getByLabelText(/search policies/i);
     fireEvent.change(search, { target: { value: "iOS Restrictions" } });

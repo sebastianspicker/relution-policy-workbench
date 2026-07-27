@@ -14,7 +14,7 @@ No evidence supplied establishes the target tenant's server version, hosting
 model, organisations, administrators, roles, groups, users, devices,
 applications, certificates, integrations, compliance rules, assignments,
 exceptions, or actual device behaviour. Current maturity of the target tenant
-is therefore **not assessable**, not low. The dominant Phase A risk is false
+is therefore not assessable, not low. The dominant Phase A risk is false
 assurance from confusing tooling capability with deployed control evidence.
 
 The proposed target is a layered, ownership-aware architecture with explicit
@@ -41,12 +41,12 @@ matching official documentation and release notes; controlled lab tests.
 
 ## Immediate findings
 
-### P0 — none proven
+### P0: none proven
 
 No supplied evidence proves an immediate live security, privacy, or operational
 incident. Absence of evidence is not evidence of absence.
 
-### P1 — required before a BSI-aligned baseline can be claimed
+### P1: required before a BSI-aligned baseline can be claimed
 
 | ID | Evidence | Scope/risk | Action and usability consequence |
 |---|---|---|---|
@@ -57,7 +57,7 @@ incident. Absence of evidence is not evidence of absence.
 | F-P1-005 | No effective assignment or precedence evidence | Duplicate/conflicting policies may cause lockout or data loss | Export groups, policies, versions, assignments, device effective state, and error codes; test composition in lab |
 | F-P1-006 | No rollback exports or pilot proof | Broad change could cause operational lockout | Create Lab/Pilot rings and immutable pre-change exports before any target assignment |
 
-### P2 — vendor/CIS improvement work
+### P2: vendor/CIS improvement work
 
 | ID | Evidence | Risk | Action |
 |---|---|---|---|
@@ -66,7 +66,7 @@ incident. Absence of evidence is not evidence of absence.
 | F-P2-003 | Android ownership mode, explicit policy, posture, and enforcement rules absent | BYOD overreach or default wipe behaviour | Export effective policy and non-compliance details; customise graduated actions |
 | F-P2-004 | CIS snapshots include benchmark-specific and Intune-oriented material | Blind mapping may be unsupported or disproportionate | Reconfirm title/version/licence, map to vendor CSP/payload, adopt Level-1-like outcomes selectively |
 
-### P3 — maintainability optimisation
+### P3: maintainability optimisation
 
 - Record the source JAR/image digest for regenerated Relution templates.
 - Resolve or explicitly waive the 24 schema regex compatibility issues before
@@ -145,4 +145,3 @@ Phase B may start only when:
    are named;
 7. no generated artifact contains secrets, production assignments, duplicate
    IDs, or unresolved production placeholders.
-

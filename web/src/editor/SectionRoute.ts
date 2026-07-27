@@ -1,3 +1,4 @@
+/** Maps application sections to stable URL routes and resolves their primary destinations. */
 export type SectionRoute =
   | "policies"
   | "baselines/builder"
@@ -5,6 +6,8 @@ export type SectionRoute =
   | "baselines/compliance"
   | "device-audit"
   | "settings";
+
+export type AppSection = "policies" | "baselines" | "device-audit" | "settings";
 
 const DEFAULT_ROUTE: SectionRoute = "policies";
 const SECTION_ROUTES = new Set<SectionRoute>([
@@ -16,7 +19,14 @@ const SECTION_ROUTES = new Set<SectionRoute>([
   "settings",
 ]);
 
-export function parseSectionRoute(hash: string): SectionRoute | undefined {
+const PRIMARY_ROUTE_BY_SECTION: Readonly<Record<AppSection, SectionRoute>> = {
+  policies: "policies",
+  baselines: "baselines/builder",
+  "device-audit": "device-audit",
+  settings: "settings",
+};
+
+function parseSectionRoute(hash: string): SectionRoute | undefined {
   const candidate = hash.replace(/^#\/?/u, "").replace(/^\/+|\/+$/gu, "");
   return SECTION_ROUTES.has(candidate as SectionRoute) ? candidate as SectionRoute : undefined;
 }
@@ -38,4 +48,21 @@ export function navigateToSectionRoute(route: SectionRoute, location: Location =
   if (location.hash !== canonicalHashFor(route)) {
     window.history.pushState(null, "", `${location.pathname}${location.search}${canonicalHashFor(route)}`);
   }
+}
+
+export function sectionForRoute(route: SectionRoute): AppSection {
+  switch (route) {
+    case "baselines/builder":
+    case "baselines/recommendations":
+    case "baselines/compliance":
+      return "baselines";
+    case "policies":
+    case "device-audit":
+    case "settings":
+      return route;
+  }
+}
+
+export function primaryRouteForSection(section: AppSection): SectionRoute {
+  return PRIMARY_ROUTE_BY_SECTION[section];
 }

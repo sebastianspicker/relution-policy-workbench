@@ -1,3 +1,4 @@
+/** Verifies raw payload editing reports invalid JSON without discarding valid input. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PayloadJsonEditor } from "./PayloadJsonEditor.js";

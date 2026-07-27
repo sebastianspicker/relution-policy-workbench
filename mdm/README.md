@@ -1,97 +1,125 @@
-# Relution MDM architecture programme
+# MDM reference package
 
-Status: **Phase B source contract — LAB-only; not production ready**  
-Assessment date: 2026-07-11  
-Scope: Apple, Windows, Android, Relution management plane
+Status: `REFERENCE_VALIDATED`, LAB-only, and not approved for production.
 
-This directory is the version-controlled, non-secret audit, source, and design
-package. It contains deterministic LAB reference JSON, but no tenant inventory,
-credentials, certificates, decrypted exports, production assignments, or
-production-ready Policy Workbench artifacts.
+This directory contains versioned, non-secret MDM source records, schemas,
+traceability data, operational procedures, and deterministic Relution 26.1.1
+LAB outputs for Apple, Windows, and Android.
 
-## Current decision
+It does not contain a production tenant inventory, assignments, credentials,
+certificates, decrypted exports, device results, or production approval.
 
-- Reference architecture: **APPROVED**.
-- Relution 26.1.1 schema: **REFERENCE_VALIDATED** against the checked-in
-  template bundle.
-- Production tenant inventory: **NOT_EVIDENCED**.
-- Generated artifacts: status is derived only from their manifest test fields.
+## Evidence boundary
 
-The approved reference architecture authorises offline generation and
-controlled Lab testing. It does not prove the target tenant's version,
-licences, topology, inventory, assignments, effective settings, or device
-behaviour, and it does not authorise broad production assignment.
+The package distinguishes these states:
 
-The offline evidence gate currently verifies 133 PDFs. Generated LAB artifacts
-are syntax- and reference-schema validated; operational Lab and device states
-remain false until evidence is recorded.
+| State | Meaning |
+| --- | --- |
+| `OBSERVED` | Directly inspected in this checkout or an approved source |
+| `DOCUMENTED` | Stated by a cited primary source |
+| `MEASURED` | Produced by a deterministic command or controlled test |
+| `INFERRED` | Reasoned from evidence but not directly established |
+| `PROPOSED` | Target design that requires approval and environment validation |
+| `REFERENCE_VALIDATED` | Source shape or value checked against the repository reference data |
+| `NOT_EVIDENCED` | Required tenant, device, or operational evidence was not supplied |
 
-## Current local checkout
+`NOT_EVIDENCED` does not mean absent, compliant, non-compliant, or zero.
+Reference validation does not prove device application or operational safety.
 
-- Source manifest: 133 PDF records (121 recovered BSI, 10 CIS, one Microsoft,
-  plus the separately acquired BSI MDM Mindeststandard).
-- Policy sources: 23 records, of which 17 generate LAB artifacts.
-- Generated output: 17 rulesets, 17 Relution workspaces, and 68 checksummed
-  output files in the manifest.
-- Required environment values: five explicit placeholders; no supplied values
-  are committed.
-- Local automated state: source verification, policy validation, deterministic
-  regeneration, and Relution 26.1.1 reference-schema validation pass.
-- Operational state: Lab round trip, device application, rollback, and
-  production release approval are `false` / `NOT_EVIDENCED`.
+## Current package
 
-`mdm verify-sources` requires the ignored PDF corpus in
-`private/source-pdfs-cache/`. The tracked manifest uses repository-relative
-cache paths for reproducibility; those paths are provenance locators, not
-published PDF content or tenant data. A public clone can validate the source
-contracts and generated outputs, but cannot re-hash absent PDFs.
+- 23 policy source records
+- 17 active LAB policy records
+- 17 rulesets
+- 17 Relution workspaces
+- 68 checksummed output files
+- 5 required environment placeholders
+- Relution reference version 26.1.1
+- syntax and reference-schema validation recorded as true
+- Lab round trip, device application, rollback, and production approval
+  recorded as false
 
-## Evidence states
+The private source manifest covers 133 PDF records. Those PDFs are not tracked.
+`mdm verify-sources` requires the approved local corpus under
+`private/source-pdfs-cache/`. A public clone can validate source contracts and
+checked-in outputs but cannot re-hash absent PDFs.
 
-- `OBSERVED`: directly inspected in this checkout or a recovered source PDF.
-- `DOCUMENTED`: stated by a cited primary source.
-- `MEASURED`: produced by a deterministic command or controlled test.
-- `INFERRED`: reasoned from evidence but not directly established.
-- `PROPOSED`: target design requiring approval and environment validation.
-- `NOT_EVIDENCED`: required information was not supplied.
+## Commands
 
-`NOT_EVIDENCED` never means compliant, non-compliant, absent, or zero.
+Build the Node.js CLI first:
 
-## Package map
+```sh
+pnpm build:node
+```
 
-- [Phase A assessment](audit/phase-a-assessment.md)
-- [Current-state inventory](inventory/current-state.yaml)
-- [Target architecture](architecture/target-model.md)
-- [Assignment matrix](architecture/assignment-matrix.md)
-- [Control catalogue](controls/control-catalogue.yaml)
-- [Source ledger](controls/source-ledger.yaml)
-- [PDF source manifest](evidence/source-manifest.json)
-- [Recommendation reconciliation](evidence/recommendation-reconciliation.json)
-- [Compliance matrix](audit/compliance-matrix.md)
-- [Phase A validation gates](validation/phase-a-gates.md)
-- [Implementation batches](runbooks/implementation-plan.md)
-- [Operational procedures](runbooks/operations.md)
-- [Operation catalogue](runbooks/operation-catalog.yaml)
-- [Migration disposition catalogue](migration/disposition-catalog.yaml)
-- [Phase B source gates](validation/phase-b-source-gates.md)
-- [Policy sources](policies/)
-- [Source schemas](schemas/)
-- [Exception template](exceptions/exception-template.yaml)
-- [Generated-artifact status](generated/relution-policy-workbench/README.md)
+Public-clone checks:
+
+```sh
+pnpm rexp:built mdm validate
+pnpm rexp:built mdm diff
+pnpm rexp:built mdm manifest
+```
+
+Private source verification:
+
+```sh
+pnpm rexp:built mdm verify-sources
+```
+
+Rebuild LAB outputs:
+
+```sh
+pnpm rexp:built mdm generate
+```
+
+When `RELUTION_REXP_KEY` is set, encrypted archives are written only to the
+ignored `private/mdm-archives/LAB/` directory. Randomized encrypted archive
+hashes are excluded from the deterministic manifest.
+
+## Structure
+
+- [`audit/phase-a-assessment.md`](audit/phase-a-assessment.md): evidence-based
+  assessment and remaining approval conditions
+- [`inventory/current-state.yaml`](inventory/current-state.yaml): tenant
+  evidence placeholders and completeness state
+- [`architecture/target-model.md`](architecture/target-model.md): proposed
+  group and policy model
+- [`architecture/assignment-matrix.md`](architecture/assignment-matrix.md):
+  proposed model-to-layer assignments
+- [`controls/control-catalogue.yaml`](controls/control-catalogue.yaml): control
+  identifiers and requirements
+- [`controls/source-ledger.yaml`](controls/source-ledger.yaml): source
+  provenance and use constraints
+- [`evidence/source-manifest.json`](evidence/source-manifest.json): source
+  hashes and private cache locators
+- [`evidence/recommendation-reconciliation.json`](evidence/recommendation-reconciliation.json):
+  normalized recommendation decisions
+- [`audit/compliance-matrix.md`](audit/compliance-matrix.md): control
+  traceability
+- [`policies/`](policies/): LAB policy source records
+- [`schemas/`](schemas/): JSON Schema draft 2020-12 contracts
+- [`validation/phase-a-gates.md`](validation/phase-a-gates.md): tenant and
+  device evidence procedure
+- [`validation/phase-b-source-gates.md`](validation/phase-b-source-gates.md):
+  source validation contract
+- [`runbooks/operations.md`](runbooks/operations.md): reference operating
+  procedures
+- [`runbooks/operation-catalog.yaml`](runbooks/operation-catalog.yaml):
+  structured operation records
+- [`migration/disposition-catalog.yaml`](migration/disposition-catalog.yaml):
+  migration decisions
+- [`exceptions/exception-template.yaml`](exceptions/exception-template.yaml):
+  time-limited exception record
+- [`generated/rexp-studio/README.md`](generated/rexp-studio/README.md):
+  checked-in LAB output status
 
 ## Data handling
 
-Real tenant inventories and exports belong in the ignored `private/` lane. The
-historical PDFs recovered for this audit are under
-`private/source-pdfs-cache/`; their local README records provenance and licence
-constraints. Sanitised findings and evidence hashes may be promoted here after
-review, but source PDFs and tenant data must remain untracked.
+Keep tenant inventories, exports, credentials, certificates, source PDFs, and
+environment values under approved private storage. The repository ignores the
+`private/` lane. Promote only reviewed, sanitized findings and hashes.
 
-Relution `.rexp` archives, `.mobileconfig` profiles, certificates, key stores,
-environment files, local reports, and decrypted workspaces are ignored by
-default. Only explicitly reviewed test/evidence fixtures under `example/` are
-public exceptions.
-
-`APPROVED` is a documented decision, `REFERENCE_VALIDATED` is a checked source
-reference, and `NOT_EVIDENCED` is an explicit evidence gap. None means a source
-is production ready; all policy source records are constrained to `LAB`.
+Do not assign these LAB policies to production devices. Production use requires
+installed-version validation, controlled import and export, representative
+device tests, rollback evidence, owner approval, and explicit assignment
+review.

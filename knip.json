@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "tests/**/*.test.ts",
+    "tests/relution-docker/*.e2e.ts",
+    "web/src/**/*.test-cases.ts",
+    "tests/e2e/**/*.spec.ts",
+    "tests/readme-tour/**/*.spec.ts",
+    "tools/**/*.mjs",
+    "playwright.readme.config.ts"
+  ],
+  "project": [
+    "src/**/*.ts",
+    "tests/**/*.ts",
+    "web/src/**/*.ts",
+    "web/src/**/*.tsx",
+    "tools/**/*.mjs"
+  ],
+  "includeEntryExports": true,
+  "ignoreBinaries": [
+    "mkfifo",
+    "uv"
+  ],
+  "ignoreIssues": {
+    "playwright.readme.config.ts": [
+      "exports"
+    ]
+  },
+  "rules": {
+    "cycles": "error",
+    "duplicates": "error"
+  }
+}

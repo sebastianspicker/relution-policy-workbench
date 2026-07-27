@@ -1,3 +1,4 @@
+/** Creates baseline-template fixtures shared by focused editor tests. */
 import type { BaselineExpertOptionsResponse, BaselineTemplateOptionsResponse } from "../../../src/baseline-templates.js";
 
 export function createBaselineExpertOptions(): BaselineExpertOptionsResponse {
@@ -64,26 +65,11 @@ export function createBaselineExpertOptions(): BaselineExpertOptionsResponse {
         reason: "Exact baseline setting",
         requiredInTiers: [1, 2, 3],
         tierMappings: [
-          {
-            ...tierMapping("iOS Tier 1 Baseline - iOS Restriction", "IOS_RESTRICTION", { allowCloudBackup: false, allowFingerprintForUnlock: false }, "bsi-ios-restriction", "Apply iOS restrictions", 1),
-            recommendations: [
-              { source: "bsi", ruleId: "bsi-ios-restriction", title: "Apply iOS restrictions", reason: "Exact mapping", sourceIds: ["source-bsi"] },
-              { source: "cis", ruleId: "cis-ios-restriction", title: "Apply CIS restrictions", reason: "Exact mapping", sourceIds: ["source-cis"] },
-            ],
-          },
-          {
-            ...tierMapping("iOS Tier 2 Baseline - iOS Restriction", "IOS_RESTRICTION", { allowCloudBackup: false, allowFingerprintForUnlock: false }, "bsi-ios-restriction", "Apply iOS restrictions", 2),
-            recommendations: [
-              { source: "bsi", ruleId: "bsi-ios-restriction", title: "Apply iOS restrictions", reason: "Exact mapping", sourceIds: ["source-bsi"] },
-              { source: "cis", ruleId: "cis-ios-restriction", title: "Apply CIS restrictions", reason: "Exact mapping", sourceIds: ["source-cis"] },
-            ],
-          },
-          tierMapping("iOS Tier 3 Baseline - iOS Restriction", "IOS_RESTRICTION", { allowCloudBackup: false }, "bsi-ios-restriction", "Apply iOS restrictions", 3),
+          restrictionTierMapping(1, true),
+          restrictionTierMapping(2, true),
+          restrictionTierMapping(3, false),
         ],
-        recommendations: [
-          { source: "bsi", ruleId: "bsi-ios-restriction", title: "Apply iOS restrictions", reason: "Exact mapping", sourceIds: ["source-bsi"] },
-          { source: "cis", ruleId: "cis-ios-restriction", title: "Apply CIS restrictions", reason: "Exact mapping", sourceIds: ["source-cis"] },
-        ],
+        recommendations: restrictionRecommendations(),
       },
       {
         id: "relution-native:IOS_UPDATE",
@@ -155,6 +141,32 @@ export function createBaselineRuleset(): Record<string, unknown> {
       },
     ],
   };
+}
+
+function restrictionTierMapping(
+  tier: 1 | 2 | 3,
+  includeFingerprintAndCis: boolean,
+): BaselineExpertOptionsResponse["settings"][number]["tierMappings"][number] {
+  const mapping = tierMapping(
+    `iOS Tier ${String(tier)} Baseline - iOS Restriction`,
+    "IOS_RESTRICTION",
+    includeFingerprintAndCis
+      ? { allowCloudBackup: false, allowFingerprintForUnlock: false }
+      : { allowCloudBackup: false },
+    "bsi-ios-restriction",
+    "Apply iOS restrictions",
+    tier,
+  );
+  return includeFingerprintAndCis
+    ? { ...mapping, recommendations: restrictionRecommendations() }
+    : mapping;
+}
+
+function restrictionRecommendations(): BaselineExpertOptionsResponse["settings"][number]["recommendations"] {
+  return [
+    { source: "bsi", ruleId: "bsi-ios-restriction", title: "Apply iOS restrictions", reason: "Exact mapping", sourceIds: ["source-bsi"] },
+    { source: "cis", ruleId: "cis-ios-restriction", title: "Apply CIS restrictions", reason: "Exact mapping", sourceIds: ["source-cis"] },
+  ];
 }
 
 function tierMapping(policyName: string, type: string, values: Record<string, unknown>, ruleId: string, title: string, tier: 1 | 2 | 3): BaselineExpertOptionsResponse["settings"][number]["tierMappings"][number] {

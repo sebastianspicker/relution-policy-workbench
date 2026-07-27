@@ -1,3 +1,4 @@
+// Build the React workbench from web/ into the static assets served by the local editor.
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 

@@ -20,6 +20,13 @@ REQUIRED_MDM_PATH = (
     / "official-bsi"
     / "Mindeststandard_Mobile-Device-ManagementV2_0.pdf"
 )
+PUBLISHER_BY_PATH_FRAGMENT = {
+    "cis-references": "CIS",
+    "vendor-references": "Microsoft",
+}
+PUBLISHER_PATH_PATTERN = re.compile(
+    "|".join(map(re.escape, PUBLISHER_BY_PATH_FRAGMENT))
+)
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -32,11 +39,8 @@ def publisher_for(path: Path) -> str:
     """Infer the publisher from the cache lane."""
 
     value = path.as_posix().lower()
-    if "cis-references" in value:
-        return "CIS"
-    if "vendor-references" in value:
-        return "Microsoft"
-    return "BSI"
+    match = PUBLISHER_PATH_PATTERN.search(value)
+    return PUBLISHER_BY_PATH_FRAGMENT[match.group()] if match else "BSI"
 
 
 def licence_for(publisher: str) -> str:

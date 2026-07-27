@@ -1,6 +1,6 @@
 ---
 name: Bug report
-about: Report a reproducible problem in the workbench, CLI, editor, or local evidence tooling.
+about: Report a reproducible alpha problem in the CLI, browser workbench, or evidence tooling.
 title: ""
 labels: "bug"
 assignees: ""
@@ -10,36 +10,39 @@ assignees: ""
 
 -
 
-## Affected Surface
+## Affected surface
 
 - [ ] CLI/archive handling
 - [ ] Local editor UI
 - [ ] Local editor API
-- [ ] Relution read-only audit/report flow
-- [ ] Zammad integration
+- [ ] Relution read-only audit or report flow
+- [ ] Optional Zammad integration
 - [ ] Baseline or recommendation data
-- [ ] Documentation or repository hygiene
+- [ ] LAB-only MDM reference package
+- [ ] Other
 
 ## Reproduction
 
 1.
 
-## Expected Behavior
+## Expected behavior
 
 -
 
-## Actual Behavior
+## Actual behavior
 
 -
 
-## Verification Context
+## Environment and evidence
 
+- Project commit or release:
+- Operating system and Node version:
 - Command or workflow run:
 - Relution server version, if relevant:
-- Archive/workspace fixture, if relevant:
-- Local-only artifact, if relevant:
+- Minimal non-sensitive fixture, if relevant:
+- Logs or screenshot with secrets and tenant data removed:
 
-## Impact And Risk
+## Impact and risk
 
 - Runtime or user impact:
 - Data/security/network impact:

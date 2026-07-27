@@ -1,3 +1,4 @@
+/** Shows the selected policy and version so workspace context remains visible during editing. */
 import type { JSX } from "react";
 import type { WorkspacePolicy } from "../../../src/workspace.js";
 

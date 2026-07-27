@@ -1,3 +1,4 @@
+/** Installs deterministic browser-test cleanup and storage behavior for the UI suite. */
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
