@@ -1,3 +1,4 @@
+/** Declares the data contract for compliance evaluation and application. */
 import type { AppleSchemaCatalog } from "./apple-schema.js";
 import type {
   RecommendationCatalogResponse,
@@ -14,7 +15,7 @@ import type { JsonRecord } from "./utils/json-guards.js";
 export type { JsonRecord };
 
 export type ComplianceStatus = "compliant" | "exact-gap" | "choice-required" | "parameter-required" | "not-checkable";
-export type ComplianceMappingStatus = "compliant" | "missing" | "mismatch" | "ambiguous" | "unsupported";
+type ComplianceMappingStatus = "compliant" | "missing" | "mismatch" | "ambiguous" | "unsupported";
 
 export interface ComplianceSelection {
   policyIndex: number;
@@ -28,7 +29,7 @@ export interface ComplianceSourceCatalogs {
   settingBundleCatalogError?: string;
 }
 
-export type ComplianceArtifactState = "loaded" | "degraded" | "unavailable";
+type ComplianceArtifactState = "loaded" | "degraded" | "unavailable";
 
 export interface ComplianceSourceStatus {
   source: RecommendationSource;

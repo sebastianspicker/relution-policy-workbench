@@ -1,3 +1,4 @@
+/** Accepts a local JSON file and exposes explicit import state to its parent workflow. */
 import { useState, type JSX } from "react";
 
 export function JsonTemplateImportControl(props: {

@@ -1,4 +1,6 @@
+/** Validates and separates user-supplied JSON payload extensions. */
 import { asRecord, type JsonRecord } from "./utils/json-guards.js";
+import { parseJsonWithContext } from "./utils/json-parse.js";
 
 const PAYLOAD_SHELL_KEYS = new Set(["PayloadDisplayName", "PayloadIdentifier", "PayloadType", "PayloadUUID", "PayloadVersion"]);
 
@@ -32,18 +34,9 @@ function recordWithoutKeys(record: JsonRecord, excludedKeys: Set<string>): JsonR
 }
 
 function parseJsonRecordWithContext(text: string, label: string, objectError: string): JsonRecord {
-  const record = asRecord(parseJsonWithContext(text, label));
+  const record = asRecord(parseJsonWithContext(text, `${label} JSON`));
   if (record === undefined) {
     throw new Error(`${label} ${objectError}`);
   }
   return record;
-}
-
-function parseJsonWithContext(text: string, label: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Could not parse ${label} JSON: ${message}`);
-  }
 }

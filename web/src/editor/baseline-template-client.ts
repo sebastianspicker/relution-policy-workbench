@@ -1,3 +1,4 @@
+/** Fetches and names baseline-template rulesets for import into the active workspace. */
 import type { BaselineTemplatePlatform, BaselineTemplateShape, BaselineTemplateTier } from "../../../src/baseline-templates.js";
 import { networkEditorAuthHeaders, readJsonResponse } from "./editor-utils.js";
 

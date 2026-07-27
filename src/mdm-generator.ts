@@ -1,14 +1,23 @@
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, relative, resolve } from "node:path";
+/** Generates stable MDM import artifacts from the repository policy sources. */
+import { readFileSync, rmSync } from "node:fs";
+import { relative, resolve } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { MdmGeneratedFile, MdmGeneratedManifest, MdmPolicySource } from "./mdm-types.js";
 import { generatedPolicyName, loadMdmPolicySources, loadMdmSourceManifest, validateMdm, verifyMdmSources } from "./mdm-validation.js";
-import { packPlainDirectory, verifyRexp } from "./rexp.js";
 import { loadTemplateBundle } from "./templates.js";
 import { loadWorkspace, validateWorkspace } from "./workspace.js";
+import { createWorkspaceExportReport } from "./workspace-model.js";
+import { generateEncryptedMdmArchives } from "./mdm-archive-generator.js";
+import {
+  sha256,
+  sortJson,
+  stableUuid,
+  writeGenerated,
+  writeStableJson,
+} from "./mdm-generation-files.js";
+import { listFilesRecursively } from "./utils/file-inventory.js";
 
-const GENERATED_ROOT = "mdm/generated/relution-policy-workbench";
+const GENERATED_ROOT = "mdm/generated/rexp-studio";
 
 export function generateMdm(root = process.cwd()): MdmGeneratedManifest {
   const validation = validateMdm(root);
@@ -81,7 +90,7 @@ export function generateMdm(root = process.cwd()): MdmGeneratedManifest {
   const validateManifest = new Ajv2020({ allErrors: true, strict: false }).compile(manifestSchema);
   if (!validateManifest(manifest)) throw new Error(`Generated manifest violates its schema: ${JSON.stringify(validateManifest.errors)}`);
   writeStableJson(resolve(root, GENERATED_ROOT, "manifest.json"), manifest);
-  generateEncryptedArchives(root, artifacts);
+  generateEncryptedMdmArchives(root, artifacts);
   return manifest;
 }
 
@@ -102,7 +111,7 @@ export function diffMdm(root = process.cwd()): { ok: boolean; missing: string[];
     }
   }
   const expected = new Set(manifest.output_hashes.map((output) => output.path));
-  const unexpected = listGeneratedFiles(resolve(root, GENERATED_ROOT, "LAB"))
+  const unexpected = listFilesRecursively(resolve(root, GENERATED_ROOT, "LAB"))
     .map((path) => relative(root, path))
     .filter((path) => !expected.has(path));
   return { ok: missing.length === 0 && changed.length === 0 && unexpected.length === 0, missing, changed, unexpected };
@@ -145,49 +154,10 @@ function workspaceFor(source: MdmPolicySource, name: string): Record<string, unk
     payloadUuid: null, deletedBy: null, deletionDate: null,
     versions: [{ uuid: versionUuid, createdBy: "reference-generator", creationDate: 0, modifiedBy: "reference-generator", modificationDate: 0, version: 1, state: "PUBLISHED", name: "Version 1", description: null, publisher: null, publishDate: null, configurations }],
   };
-  const report = {
-    policiesToExport: [], exportedPolicies: { [policyUuid]: name }, failedPolicies: {},
-    exportFile: { uuid: null, name: null, contentType: null, size: 0, modificationDate: 0, properties: {}, hashcode: null, link: null },
-  };
+  const report = createWorkspaceExportReport([{ uuid: policyUuid, name }]);
   return {
     "metadata.json": { version: 1, type: "POLICY", serverVersion: "26.1.1", cipherSpecVersion: 1, digestSpecVersion: 1, archiveFormatVersion: 1, fileFormatVersion: 1 },
     "report.json": report,
     [`policies/policy_${policyUuid}.json`]: policy,
   };
-}
-
-function writeGenerated(root: string, path: string, value: unknown, kind: MdmGeneratedFile["kind"], files: MdmGeneratedFile[]): void {
-  const serialized = `${JSON.stringify(sortJson(value), null, 2)}\n`;
-  writeStableText(resolve(root, path), serialized);
-  files.push({ path, sha256: sha256(serialized), kind });
-}
-
-function generateEncryptedArchives(root: string, artifacts: MdmGeneratedManifest["artifacts"]): void {
-  const key = process.env.RELUTION_REXP_KEY;
-  if (key === undefined || key.length === 0) return;
-  if (key.length < 16 || /^(?:password|changeme|change_me|secret|key123)$/iu.test(key)) throw new Error("RELUTION_REXP_KEY must be at least 16 characters and not an obvious default");
-  const archiveRoot = resolve(root, "private/mdm-archives/LAB");
-  rmSync(archiveRoot, { recursive: true, force: true });
-  for (const artifact of artifacts) {
-    const output = resolve(archiveRoot, `${artifact.policy_id}.rexp`);
-    packPlainDirectory(resolve(root, artifact.workspace_path), output, key, { force: true });
-    if (!verifyRexp(output, key).ok) throw new Error(`Generated archive failed verification: ${relative(root, output)}`);
-  }
-}
-
-function writeStableJson(path: string, value: unknown): void { writeStableText(path, `${JSON.stringify(sortJson(value), null, 2)}\n`); }
-function writeStableText(path: string, value: string): void { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, value); }
-function sha256(value: Buffer | string): string { return createHash("sha256").update(value).digest("hex"); }
-function stableUuid(seed: string): string { const hash = createHash("sha256").update(seed).digest("hex").slice(0, 32).toUpperCase(); return `${hash.slice(0, 8)}-${hash.slice(8, 12)}-4${hash.slice(13, 16)}-A${hash.slice(17, 20)}-${hash.slice(20)}`; }
-function sortJson(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortJson);
-  if (value !== null && typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([left], [right]) => left.localeCompare(right)).map(([key, child]) => [key, sortJson(child)]));
-  return value;
-}
-
-function listGeneratedFiles(path: string): string[] {
-  if (!existsSync(path)) return [];
-  return readdirSync(path, { withFileTypes: true })
-    .flatMap((entry) => entry.isDirectory() ? listGeneratedFiles(resolve(path, entry.name)) : [resolve(path, entry.name)])
-    .sort();
 }

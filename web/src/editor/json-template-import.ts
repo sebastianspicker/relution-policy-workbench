@@ -1,3 +1,4 @@
+/** Validates local JSON fragments before merging them into configuration details. */
 import { asRecord } from "./editor-utils.js";
 import type { JsonRecord } from "./types.js";
 import { deepMergePreservingExistingUuids } from "../../../src/compliance-values.js";
@@ -18,6 +19,7 @@ export function parseSettingDetailsJson(text: string): JsonRecord {
   return record;
 }
 
+/** Merges an import without replacing existing UUIDs that bind related policy artifacts. */
 export function mergeSettingDetails(existingDetails: JsonRecord, importedDetails: JsonRecord): JsonRecord {
   if (typeof existingDetails.type === "string" && typeof importedDetails.type === "string" && existingDetails.type !== importedDetails.type) {
     throw new Error(`Setting JSON type ${importedDetails.type} does not match selected setting type ${existingDetails.type}`);

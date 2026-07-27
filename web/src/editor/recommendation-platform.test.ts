@@ -1,3 +1,4 @@
+/** Verifies platform filtering distinguishes display scope from importable policy mappings. */
 import { describe, expect, it } from "vitest";
 import type { RecommendationRuleset } from "../../../src/recommendation-types.js";
 import { filterActionableRecommendationRuleset, filterRecommendationRuleset } from "./recommendation-platform.js";

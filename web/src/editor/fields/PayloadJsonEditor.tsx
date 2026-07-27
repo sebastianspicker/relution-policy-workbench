@@ -1,3 +1,4 @@
+/** Edits raw payload JSON with validation feedback before it reaches policy state. */
 import { useEffect, useState, type JSX } from "react";
 import { FieldFrame } from "../FieldFrame.js";
 

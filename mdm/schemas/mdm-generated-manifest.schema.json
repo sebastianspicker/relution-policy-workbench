@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://relution-policy-workbench.example/schemas/mdm-generated-manifest.schema.json",
+  "$id": "https://rexp-studio.example/schemas/mdm-generated-manifest.schema.json",
   "title": "MdmGeneratedManifest",
   "type": "object",
   "additionalProperties": false,

@@ -1,3 +1,4 @@
+/** Defines the action-layer dependencies and contracts shared by the controller hooks. */
 import type { Dispatch, SetStateAction } from "react";
 import type { ComplianceReport } from "../../../src/compliance.js";
 import type {
@@ -8,6 +9,7 @@ import type {
 } from "../../../src/recommendation-types.js";
 import type { PolicyWorkspace, WorkspacePolicy } from "../../../src/workspace.js";
 import type { AppState, EditorActionResult, EditorController, InspectorTab, JsonRecord, RulesetImportReport, Selection } from "./types.js";
+import type { ComplianceStateSetters } from "./editor-compliance-state-contract.js";
 
 export type WorkspaceHistoryEntry = {
   readonly workspace: PolicyWorkspace;
@@ -64,7 +66,7 @@ export interface UseEditorControllerActionsInput {
   readonly complianceSetters: EditorControllerComplianceSetters;
 }
 
-export interface EditorControllerWorkspaceInput {
+interface EditorControllerWorkspaceInput {
   readonly currentState: AppState;
   readonly isDirty: boolean;
   readonly selection: Selection | undefined;
@@ -100,14 +102,14 @@ export interface EditorControllerWorkspaceSetters {
   readonly setIsBuildLoading: Dispatch<SetStateAction<boolean>>;
 }
 
-export interface EditorControllerHistoryInput {
+interface EditorControllerHistoryInput {
   readonly undoStack: readonly WorkspaceHistoryEntry[];
   readonly redoStack: readonly WorkspaceHistoryEntry[];
   readonly setUndoStack: Dispatch<SetStateAction<readonly WorkspaceHistoryEntry[]>>;
   readonly setRedoStack: Dispatch<SetStateAction<readonly WorkspaceHistoryEntry[]>>;
 }
 
-export interface EditorControllerRecommendationInput {
+interface EditorControllerRecommendationInput {
   readonly recommendationCatalog: RecommendationCatalogResponse | undefined;
   readonly recommendationSummary: RecommendationSourceSummary | undefined;
   readonly recommendationIndex: RecommendationIndexResponse | undefined;
@@ -115,21 +117,16 @@ export interface EditorControllerRecommendationInput {
   readonly recommendationPlatform: string;
 }
 
-export interface EditorControllerRecommendationSetters {
+interface EditorControllerRecommendationSetters {
   readonly setSelectedRecommendationId: Dispatch<SetStateAction<string | undefined>>;
   readonly setRecommendationSourceState: Dispatch<SetStateAction<RecommendationSource>>;
   readonly setRecommendationPlatform: Dispatch<SetStateAction<string>>;
   readonly setRecommendationQuery: Dispatch<SetStateAction<string>>;
 }
 
-export interface EditorControllerComplianceInput {
+interface EditorControllerComplianceInput {
   readonly complianceSources: RecommendationSource[];
   readonly complianceReport: ComplianceReport | undefined;
 }
 
-export interface EditorControllerComplianceSetters {
-  readonly setComplianceSources: Dispatch<SetStateAction<RecommendationSource[]>>;
-  readonly setComplianceReport: Dispatch<SetStateAction<ComplianceReport | undefined>>;
-  readonly setComplianceLoading: Dispatch<SetStateAction<boolean>>;
-  readonly setComplianceError: Dispatch<SetStateAction<string | undefined>>;
-}
+type EditorControllerComplianceSetters = ComplianceStateSetters;

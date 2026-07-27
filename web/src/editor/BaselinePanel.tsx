@@ -1,7 +1,10 @@
+/** Combines baseline building, recommendations, and compliance into one tabbed review surface. */
 import { useState, type JSX } from "react";
 import { CompliancePanel } from "./CompliancePanel.js";
 import { PolicyWizardPanel } from "./PolicyWizardPanel.js";
 import { RecommendationsPanel } from "./RecommendationsPanel.js";
+import { SectionHeader } from "./SectionHeader.js";
+import { StatusChip } from "./StatusChip.js";
 import type { EditorController } from "./types.js";
 
 export type BaselineTab = "wizard" | "recommendations" | "compliance";
@@ -26,32 +29,45 @@ export function BaselinePanel({ controller, activeTab, onTabChange }: {
   }
 
   return (
-    <div className="baseline-panel">
-      <div className="baseline-tabs recommendation-source-switcher" role="tablist" aria-label="Baseline tools">
-        {BASELINE_TABS.map((t) => (
-          <button
-            key={t.id}
-            id={baselineTabId(t.id)}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            aria-controls={baselinePanelId(t.id)}
-            className={tab === t.id ? "active" : ""}
-            onClick={() => selectTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+    <div className="baseline-workspace">
+      <SectionHeader
+        title="Baselines"
+        description="Build policies from available guidance, review recommendations, and compare the current workspace."
+        meta={<StatusChip kind="info">{BASELINE_TABS.find((item) => item.id === tab)?.label ?? "Builder"}</StatusChip>}
+      />
+      <div className="baseline-workspace-surface">
+        <div className="baseline-tabs" role="tablist" aria-label="Baseline tools">
+          {BASELINE_TABS.map((item, index) => (
+            <button
+              key={item.id}
+              id={baselineTabId(item.id)}
+              type="button"
+              role="tab"
+              aria-selected={tab === item.id}
+              aria-controls={baselinePanelId(item.id)}
+              className={tab === item.id ? "active" : ""}
+              onClick={() => selectTab(item.id)}
+            >
+              <span aria-hidden="true">{index + 1}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-      <div id={baselinePanelId(tab)} role="tabpanel" aria-labelledby={baselineTabId(tab)}>
-        {tab === "wizard" ? (
-          <PolicyWizardPanel controller={controller} />
-        ) : tab === "recommendations" ? (
-          <RecommendationsPanel controller={controller} />
-        ) : (
-          <CompliancePanel controller={controller} />
-        )}
+        <div
+          className="baseline-workspace-panel"
+          id={baselinePanelId(tab)}
+          role="tabpanel"
+          aria-labelledby={baselineTabId(tab)}
+        >
+          {tab === "wizard" ? (
+            <PolicyWizardPanel controller={controller} />
+          ) : tab === "recommendations" ? (
+            <RecommendationsPanel controller={controller} />
+          ) : (
+            <CompliancePanel controller={controller} />
+          )}
+        </div>
       </div>
     </div>
   );

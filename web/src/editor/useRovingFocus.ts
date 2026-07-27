@@ -1,5 +1,7 @@
+/** Implements keyboard roving focus for composite controls without changing native tab order. */
 import { useRef, type KeyboardEvent, type RefObject } from "react";
 
+/** Implements expected arrow, Home, and End navigation for composite widget controls. */
 export function useRovingFocus<T extends string>(props: {
   readonly active: T;
   readonly items: readonly T[];

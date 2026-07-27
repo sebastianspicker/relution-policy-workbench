@@ -1,3 +1,4 @@
+/** Shows source fallback translations only when they add actionable recommendation context. */
 import type { JSX } from "react";
 import type { RecommendationFallbackTranslation, RecommendationRecord } from "../../../src/recommendation-types.js";
 

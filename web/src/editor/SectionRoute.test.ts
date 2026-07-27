@@ -1,3 +1,4 @@
+/** Verifies routes resolve to their intended section and primary navigation destination. */
 import { afterEach, describe, expect, it } from "vitest";
 import { canonicalHashFor, navigateToSectionRoute, routeFromHash } from "./SectionRoute.js";
 

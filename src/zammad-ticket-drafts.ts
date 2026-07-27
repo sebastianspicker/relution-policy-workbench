@@ -1,6 +1,7 @@
+/** Converts Relution assessment findings into human-actionable Zammad drafts. */
 import type { RelutionAssessmentIssue, RelutionDeviceAssessment } from "./relution-api.js";
 
-export type ZammadTicketKind = "non-compliant-device" | "inactive-device";
+type ZammadTicketKind = "non-compliant-device" | "inactive-device";
 
 export interface ZammadTicketDraft {
   kind: ZammadTicketKind;
@@ -21,16 +22,10 @@ function buildNonCompliantDeviceTicketDraft(
   issue: RelutionAssessmentIssue,
 ): ZammadTicketDraft {
   const device = assessment.device;
-  const body = [
+  return ticketDraft(assessment, issue, "non-compliant-device", `MDM non-compliance: ${device.name}`, [
     "Relution device compliance finding",
     "",
-    ...deviceLines(assessment),
-    "",
-    "Finding",
-    `- Issue: ${issue.id}`,
-    `- Severity: ${issue.severity}`,
-    `- Message: ${issue.message}`,
-    ...evidenceLines(issue),
+    ...findingLines(assessment, issue),
     "",
     "Recommended remediation",
     "- Check device enrollment and reachability in Relution.",
@@ -38,14 +33,7 @@ function buildNonCompliantDeviceTicketDraft(
     "- Re-push the policy from Relution and check the policy status afterwards.",
     "- Contact the assigned user if the device is offline.",
     "- Document an exception if the policy is intentionally not assigned.",
-  ];
-  return {
-    kind: "non-compliant-device",
-    title: `MDM non-compliance: ${device.name}`,
-    body: body.join("\n"),
-    ...(device.uuid === undefined ? {} : { deviceUuid: device.uuid }),
-    issueId: issue.id,
-  };
+  ]);
 }
 
 function buildInactiveDeviceTicketDraft(
@@ -54,9 +42,36 @@ function buildInactiveDeviceTicketDraft(
 ): ZammadTicketDraft {
   const device = assessment.device;
   const inactiveDays = device.inactiveDays ?? Number(issue.evidence.inactiveDays);
-  const body = [
+  const age = Number.isFinite(inactiveDays) ? `${String(inactiveDays)}d` : "unknown";
+  return ticketDraft(assessment, issue, "inactive-device", `MDM inactive device: ${device.name} (${age})`, [
     "Relution inactive device finding",
     "",
+    ...findingLines(assessment, issue),
+    "",
+    "Recommended follow-up",
+    ...inactiveRemediationSteps(Number.isFinite(inactiveDays) ? inactiveDays : undefined),
+  ]);
+}
+
+function ticketDraft(
+  assessment: RelutionDeviceAssessment,
+  issue: RelutionAssessmentIssue,
+  kind: ZammadTicketKind,
+  title: string,
+  bodyLines: string[],
+): ZammadTicketDraft {
+  const deviceUuid = assessment.device.uuid;
+  return {
+    kind,
+    title,
+    body: bodyLines.join("\n"),
+    ...(deviceUuid === undefined ? {} : { deviceUuid }),
+    issueId: issue.id,
+  };
+}
+
+function findingLines(assessment: RelutionDeviceAssessment, issue: RelutionAssessmentIssue): string[] {
+  return [
     ...deviceLines(assessment),
     "",
     "Finding",
@@ -64,17 +79,7 @@ function buildInactiveDeviceTicketDraft(
     `- Severity: ${issue.severity}`,
     `- Message: ${issue.message}`,
     ...evidenceLines(issue),
-    "",
-    "Recommended follow-up",
-    ...inactiveRemediationSteps(Number.isFinite(inactiveDays) ? inactiveDays : undefined),
   ];
-  return {
-    kind: "inactive-device",
-    title: `MDM inactive device: ${device.name} (${Number.isFinite(inactiveDays) ? `${String(inactiveDays)}d` : "unknown"})`,
-    body: body.join("\n"),
-    ...(device.uuid === undefined ? {} : { deviceUuid: device.uuid }),
-    issueId: issue.id,
-  };
 }
 
 function deviceLines(assessment: RelutionDeviceAssessment): string[] {

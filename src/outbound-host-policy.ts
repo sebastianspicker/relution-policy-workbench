@@ -1,64 +1,42 @@
-import { lookup } from "node:dns/promises";
-import { BlockList, isIP } from "node:net";
+/** Enforces outbound host policy and DNS-based private-network protections. */
+import { isIP } from "node:net";
+import {
+  blockedServiceAddressReason,
+  isBlockedServiceAddress,
+  normalizeServiceHostname,
+} from "./outbound-host-classification.js";
+import {
+  resolveValidatedServiceAddresses,
+  type ResolvedServiceAddress,
+  type ServiceAddressResolver,
+} from "./outbound-host-resolution.js";
 
-const blockedServiceAddresses = new BlockList();
-// RFC 6890 unspecified address.
-blockedServiceAddresses.addAddress("0.0.0.0", "ipv4");
-// RFC 1918 private networks.
-blockedServiceAddresses.addSubnet("10.0.0.0", 8, "ipv4");
-// RFC 1122 loopback.
-blockedServiceAddresses.addSubnet("127.0.0.0", 8, "ipv4");
-// RFC 3927 IPv4 link-local.
-blockedServiceAddresses.addSubnet("169.254.0.0", 16, "ipv4");
-// RFC 1918 private networks.
-blockedServiceAddresses.addSubnet("172.16.0.0", 12, "ipv4");
-// RFC 1918 private networks.
-blockedServiceAddresses.addSubnet("192.168.0.0", 16, "ipv4");
-// RFC 5771 multicast.
-blockedServiceAddresses.addSubnet("224.0.0.0", 4, "ipv4");
-// RFC 4291 unspecified and loopback.
-blockedServiceAddresses.addAddress("::", "ipv6");
-blockedServiceAddresses.addAddress("::1", "ipv6");
-// RFC 4193 unique local, RFC 4291 link-local, and RFC 4291 multicast.
-blockedServiceAddresses.addSubnet("fc00::", 7, "ipv6");
-blockedServiceAddresses.addSubnet("fe80::", 10, "ipv6");
-blockedServiceAddresses.addSubnet("ff00::", 8, "ipv6");
+export type { ResolvedServiceAddress, ServiceAddressResolver } from "./outbound-host-resolution.js";
 
 export type OutboundHostPolicyResult =
   | { kind: "blocked"; reason: string }
   | { kind: "dns-failure"; error: string }
   | undefined;
 
-type ServiceAddressResolver = (serviceName: string, hostname: string) => Promise<string[]>;
-
+/** Resolves before session setup so hostnames cannot conceal local addresses. */
 export async function outboundHostPolicyError(
   serviceName: string,
   host: string,
   allowLocalServiceHosts: boolean,
-  resolveAddresses: ServiceAddressResolver = resolveServiceAddresses,
+  resolveAddresses?: ServiceAddressResolver,
+  timeoutMs?: number,
 ): Promise<OutboundHostPolicyResult> {
-  if (allowLocalServiceHosts) {
-    return undefined;
-  }
-
-  const hostname = normalizeHostname(host);
-  let addresses: string[];
+  if (allowLocalServiceHosts) return undefined;
   try {
-    addresses = await resolveAddresses(serviceName, hostname);
+    const resolved = await resolveValidatedServiceAddresses(serviceName, host, resolveAddresses, timeoutMs);
+    const blockedAddress = resolved.addresses.find((entry) => isBlockedServiceAddress(entry.address));
+    return blockedAddress === undefined ? undefined : { kind: "blocked", reason: blockedServiceAddressReason(serviceName, blockedAddress.address) };
   } catch (error) {
     return { kind: "dns-failure", error: error instanceof Error ? error.message : String(error) };
   }
-  const blockedAddress = addresses.find((address) => isBlockedServiceAddress(address));
-  if (blockedAddress === undefined) {
-    return undefined;
-  }
-
-  return {
-    kind: "blocked",
-    reason: `${serviceName} host resolves to a blocked local/private address (${blockedAddress}); use --allow-local-service-hosts only for local Docker or lab targets`,
-  };
 }
 
+/** Converts a policy result into the error contract used by CLI callers. */
 export async function assertOutboundHostAllowed(
   serviceName: string,
   host: string,
@@ -70,33 +48,27 @@ export async function assertOutboundHostAllowed(
   }
 }
 
-async function resolveServiceAddresses(serviceName: string, hostname: string): Promise<string[]> {
-  const literalFamily = isIP(hostname);
-  if (literalFamily !== 0) {
-    return [hostname];
+/** Resolves once and returns exact, policy-approved addresses for socket pinning. */
+export async function resolveAllowedServiceAddresses(
+  serviceName: string,
+  host: string,
+  allowLocalServiceHosts: boolean,
+  resolveAddresses?: ServiceAddressResolver,
+  timeoutMs?: number,
+): Promise<ResolvedServiceAddress[]> {
+  const resolved = await resolveValidatedServiceAddresses(serviceName, host, resolveAddresses, timeoutMs);
+  if (!allowLocalServiceHosts) {
+    const blockedAddress = resolved.addresses.find((entry) => isBlockedServiceAddress(entry.address));
+    if (blockedAddress !== undefined) throw new Error(blockedServiceAddressReason(serviceName, blockedAddress.address));
   }
-
-  try {
-    const records = await lookup(hostname, { all: true, verbatim: true });
-    return records.map((record) => record.address);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Unable to resolve ${serviceName} host "${hostname}": ${message}`);
-  }
+  return resolved.addresses;
 }
 
-function isBlockedServiceAddress(address: string): boolean {
-  const family = isIP(address);
-  if (family === 4) {
-    return blockedServiceAddresses.check(address, "ipv4");
-  }
-  if (family === 6) {
-    return blockedServiceAddresses.check(address, "ipv6");
-  }
-  // If not a valid IP address, block for security.
-  return true;
-}
-
-function normalizeHostname(host: string): string {
-  return host.trim().toLowerCase().replace(/^\[(.*)\]$/u, "$1").replace(/\.$/u, "");
+/** Rejects a literal blocked host before DNS preflight. */
+export function literalServiceHostPolicyError(serviceName: string, host: string, allowLocalServiceHosts: boolean): string | undefined {
+  if (allowLocalServiceHosts) return undefined;
+  const hostname = normalizeServiceHostname(host);
+  return isIP(hostname) !== 0 && isBlockedServiceAddress(hostname)
+    ? blockedServiceAddressReason(serviceName, hostname)
+    : undefined;
 }

@@ -1,0 +1,74 @@
+"""Supports BSI Grundschutz harvesting and recommendation-mapping workflows."""
+from __future__ import annotations
+
+from typing import Any
+
+
+from .bsi_legacy_reexports import common_legacy_reexports
+from .source_parsers import *  # noqa: F401,F403
+
+(
+    json,
+    re,
+    zipfile,
+    Path,
+    semantic_candidates_for,
+    semantic_concepts_for,
+    semantic_metadata_for,
+) = common_legacy_reexports()
+
+def lexical_plusplus_controls(
+    text: str, controls_by_id: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Fallback-match GS++ controls by token overlap within policy practices."""
+    tokens = token_set(text)
+    if not tokens:
+        return []
+    scored = []
+    for control in controls_by_id.values():
+        if control.get("practiceId") not in {
+            "ASST",
+            "ARCH",
+            "BER",
+            "DET",
+            "KONF",
+            "NOT",
+            "TEST",
+        }:
+            continue
+        control_tokens = token_set(
+            f"{control.get('title', '')} {control.get('statement', '')} {control.get('result', '')}"
+        )
+        overlap = tokens.intersection(control_tokens)
+        if len(overlap) < 2 and not any(len(token) >= 9 for token in overlap):
+            continue
+        scored.append(
+            (len(overlap), str(control.get("id", "")), control, sorted(overlap))
+        )
+    scored.sort(key=lambda entry: (-entry[0], natural_control_sort_key(entry[1])))
+    return [
+        slim_plusplus_control(control, f"lexical overlap: {', '.join(overlap[:4])}")
+        for _, _, control, overlap in scored[:3]
+    ]
+
+
+def slim_plusplus_control(control: dict[str, Any], match_reason: str) -> dict[str, Any]:
+    """Project a GS++ control to the compact context embedded in recommendations."""
+    return {
+        "id": control["id"],
+        "title": control["title"],
+        "practiceId": control["practiceId"],
+        "practiceTitle": control["practiceTitle"],
+        "controlGroupId": control["controlGroupId"],
+        "controlGroupTitle": control["controlGroupTitle"],
+        "securityLevel": control["securityLevel"],
+        "effortLevel": control["effortLevel"],
+        "modalVerb": control["modalVerb"],
+        "actionWord": control["actionWord"],
+        "targetObjectCategories": control["targetObjectCategories"],
+        "documentation": control["documentation"],
+        "tags": control["tags"],
+        "parameters": control["parameters"],
+        "statement": control["statement"],
+        "matchReason": match_reason,
+    }

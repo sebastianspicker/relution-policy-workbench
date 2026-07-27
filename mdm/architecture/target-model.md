@@ -1,6 +1,7 @@
 # Proposed target group and policy architecture
 
-Status: **APPROVED reference architecture; production inventory NOT_EVIDENCED**.
+Status: `APPROVED` reference architecture; production inventory
+`NOT_EVIDENCED`.
 Activate only the branches supported by completed inventory and Lab evidence.
 Relution 26.0 reportedly migrated policy assignment to device groups;
 the installed tenant's migration state and assignment semantics must be proven.
@@ -11,7 +12,7 @@ the installed tenant's migration state and assignment semantics must be proven.
 
 Platforms: `APL`, `MAC`, `WIN`, `AND`, `CROSS`. Models: `CORP`, `BYOD`,
 `COPE`, `SHARED`, `KIOSK`, `PRIV`. Rings: `LAB`, `PILOT`, `EARLY`, `BROAD`,
-`ELEVATED`, `QUARANTINE`. Phase B source records are **LAB-only**; a later ring
+`ELEVATED`, `QUARANTINE`. Phase B source records are `LAB-only`; a later ring
 is an approval and evidence transition, never a name-only promotion.
 
 Names state scope and lifecycle, not compliance. Never use `Secure`, `Final`,

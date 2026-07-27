@@ -1,10 +1,11 @@
+/** Verifies settings controls persist valid preferences and report configuration failures clearly. */
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { SettingsPanel } from "./SettingsPanel.js";
 import { createAppState, createEditorControllerStub } from "./useEditorController.test-helpers.js";
 
 const defaultProps = {
-  theme: "default" as const,
+  theme: "studio" as const,
   onThemeChange: vi.fn(),
 };
 
@@ -66,18 +67,18 @@ describe("SettingsPanel", () => {
     expect(clearButton.disabled).toBe(true);
   });
 
-  it("shows validated encryption key state instead of overloading the input placeholder", () => {
+  it("shows validated archive passphrase state instead of overloading the input placeholder", () => {
     const state = createAppState();
     render(<SettingsPanel controller={createEditorControllerStub({ state: { ...state, keySet: true, keyValidated: true } })} {...defaultProps} />);
 
-    expect(screen.getByText(/key validated/i)).toBeTruthy();
-    expect(screen.getByPlaceholderText("Enter encryption key…")).toBeTruthy();
+    expect(screen.getByText(/passphrase validated/i)).toBeTruthy();
+    expect(screen.getByPlaceholderText("Enter archive passphrase…")).toBeTruthy();
   });
 
-  it("distinguishes an accepted but unvalidated encryption key", () => {
+  it("distinguishes an accepted but unvalidated archive passphrase", () => {
     const state = createAppState();
     render(<SettingsPanel controller={createEditorControllerStub({ state: { ...state, keySet: true, keyValidated: false } })} {...defaultProps} />);
 
-    expect(screen.getByText(/key set, not validated/i)).toBeTruthy();
+    expect(screen.getByText(/passphrase set, not validated/i)).toBeTruthy();
   });
 });

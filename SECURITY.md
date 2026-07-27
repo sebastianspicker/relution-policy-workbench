@@ -1,51 +1,86 @@
-# Security Policy
+# Security policy
 
-## Supported Versions
+## Supported versions
 
-Security fixes target the latest state of the `main` branch. This project is
-local-first and does not run a hosted service for users.
+Security fixes target the latest state of the `main` branch. The project is
+distributed as source and does not operate a hosted service. Older prerelease
+tags do not receive backports.
 
-## Reporting A Vulnerability
+## Reporting a vulnerability
 
-Do not open a public GitHub issue for suspected vulnerabilities.
+Do not disclose a suspected vulnerability in a public issue.
 
-Use GitHub private vulnerability reporting:
+Use private vulnerability reporting from the repository's Security tab when it
+is available.
 
-https://github.com/sebastianspicker/relution-policy-workbench/security/advisories/new
+If private reporting is unavailable, open an issue titled
+`Private security reporting unavailable` without vulnerability details, logs,
+attachments, affected paths, or sample data. A maintainer can then arrange a
+private exchange.
 
-If GitHub returns a 404 or permission error for the private reporting link,
-contact the maintainer privately and include:
+A useful report includes:
 
-- affected commit or release, or `main` when no narrower version is known
+- the affected commit or release
 - reproduction steps
 - expected and actual impact
-- sanitized logs or sample files that reproduce the issue
+- sanitized logs or fixtures
 
-Please avoid sending real Relution exports, credentials, tenant data, private
-keys, or encryption keys unless a secure exchange path has been agreed first.
+Do not send real Relution exports, credentials, tenant data, private keys, API
+tokens, or archive passphrases before a suitable exchange path is agreed.
 
-## Security-Relevant Data
+## Sensitive data
 
-Treat these as sensitive:
+Treat the following as sensitive:
 
-- tenant-derived Relution `.rexp` archives, decrypted workspaces, and generated
-  imports containing environment values
-- archive encryption keys and `.env` files
-- certificates, key stores, provisioning profiles, and environment-specific
-  `.mobileconfig` payloads
-- Relution API URLs, credentials, and read-only device audit exports
-- tenant policy payloads, screenshots, logs, inventories, and audit reports
+- tenant-derived `.rexp` archives and decrypted workspaces
+- archive passphrases, API tokens, credentials, and environment files
+- certificates, private keys, key stores, provisioning profiles, and
+  environment-specific `.mobileconfig` files
+- Relution and Zammad service addresses when they identify a private tenant
+- device records, serial numbers, user identities, screenshots, logs,
+  inventories, and audit reports
 
-Keep real exports, credentials, and private tenant data out of git. Use tracked
-examples only when they are sanitized fixtures. The checked-in `mdm/generated/`
-lane is limited to deterministic, placeholder-only LAB reference JSON and is
-not a production export or production-readiness claim. Encrypted MDM archives
-and supplied environment values remain under the ignored `private/` lane.
+Keep these files out of git. Only reviewed and sanitized fixtures belong under
+`example/`. The MDM files under `mdm/` contain placeholder-only LAB reference
+data and are not tenant exports.
 
-## Disclosure And Response
+## Local trust boundary
 
-The maintainer will triage privately reported vulnerabilities, determine the
-affected scope from the reported commit or release and reproduction steps, and
-publish a GitHub security advisory after a fix or mitigation is available.
-Fixes target the `main` branch unless the report identifies an affected release
-branch.
+The editor listens on loopback and requires a random per-process capability
+token. It still trusts the local operating-system account and filesystem.
+Other local processes, browser extensions, synchronized folders, shell
+history, and tools with workspace access may be able to read sensitive data.
+
+Do not share editor URLs because the URL fragment contains the capability
+token. Store sensitive workspaces outside shared or world-readable
+directories. Remove them according to the applicable retention policy.
+
+## Network boundary
+
+Production Relution access through the product is read-only. Zammad ticket
+creation is the only supported product write to an external service and
+requires an explicit user action. The opt-in Docker integration tests import
+and publish policies only to their disposable loopback Relution service.
+
+Remote service connections default to HTTPS. Local, private, special-use, or
+cleartext destinations require `--allow-local-service-hosts`. That option is
+for controlled lab services, not a remote production bypass.
+
+The HTTP client rejects redirects, validates resolved addresses, pins approved
+socket addresses, limits response size, and applies request deadlines. These
+controls do not replace service authentication, certificate validation, or
+tenant authorization.
+
+## Archive and policy safety
+
+Archive decryption uses authenticated encryption, and workspace and ZIP readers
+enforce path, count, and size limits. Importing or validating a policy does not
+prove that the policy is appropriate for a tenant or safe on a device. Review
+payloads, assignments, platform support, rollback, and user impact before
+external deployment.
+
+## Response
+
+Maintainers will assess the report against the identified commit or release,
+prepare a fix or mitigation, and publish an advisory when disclosure is
+appropriate.

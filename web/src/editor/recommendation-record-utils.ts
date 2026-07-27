@@ -1,3 +1,4 @@
+/** Extracts stable secondary identifiers across heterogeneous recommendation records. */
 import type {
   RecommendationRecord,
   RecommendationSource,

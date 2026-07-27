@@ -1,3 +1,4 @@
+/** Renders source-specific recommendation metadata without collapsing the underlying evidence. */
 import type { JSX } from "react";
 import type { CisRecommendationRecord, RecommendationRecord, VendorRecommendationRecord } from "../../../src/recommendation-types.js";
 

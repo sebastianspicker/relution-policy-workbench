@@ -1,9 +1,9 @@
 # Phase A evidence and JSON gates
 
-Historical gate: no Policy Workbench JSON was generated in Phase A. Phase B now
-permits offline LAB generation against the checked-in 26.1.1 reference schema;
-target-tenant identity and harmless Lab round-trip behaviour remain
-NOT_EVIDENCED.
+The repository permits offline LAB output against the checked-in Relution
+26.1.1 reference schema. Target-tenant identity, harmless Lab round-trip
+behavior, device application, rollback, and production approval remain
+`NOT_EVIDENCED`.
 
 ## Schema establishment procedure
 
@@ -64,12 +64,11 @@ security impact, and disposition. Never assume “most restrictive wins”.
 ## Current deterministic checks
 
 ```sh
-node dist/src/cli.js inspect example/sample-policy-export.rexp --json
+pnpm rexp inspect example/sample-policy-export.rexp --json
 pnpm typecheck
-pnpm build:node
-node --test dist/test/rexp-core.test.js dist/test/audit-sample-export.test.js \
-  dist/test/relution-api.test.js dist/test/relution-cli.test.js
-node tools/validate-mdm-phase-a.mjs
+pnpm test:node
+pnpm rexp mdm validate
+pnpm rexp mdm diff
 ```
 
 Docker import/export and dashboard tests are optional environment proof and do

@@ -1,3 +1,4 @@
+/** Converts key-validation responses into the editor's explicit authentication state. */
 import type { AppState, JsonRecord, WorkspaceResponse } from "./types.js";
 
 export type KeyUpdateResponse = JsonRecord & {
@@ -25,12 +26,12 @@ export function importedKeyState(response: Pick<WorkspaceResponse, "keySet">, cu
 
 export function keyStatusMessage(state: KeyState): string {
   if (!state.keySet) {
-    return "No key set";
+    return "No passphrase set";
   }
   if (state.keyValidated === true) {
-    return "Key validated";
+    return "Passphrase validated";
   }
-  return state.keyValidationReason === undefined ? "Key set, not validated" : `Key set, not validated: ${state.keyValidationReason}`;
+  return state.keyValidationReason === undefined ? "Passphrase set, not validated" : `Passphrase set, not validated: ${state.keyValidationReason}`;
 }
 
 export function keyBadgeState(state: Pick<AppState, "keySet" | "keyValidated">): { readonly label: string; readonly warn: boolean } {
@@ -38,7 +39,7 @@ export function keyBadgeState(state: Pick<AppState, "keySet" | "keyValidated">):
     return { label: "No key", warn: true };
   }
   if (state.keyValidated === true) {
-    return { label: "Key validated", warn: false };
+    return { label: "Passphrase validated", warn: false };
   }
-  return { label: "Key set, not validated", warn: true };
+  return { label: "Passphrase set, not validated", warn: true };
 }

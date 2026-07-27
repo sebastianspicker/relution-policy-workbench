@@ -1,3 +1,4 @@
+/** Bootstraps application-wide editor state and theme persistence around the workspace shell. */
 import { useEffect, useState, type JSX } from "react";
 import { EditorShell } from "./editor/EditorShell.js";
 import { InlineStatus } from "./editor/InlineStatus.js";
@@ -40,6 +41,16 @@ export function App(): JSX.Element {
   }
   return (
     <div className="app-shell" data-theme={theme}>
+      <a
+        className="skip-link"
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
+        Skip to main content
+      </a>
       <EditorShell controller={controllerResult.controller} theme={theme} onThemeChange={setTheme} />
       <StatusBar controller={controllerResult.controller} />
     </div>

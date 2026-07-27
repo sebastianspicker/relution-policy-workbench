@@ -1,8 +1,6 @@
-import { type AppleSchemaCatalog } from "./apple-schema.js";
-import { type RecommendationSource } from "./recommendation-types.js";
+/** Provides the public compliance evaluation and remediation API. */
 import { type PolicyWorkspace } from "./workspace.js";
-import { type RelutionTemplateBundle } from "./templates.js";
-import { loadRecommendationCatalog, loadRecommendationSettingBundleCatalog } from "./recommendations.js";
+import { sourceStatus } from "./compliance-artifacts.js";
 import {
   applyNativeBundle,
   applyRecommendationMappings,
@@ -10,30 +8,25 @@ import {
   evaluateRecommendation,
   selectedPolicyTarget,
 } from "./compliance-internals.js";
-import { findSettingBundle } from "./compliance-values.js";
+import { findSettingBundle } from "./compliance-value-lookups.js";
 import type {
   ApplyComplianceRemediationInput,
   ApplyComplianceRemediationResult,
   BuildComplianceReportInput,
   ComplianceRecommendationResult,
   ComplianceReport,
-  ComplianceSourceCatalogs,
-  ComplianceSourceStatus,
 } from "./compliance-types.js";
+
+export { loadComplianceArtifacts } from "./compliance-artifacts.js";
 
 export type {
   ApplyComplianceRemediationInput,
   ApplyComplianceRemediationResult,
   BuildComplianceReportInput,
-  ComplianceConfigurationReference,
-  ComplianceMappingResult,
-  ComplianceMappingStatus,
   ComplianceRecommendationResult,
-  ComplianceRemediationOption,
   ComplianceReport,
   ComplianceSelection,
   ComplianceSourceCatalogs,
-  ComplianceSourceStatus,
   ComplianceStatus,
 } from "./compliance-types.js";
 
@@ -52,10 +45,10 @@ export function buildComplianceReport(input: BuildComplianceReportInput): Compli
       continue;
     }
     for (const recommendation of artifacts.recommendationCatalog.recommendations) {
-      if (!appliesToPolicy(source, artifacts.recommendationCatalog, recommendation.platform, target.policyPlatform)) {
+      if (!appliesToPolicy(artifacts.recommendationCatalog, recommendation.platform, target.policyPlatform)) {
         continue;
       }
-      results.push(evaluateRecommendation(source, recommendation, target.configurations, artifacts, input.bundle, input.appleSchema));
+      results.push(evaluateRecommendation(source, recommendation, target.configurations, artifacts, input.appleSchema));
     }
   }
 
@@ -83,65 +76,6 @@ export function buildComplianceReport(input: BuildComplianceReportInput): Compli
     warnings,
     results,
     summary,
-  };
-}
-
-export function loadComplianceArtifacts(
-  sources: RecommendationSource[],
-): Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> {
-  const artifacts: Partial<Record<RecommendationSource, ComplianceSourceCatalogs>> = {};
-  for (const source of sources) {
-    const recommendationCatalog = loadRecommendationCatalog(source);
-    if (!recommendationCatalog.available) {
-      artifacts[source] = { recommendationCatalog };
-      continue;
-    }
-    let settingBundleCatalog: ReturnType<typeof loadRecommendationSettingBundleCatalog> | undefined;
-    try {
-      settingBundleCatalog = loadRecommendationSettingBundleCatalog(source);
-    } catch (error) {
-      const settingBundleCatalogError = error instanceof Error ? error.message : String(error);
-      settingBundleCatalog = undefined;
-      artifacts[source] = { recommendationCatalog, settingBundleCatalogError };
-      continue;
-    }
-    artifacts[source] = settingBundleCatalog === undefined
-      ? { recommendationCatalog }
-      : { recommendationCatalog, settingBundleCatalog };
-  }
-  return artifacts;
-}
-
-function sourceStatus(source: RecommendationSource, artifacts: ComplianceSourceCatalogs | undefined): ComplianceSourceStatus {
-  if (artifacts === undefined) {
-    return {
-      source,
-      recommendationCatalog: "unavailable",
-      settingBundleCatalog: "unavailable",
-      warnings: [`${source} compliance artifacts were not loaded.`],
-    };
-  }
-  if (!artifacts.recommendationCatalog.available) {
-    return {
-      source,
-      recommendationCatalog: "unavailable",
-      settingBundleCatalog: "unavailable",
-      warnings: [`${source} recommendation catalog unavailable: ${artifacts.recommendationCatalog.error ?? "unknown error"}`],
-    };
-  }
-  if (artifacts.settingBundleCatalog === undefined) {
-    return {
-      source,
-      recommendationCatalog: "loaded",
-      settingBundleCatalog: "degraded",
-      warnings: [`${source} setting-bundle catalog unavailable: ${artifacts.settingBundleCatalogError ?? "unknown error"}`],
-    };
-  }
-  return {
-    source,
-    recommendationCatalog: "loaded",
-    settingBundleCatalog: "loaded",
-    warnings: [],
   };
 }
 

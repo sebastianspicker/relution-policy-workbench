@@ -1,3 +1,4 @@
+/** Mounts the React application into the Vite document root with development checks enabled. */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";

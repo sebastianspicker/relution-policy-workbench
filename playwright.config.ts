@@ -1,28 +1,28 @@
+// Run the built local editor against the supported Playwright browser matrix and visual baselines.
 import { defineConfig } from "@playwright/test";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { editorServerCommand } from "./e2e/editor-server-command.js";
+import { editorPlaywrightDefaults } from "./tests/e2e/playwright-config-helpers.js";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.EDITOR_PORT ?? "8791");
-const workspace = "/tmp/relution-policy-workbench-playwright";
-const output = "/tmp/relution-policy-workbench-playwright-output.rexp";
+const workspace = "/tmp/rexp-studio-playwright";
+const output = "/tmp/rexp-studio-playwright-output.rexp";
+const defaults = editorPlaywrightDefaults({ workspace, output, port, serverTimeout: 180_000 });
 
 export default defineConfig({
-  testDir: "./e2e",
+  ...defaults,
+  // Browser projects share one mutable editor server and workspace fixture.
+  workers: 1,
+  testDir: "./tests/e2e",
   outputDir: join(projectRoot, "test-results/playwright"),
   snapshotPathTemplate: "{testDir}/{testFilePath}-snapshots/{arg}-{projectName}{ext}",
-  fullyParallel: false,
   reporter: [
     ["list"],
     ["junit", { outputFile: join(projectRoot, "test-results/playwright.xml") }],
   ],
-  timeout: 120_000,
-  expect: {
-    timeout: 15_000,
-  },
   use: {
-    baseURL: `http://127.0.0.1:${String(port)}`,
+    ...defaults.use,
     trace: "on-first-retry",
   },
   projects: [
@@ -30,10 +30,4 @@ export default defineConfig({
     { name: "firefox", use: { browserName: "firefox" } },
     { name: "webkit", use: { browserName: "webkit" } },
   ],
-  webServer: {
-    command: editorServerCommand({ workspace, output, port }),
-    url: `http://127.0.0.1:${String(port)}/`,
-    reuseExistingServer: false,
-    timeout: 180_000,
-  },
 });

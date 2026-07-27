@@ -26,6 +26,8 @@ class SourceConfig:
         paths: dict[str, Path] | None = None,
         **path_values: Path,
     ) -> None:
+        """Normalize current path mappings and supported legacy keyword names."""
+
         path_map = dict(paths or {})
         legacy_names = {
             "recommendation_catalog_path": "recommendation_catalog",

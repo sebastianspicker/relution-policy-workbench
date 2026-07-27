@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Derive deterministic Apple mobileconfig evidence from the compiled compatibility catalog.
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { APPLE_COMPAT_SETTINGS } from "../dist/src/apple-compat.js";
@@ -29,6 +30,7 @@ writeFileSync(
   }, null, 2)}\n`,
 );
 
+/** Flatten nested field definitions into stable dotted paths for evidence consumers. */
 function flattenFields(fields, prefix = "") {
   const flattened = [];
   for (const field of fields) {

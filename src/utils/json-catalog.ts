@@ -1,3 +1,4 @@
+/** Loads JSON catalogs with explicit shape checks and contextual errors. */
 import { existsSync, readFileSync } from "node:fs";
 
 export function readJsonCatalog<T>(
@@ -8,18 +9,13 @@ export function readJsonCatalog<T>(
   if (!existsSync(path)) {
     throw new Error(`${label} not found: ${path}`);
   }
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
-  } catch {
-    throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
-  }
-  try {
+    const parsed = JSON.parse(readFileSync(path, "utf8")) as unknown;
     if (!isValid(parsed)) {
       throw new Error("invalid catalog");
     }
+    return parsed as T;
   } catch {
     throw new Error(`Invalid ${label.charAt(0).toLowerCase()}${label.slice(1)}: ${path}`);
   }
-  return parsed as T;
 }

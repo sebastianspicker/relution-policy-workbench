@@ -1,6 +1,7 @@
-export type MdmPlatform = "IOS" | "MACOS" | "WINDOWS" | "ANDROID_ENTERPRISE" | "TVOS" | "VISIONOS";
-export type MdmPolicyStatus = "active" | "migration-only" | "capability-only";
-export type MdmRing = "LAB" | "PILOT" | "EARLY" | "BROAD";
+/** Declares contracts for generated MDM import artifacts and validation. */
+type MdmPlatform = "IOS" | "MACOS" | "WINDOWS" | "ANDROID_ENTERPRISE" | "TVOS" | "VISIONOS";
+type MdmPolicyStatus = "active" | "migration-only" | "capability-only";
+type MdmRing = "LAB" | "PILOT" | "EARLY" | "BROAD";
 
 export interface MdmControl {
   schema_version: 1;
@@ -20,24 +21,7 @@ export interface MdmControl {
   review_cadence: string;
 }
 
-export interface MdmTestEvidenceResult { result: "PASS" | "FAIL" | "BLOCKED" | "NOT_RUN"; evidence: string[]; notes?: string }
-export interface MdmTestEvidence {
-  schema_version: 1;
-  evidence_id: string;
-  policy_id: string;
-  recorded_at: string | null;
-  ring: "LAB";
-  lab_import: MdmTestEvidenceResult;
-  publication: MdmTestEvidenceResult;
-  export_roundtrip: MdmTestEvidenceResult;
-  physical_device_application: MdmTestEvidenceResult;
-  rollback: MdmTestEvidenceResult;
-  user_impact: Record<string, unknown>;
-  approval: { status: "NOT_EVIDENCED" | "APPROVED" | "REJECTED" };
-  production_ready: false;
-}
-
-export interface MdmPolicySetting {
+interface MdmPolicySetting {
   configuration_type: string;
   values: Record<string, unknown>;
   control_ids: string[];

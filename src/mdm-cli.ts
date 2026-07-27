@@ -1,3 +1,4 @@
+/** Implements CLI commands for deterministic MDM artifact generation. */
 import { diffMdm, generateMdm, readGeneratedManifest } from "./mdm-generator.js";
 import { validateMdm, verifyMdmSources } from "./mdm-validation.js";
 

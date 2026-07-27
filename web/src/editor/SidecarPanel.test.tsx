@@ -1,3 +1,4 @@
+/** Verifies generated sidecar artifacts remain distinct from editable policy data. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { EditorController } from "./types.js";
@@ -32,7 +33,7 @@ describe("SidecarPanel", () => {
     render(<SidecarPanel controller={controller} />);
     fireEvent.click(screen.getByRole("button", { name: /^remove$/i }));
 
-    // Inline confirm should appear — artifact not yet removed
+    // Inline confirmation should appear before the artifact is removed.
     screen.getByRole("button", { name: /confirm remove/i }); // throws if absent
     expect(controller.removeDdmArtifact).not.toHaveBeenCalled();
 

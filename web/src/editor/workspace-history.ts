@@ -1,3 +1,4 @@
+/** Maintains bounded undo snapshots for meaningful workspace mutations. */
 import type { Dispatch, SetStateAction } from "react";
 import type { AppState, EditorActionResult, Selection } from "./types.js";
 import type { WorkspaceHistoryEntry } from "./useEditorControllerActionTypes.js";
@@ -21,6 +22,7 @@ export interface WorkspaceHistoryInput {
   readonly setRedoStack: Dispatch<SetStateAction<readonly WorkspaceHistoryEntry[]>>;
 }
 
+/** Records a bounded snapshot and clears redo because a new branch invalidates it. */
 export function pushUndoState(input: WorkspaceHistoryInput): void {
   input.setUndoStack((current) => [...current, currentHistoryEntry(input)].slice(-WORKSPACE_HISTORY_LIMIT));
   input.setRedoStack([]);

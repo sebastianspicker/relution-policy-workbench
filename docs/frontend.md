@@ -1,72 +1,93 @@
-# Frontend conventions and support
+# Frontend conventions
 
-The browser UI is a release-quality alpha for local policy authoring and
-read-only device audit work. It is a dense expert tool, not a phone-first
-editor. The same information and actions remain available when the interface
-reflows to one pane at narrow widths.
+The browser editor is served by the local Node.js process. Static Vite preview
+does not provide the `/api/*` backend and is not a supported editor runtime.
 
-## Navigation and layout
+## Routes
 
-Top-level sections use local hash routes: `#/policies`, the three
-`#/baselines/*` routes, `#/device-audit`, and `#/settings`. Routes never contain
-tenant, policy, configuration, token, or workspace identifiers. Unknown routes
-return to Policies. Browser Back and Forward change sections without replacing
-the loaded workspace.
+The application uses local hash routes:
 
-Above 1180 CSS pixels the policy navigation, editor, and optional inspector use
-independently scrolling panes. At and below 1180 pixels, the Policies section
-shows one named pane at a time. Two-dimensional data may scroll in a labelled
-table region; the document itself must not scroll horizontally.
+- `#/policies`
+- `#/baselines/builder`
+- `#/baselines/recommendations`
+- `#/baselines/compliance`
+- `#/device-audit`
+- `#/settings`
 
-## Components and accessibility
+Routes do not contain tenant, policy, configuration, token, or workspace
+identifiers. Unknown routes return to Policies. Browser Back and Forward move
+between sections without replacing the loaded workspace.
+
+## Layout
+
+Policies uses the navigator, editor, and optional assurance inspector.
+Baselines, Device audit, and Settings use dedicated full-width workspaces.
+
+Desktop panes scroll independently. At and below the compact breakpoint, the
+Policies section displays one named pane at a time. Tables can use labelled
+horizontal scroll regions, but the document must not scroll horizontally.
+
+The current tokens and visual conventions are documented in
+[`DESIGN.md`](../DESIGN.md).
+
+## Component contracts
 
 - Use `FieldFrame` for visible labels, technical paths, descriptions, required
-  state, and associated errors. Do not use a visual `span` as the only label.
+  state, and associated errors.
 - Use `InlineStatus` for local loading, success, warning, and recoverable error
-  feedback. Workspace Save, Build, and Download status remains persistent.
-- Composite tabs and radios follow the WAI-ARIA keyboard patterns, including
-  arrow keys and Home/End. Application undo and redo never replace native
-  editing history inside an input, textarea, select, or editable region.
-- Keep focus indicators at least 2 CSS pixels and 3:1 against adjacent colors.
-  Built-in and persisted custom theme action/text pairs are contrast checked.
-- Respect reduced motion and use 44 CSS pixel targets when a coarse pointer is
-  detected.
+  feedback.
+- Keep Save, Build, Download, and connection status persistent when the related
+  state remains relevant.
+- Implement composite tabs and radio groups with arrow keys and Home/End.
+- Do not override native undo and redo inside editable controls.
+- Provide loading, empty, error, disabled, and success states for asynchronous
+  operations.
+- Confirm destructive local actions and make external writes explicit.
 
-The target is WCAG 2.2 AA at 320 CSS pixels and at browser zoom equivalents.
-Automated checks support review but do not replace keyboard and assistive
-technology checks.
+## Accessibility
 
-## Browser and verification policy
+The target is WCAG 2.2 AA at 320 CSS pixels and browser zoom equivalents.
+Preserve:
 
-Playwright projects cover the current Chromium, Firefox, and WebKit versions
-installed by the repository's Playwright release. Run `pnpm test:e2e:web` from
-the package script so both Node and web builds are current. Run `pnpm
-check:bundle:web` after `pnpm build:web`; JS and CSS gzip totals may not exceed
-the recorded pre-overhaul baseline by more than five percent.
+- semantic landmarks and form labels
+- keyboard access and logical focus order
+- visible focus indicators
+- sufficient contrast
+- reduced-motion behavior
+- 44 CSS pixel targets for coarse pointers
+- status text that does not rely on color alone
 
-VoiceOver with Safari and NVDA with Firefox or Edge remain manual release
-checks. If those environments are unavailable, record them as unavailable; do
-not infer assistive-technology support from unit tests.
+Automated checks do not replace manual keyboard and assistive-technology
+review.
 
-Known alpha limit: complex policy authoring is optimized for desktop and tablet
-work. Narrow layouts are supported for complete access and recovery, but are
-not presented as an efficient phone authoring workflow.
+## Browser verification
 
-## Current local evidence
+`pnpm test:web` runs component and controller tests in jsdom.
+`pnpm test:e2e:web` builds the Node.js and browser applications, starts the
+loopback editor, and runs the configured Chromium, Firefox, and WebKit projects.
+The projects run serially because they share one mutable test workspace.
 
-Measured on 2026-07-11:
+Install browser binaries before the Playwright suite:
 
-- 145 Vitest component/controller tests pass.
-- Three Chromium Playwright workflows pass: primary edit/build/import,
-  addressable responsive panes at 320–1440 CSS pixels, and deterministic
-  accessibility-tree/visual checks.
-- Eight platform-neutral Chromium baselines cover Policies, Baseline builder,
-  Settings, and Device audit at 1440×900 and 390×844.
-- Production assets are 116.48 KB JavaScript gzip and 9.33 KB CSS gzip, within
-  the five-percent budget.
-- The local frontend pattern detector reports no findings.
+```sh
+PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright \
+  pnpm exec playwright install chromium firefox webkit
+```
 
-Current Firefox and WebKit binaries, `@axe-core/playwright`, VoiceOver, and NVDA
-were unavailable in this environment. Their checks remain explicitly
-unverified; Chromium and semantic component evidence must not be generalized
-to those environments.
+Run the bundle budget after a browser build:
+
+```sh
+pnpm build:web
+pnpm check:bundle:web
+```
+
+For visible changes, review desktop, compact, and narrow layouts, then refresh
+the README images when their documented flows changed:
+
+```sh
+pnpm test:e2e:web
+pnpm screenshots:readme
+```
+
+Record unavailable browsers or assistive technologies as untested. Do not infer
+their behavior from Chromium or jsdom results.

@@ -1,9 +1,11 @@
+// Enforce release gzip budgets against the actual generated JavaScript and CSS assets.
 import { gzipSync } from "node:zlib";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const assetDirectory = join(process.cwd(), "dist-web", "assets");
-const limits = { js: 122_960, css: 9_765 };
+// Signal Desk shell + modular CSS; budgets track measured gzip of the design cutover.
+const limits = { js: 128_000, css: 13_000 };
 const totals = { js: 0, css: 0 };
 
 for (const fileName of readdirSync(assetDirectory)) {

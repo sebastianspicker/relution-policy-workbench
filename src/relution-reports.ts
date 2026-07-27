@@ -1,89 +1,54 @@
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+/** Writes private report pairs with atomic per-file publication and incomplete-pair cleanup. */
+import { randomUUID } from "node:crypto";
+import { renameSync } from "node:fs";
 import { join } from "node:path";
 import type { RelutionAssessmentReport } from "./relution-api.js";
+import { readRelutionReportHistory } from "./relution-report-history.js";
+import { removeReportFile, secureRelutionReportDir, writePrivateTemporaryFile } from "./relution-report-writing.js";
+import { workspaceRelativeReportPath } from "./relution-report-storage.js";
+import { renderRelutionMarkdownReport } from "./relution-report-rendering.js";
+import { pruneRelutionReportHistory, removeIncompleteReportPairs } from "./relution-report-retention.js";
+import { persistedRelutionReport } from "./relution-report-rendering.js";
+import type { RelutionReportHistoryEntry, RelutionReportPaths } from "./relution-report-storage.js";
 
-export interface RelutionReportPaths {
-  jsonPath: string;
-  markdownPath: string;
-}
-
-export interface RelutionReportHistoryEntry {
-  jsonPath: string;
-  markdownPath?: string;
-  generatedAt?: string;
-  sizeBytes: number;
-}
+export { MAX_RETAINED_RELUTION_REPORTS } from "./relution-report-storage.js";
+export type { RelutionReportHistoryEntry, RelutionReportPaths } from "./relution-report-storage.js";
+export { renderRelutionMarkdownReport } from "./relution-report-rendering.js";
 
 export function writeRelutionReport(workspace: string, report: RelutionAssessmentReport): RelutionReportPaths {
-  const reportDir = relutionReportDir(workspace);
-  mkdirSync(reportDir, { recursive: true });
-  const stamp = report.generatedAt.replace(/[:.]/gu, "-");
-  const jsonPath = join(reportDir, `relution-compliance-report-${stamp}.json`);
-  const markdownPath = join(reportDir, `relution-compliance-report-${stamp}.md`);
-  writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`);
-  writeFileSync(markdownPath, renderRelutionMarkdownReport(report));
-  return { jsonPath, markdownPath };
+  const { workspaceRoot, reportDir } = secureRelutionReportDir(workspace);
+  if (reportDir === undefined) throw new Error("Relution report directory is unavailable");
+  const reportId = randomUUID();
+  const jsonName = `relution-compliance-report-${reportId}.json`;
+  const markdownName = `relution-compliance-report-${reportId}.md`;
+  const jsonFile = join(reportDir, jsonName);
+  const markdownFile = join(reportDir, markdownName);
+  let jsonTemporary: string | undefined;
+  let markdownTemporary: string | undefined;
+  try {
+    jsonTemporary = writePrivateTemporaryFile(reportDir, jsonName, `${JSON.stringify(persistedRelutionReport(report), null, 2)}\n`);
+    markdownTemporary = writePrivateTemporaryFile(reportDir, markdownName, renderRelutionMarkdownReport(report));
+    renameSync(markdownTemporary, markdownFile);
+    markdownTemporary = undefined;
+    renameSync(jsonTemporary, jsonFile);
+    jsonTemporary = undefined;
+    pruneRelutionReportHistory(workspaceRoot, reportDir, jsonName);
+  } catch (error) {
+    if (jsonTemporary !== undefined) removeReportFile(jsonTemporary);
+    if (markdownTemporary !== undefined) removeReportFile(markdownTemporary);
+    removeReportFile(jsonFile);
+    removeReportFile(markdownFile);
+    throw error;
+  }
+  return {
+    jsonPath: workspaceRelativeReportPath(workspaceRoot, jsonFile),
+    markdownPath: workspaceRelativeReportPath(workspaceRoot, markdownFile),
+  };
 }
 
 export function listRelutionReports(workspace: string): RelutionReportHistoryEntry[] {
-  const reportDir = relutionReportDir(workspace);
-  if (!existsSync(reportDir)) {
-    return [];
-  }
-  return readdirSync(reportDir)
-    .filter((name) => /^relution-compliance-report-.+\.json$/u.test(name))
-    .map((name) => {
-      const jsonPath = join(reportDir, name);
-      const markdownPath = join(reportDir, name.replace(/\.json$/u, ".md"));
-      const stats = statSync(jsonPath);
-      const entry: RelutionReportHistoryEntry = {
-        jsonPath,
-        sizeBytes: stats.size,
-        generatedAt: stats.mtime.toISOString(),
-      };
-      if (existsSync(markdownPath)) {
-        entry.markdownPath = markdownPath;
-      }
-      return entry;
-    })
-    .sort((a, b) => (b.generatedAt ?? "").localeCompare(a.generatedAt ?? ""));
-}
-
-export function renderRelutionMarkdownReport(report: RelutionAssessmentReport): string {
-  const lines = [
-    "# Relution Compliance Report",
-    "",
-    `Generated: ${report.generatedAt}`,
-    `Server: ${report.baseUrl}`,
-    "",
-    "## Summary",
-    "",
-    `- Devices: ${String(report.summary.totalDevices)}`,
-    `- Compliant: ${String(report.summary.compliant)}`,
-    `- Issues: ${String(report.summary.issue)}`,
-    `- Not checkable: ${String(report.summary.notCheckable)}`,
-    "",
-    "## Device Findings",
-    "",
-  ];
-  for (const entry of report.devices) {
-    lines.push(`### ${entry.device.name}`, "");
-    lines.push(`- Status: ${entry.status}`);
-    lines.push(`- Platform: ${entry.device.platform ?? "unknown"}`);
-    lines.push(`- Device status: ${entry.device.status ?? "unknown"}`);
-    lines.push(`- Policy status: ${entry.device.policyStatus ?? "unknown"}`);
-    if (entry.issues.length === 0) {
-      lines.push("- Issues: none");
-    } else {
-      for (const issue of entry.issues) {
-        lines.push(`- ${issue.id}: ${issue.severity}: ${issue.message}`);
-      }
-    }
-    lines.push("");
-  }
-  return `${lines.join("\n")}\n`;
-}
-
-function relutionReportDir(workspace: string): string {
-  return join(workspace, "reports");
+  const { workspaceRoot, reportDir } = secureRelutionReportDir(workspace, false);
+  if (reportDir === undefined) return [];
+  removeIncompleteReportPairs(reportDir);
+  return readRelutionReportHistory(workspaceRoot, reportDir);
 }

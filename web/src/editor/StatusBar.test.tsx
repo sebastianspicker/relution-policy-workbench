@@ -1,3 +1,4 @@
+/** Verifies the status bar announces editor progress and errors through stable semantics. */
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { StatusBar } from "./StatusBar.js";

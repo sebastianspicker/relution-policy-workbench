@@ -1,3 +1,4 @@
+/** Provides small runtime guards for untrusted JSON-shaped values. */
 export type JsonRecord = Record<string, unknown>;
 
 function asRecord(value: unknown): JsonRecord | undefined {

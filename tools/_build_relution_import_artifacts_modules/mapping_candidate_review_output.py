@@ -119,9 +119,8 @@ def write_mapping_candidate_review_report(
         "## Scope",
         "",
         (
-            "This backend artifact uses existing exact BSI, CIS, and vendor mappings as "
-            "bilingual reference examples. It does not call an external LLM or promote "
-            "mappings automatically."
+            "This deterministic artifact uses existing exact BSI, CIS, and vendor mappings "
+            "as bilingual reference examples. It does not promote mappings automatically."
         ),
         "",
         "## Summary",

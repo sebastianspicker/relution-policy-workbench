@@ -1,10 +1,11 @@
+/** Provides common baseline-wizard headings, navigation, and status framing. */
 import type { JSX } from "react";
 import type {
   BaselineTemplatePlatform,
   BaselineTemplateShape,
   BaselineTemplateTier,
 } from "../../../src/baseline-templates.js";
-import { platformLabel, shapeLabel } from "./PolicyWizardPanel.logic.js";
+import { platformLabel, shapeLabel } from "./policy-wizard-labels.js";
 
 export type WizardMode = "guided" | "expert";
 

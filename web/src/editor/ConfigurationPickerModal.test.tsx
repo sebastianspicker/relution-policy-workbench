@@ -1,3 +1,4 @@
+/** Verifies the configuration picker filters options and restores modal interaction contracts. */
 import { fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";

@@ -1,3 +1,4 @@
+/** Defines the shared state and controller contracts that connect editor modules. */
 import type { AppleCompatReport } from "../../../src/apple-compat.js";
 import type { AppleSchemaCatalog, AppleSchemaEntry } from "../../../src/apple-schema.js";
 import type { ComplianceReport } from "../../../src/compliance.js";
@@ -8,8 +9,8 @@ import type { PolicyWorkspace, WorkspaceValidationResult } from "../../../src/wo
 import type { BaselineTemplatePlatform, BaselineTemplateShape, BaselineTemplateTier } from "../../../src/baseline-templates.js";
 import type { JsonRecord } from "../../../src/utils/json-guards.js";
 import type { BaselineExpertApplyRuleset } from "./baseline-template-client.js";
-import type { RulesetImportReport } from "./ruleset-import.js";
-export type { RulesetImportReport } from "./ruleset-import.js";
+import type { RulesetImportReport } from "./ruleset-import-types.js";
+export type { RulesetImportReport } from "./ruleset-import-types.js";
 
 export type { JsonRecord };
 
