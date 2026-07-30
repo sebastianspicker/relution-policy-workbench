@@ -19,6 +19,11 @@ The repository also contains:
 The package is private and distributed as source. It is not a hosted service or
 an npm package.
 
+Explore the [static REXP Studio walkthrough](https://sebastianspicker.github.io/rexp-studio/).
+It uses sanitized deterministic fixtures and reviewed interface captures. All
+command controls are disabled and marked as simulated; operational workflows
+remain available only through the local loopback editor.
+
 See the [documentation index](docs/README.md), [release procedure](docs/alpha-release.md),
 [contribution guide](CONTRIBUTING.md), [changelog](CHANGELOG.md), and
 [security policy](SECURITY.md).
