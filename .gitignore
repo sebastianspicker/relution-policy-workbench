@@ -3,6 +3,7 @@ node_modules/
 .pnpm-store/
 dist/
 dist-web/
+dist-demo/
 .venv/
 .pytest_cache/
 .ruff_cache/

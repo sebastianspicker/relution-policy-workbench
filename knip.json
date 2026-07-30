@@ -5,6 +5,7 @@
     "tests/relution-docker/*.e2e.ts",
     "web/src/**/*.test-cases.ts",
     "tests/e2e/**/*.spec.ts",
+    "tests/demo-e2e/**/*.spec.ts",
     "tests/readme-tour/**/*.spec.ts",
     "tools/**/*.mjs",
     "playwright.readme.config.ts"

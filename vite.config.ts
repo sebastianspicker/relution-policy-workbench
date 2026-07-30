@@ -2,11 +2,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  root: "web",
-  plugins: [react()],
-  build: {
-    outDir: "../dist-web",
-    emptyOutDir: true,
-  },
+export default defineConfig(({ mode }) => {
+  const demo = mode === "demo";
+  return {
+    root: "web",
+    base: demo ? "/rexp-studio/" : "/",
+    plugins: [react()],
+    build: {
+      outDir: demo ? "../dist-demo" : "../dist-web",
+      emptyOutDir: true,
+    },
+  };
 });
