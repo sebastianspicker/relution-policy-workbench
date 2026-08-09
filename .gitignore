@@ -158,6 +158,12 @@ docs/archive/
 /.codacy/
 /.codex/
 /.codegraph/
+/.repowise/
+/.mcp.json
+/logs/
+/wip/
+/WIP/
+/work-in-progress/
 /.claude/
 /.cursor/
 /.serena/
