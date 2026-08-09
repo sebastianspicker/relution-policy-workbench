@@ -23,7 +23,6 @@ async function queryRelutionDevices(
 ) {
   return await queryRelutionDevicesWithTransport(connection, input, TEST_HTTP_SERVICE_TRANSPORT);
 }
-
 async function testRelutionConnection(connection: Parameters<typeof testRelutionConnectionWithTransport>[0]) {
   return await testRelutionConnectionWithTransport(connection, TEST_HTTP_SERVICE_TRANSPORT);
 }
@@ -477,7 +476,99 @@ test("classifies known warning findings as issues rather than not-checkable", ()
   assert.equal(report.summary.issue, 1);
   assert.equal(report.summary.notCheckable, 0);
   assert.equal(report.devices[0]?.status, "issue");
-  assert.equal(report.devices[0]?.issues[0]?.severity, "warning");
+  assert.deepEqual(report.devices[0]?.issues, [{
+    id: "policy-status-not-applied",
+    severity: "warning",
+    message: "Policy status is PENDING.",
+    evidence: { policyStatus: "PENDING" },
+  }]);
+});
+
+test("classifies unavailable device and policy statuses as not-checkable", () => {
+  const missingDeviceStatus = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-MISSING-STATUS",
+    name: "Unknown compliance status",
+    policyStatus: "APPLIED",
+    raw: {},
+  }]);
+  const missingPolicyStatus = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-MISSING-POLICY",
+    name: "Unknown policy status",
+    status: "COMPLIANT",
+    raw: {},
+  }]);
+
+  assert.equal(missingDeviceStatus.devices[0]?.status, "not-checkable");
+  assert.deepEqual(missingDeviceStatus.devices[0]?.issues, [{
+    id: "device-status-missing",
+    severity: "unknown",
+    message: "Device compliance status is not exposed by the query response.",
+    evidence: {},
+  }]);
+  assert.equal(missingPolicyStatus.devices[0]?.status, "not-checkable");
+  assert.deepEqual(missingPolicyStatus.devices[0]?.issues, [{
+    id: "policy-status-missing",
+    severity: "unknown",
+    message: "Device policy status is not exposed by the query response.",
+    evidence: {},
+  }]);
+});
+
+test("accepts updated policy status and classifies unknown policy status as a problem", () => {
+  const updated = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-UPDATE",
+    name: "Updated policy device",
+    status: "COMPLIANT",
+    policyStatus: "UPDATE",
+    raw: {},
+  }]);
+  const unknown = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-UNKNOWN",
+    name: "Unknown policy device",
+    status: "COMPLIANT",
+    policyStatus: "UNKNOWN",
+    raw: {},
+  }]);
+
+  assert.equal(updated.devices[0]?.status, "compliant");
+  assert.deepEqual(updated.devices[0]?.issues, []);
+  assert.equal(unknown.devices[0]?.status, "issue");
+  assert.deepEqual(unknown.devices[0]?.issues, [{
+    id: "policy-status-not-applied",
+    severity: "problem",
+    message: "Policy status is UNKNOWN.",
+    evidence: { policyStatus: "UNKNOWN" },
+  }]);
+});
+
+test("orders classification findings before policy and inactivity findings", () => {
+  const report = createRelutionAssessmentReport(
+    "https://relution.example.test",
+    [{
+      uuid: " ",
+      name: "Unidentified inactive device",
+      platform: "IOS",
+      status: "INACTIVE",
+      policyStatus: "NONE",
+      assignedPolicies: [],
+      lastConnectionDate: "2026-01-01T00:00:00.000Z",
+      raw: {},
+    }],
+    {
+      expectedPoliciesByPlatform: { IOS: ["Baseline iOS"] },
+      inactiveWarningDays: 30,
+      inactiveProblemDays: 90,
+      now: new Date("2026-04-26T00:00:00.000Z"),
+    },
+  );
+
+  assert.deepEqual(report.devices[0]?.issues.map((issue) => issue.id), [
+    "device-identity-missing",
+    "device-status-noncompliant",
+    "policy-status-not-applied",
+    "missing-policy",
+    "inactive-problem",
+  ]);
 });
 
 function createJsonResponse(): EventEmitter & { body: string; writeHead: (status: number) => void; end: (body: string) => void } {
@@ -613,7 +704,6 @@ test("distinguishes complete, partial, and unknown assessment coverage", () => {
   assert.equal(assessmentCompleteness({ count: 1, total: 2, truncated: true }).status, "partial");
   assert.equal(assessmentCompleteness({ count: 1, truncated: false }).status, "unknown");
 });
-
 test("rejects malformed device totals", async () => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () => new Response(JSON.stringify({ nonpagedCount: -1, results: [] }));

@@ -3,7 +3,10 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { cleanPythonCaches } from "./codacy-cloud-cache.mjs";
-import { syncLocalConfigFromRemote } from "./codacy-cloud-config.mjs";
+import {
+  syncLocalConfigFromRemote,
+  validateCodacyConfigIdentity,
+} from "./codacy-cloud-config.mjs";
 
 const mode = process.argv[2] ?? "analyze";
 const configPath = ".codacy/generated/remote.config.json";
@@ -45,7 +48,7 @@ function githubRemoteCoordinates() {
   if (owner === undefined || repository === undefined || repository.length === 0) {
     throw new Error("Codacy initialization requires a GitHub origin URL");
   }
-  return { owner, repository };
+  return { provider: "gh", organization: owner, repository };
 }
 
 /** Update the existing remote config, falling back to initialization on first use. */
@@ -58,16 +61,24 @@ function refreshRemoteConfig() {
   if (updateStatus === 0) {
     return 0;
   }
-  const { owner, repository } = githubRemoteCoordinates();
+  const { organization, repository } = githubRemoteCoordinates();
   return run("codacy-analysis", [
     "init",
     "--remote",
     "gh",
-    owner,
+    organization,
     repository,
     "--config-file",
     configPath,
   ]);
+}
+
+const expectedIdentity = githubRemoteCoordinates();
+const preflightStatus = [configPath, localConfigPath]
+  .map((path) => validateCodacyConfigIdentity(path, expectedIdentity))
+  .find((status) => status !== 0) ?? 0;
+if (preflightStatus !== 0) {
+  process.exit(preflightStatus);
 }
 
 cleanPythonCaches();
@@ -76,6 +87,9 @@ mkdirSync(pylintHome, { recursive: true });
 let status = 0;
 try {
   status = refreshRemoteConfig();
+  if (status === 0) {
+    status = validateCodacyConfigIdentity(configPath, expectedIdentity, { required: true });
+  }
   if (status === 0) {
     status = syncLocalConfigFromRemote(configPath, localConfigPath);
   }

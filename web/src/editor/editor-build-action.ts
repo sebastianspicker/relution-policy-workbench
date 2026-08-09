@@ -2,7 +2,42 @@
 import { asRecord, isEditorSidecarState, postJson, readJsonResponse } from "./editor-utils.js";
 import type { ImportBuildActionInput } from "./editor-import-build-actions.js";
 import { errorMessage } from "./editor-ruleset-apply.js";
+import type { WorkspaceRequest } from "./editor-workspace-request-guard.js";
 import type { JsonRecord } from "./types.js";
+
+async function persistDirtyWorkspace(input: ImportBuildActionInput, request: WorkspaceRequest): Promise<boolean> {
+  if (!input.isDirty) return true;
+  const workspace = input.currentState.workspace;
+  return await input.persistWorkspace(workspace, request) !== undefined;
+}
+
+function isSuccessfulBuild(response: Response, verification: JsonRecord | undefined): boolean {
+  return response.ok && verification?.ok === true;
+}
+
+function applySuccessfulBuild(input: ImportBuildActionInput, result: JsonRecord): void {
+  input.setState((current) => current === undefined ? current : {
+    ...current,
+    outputFile: typeof result.outputFile === "string" ? result.outputFile : current.outputFile,
+    sidecar: isEditorSidecarState(result.sidecar) ? result.sidecar : current.sidecar,
+  });
+  input.setHasFreshBuild(true);
+  input.setActionSuccessStatus(`Built ${String(result.outputFile)}`);
+}
+
+function buildFailureStatus(verification: JsonRecord | undefined, result: JsonRecord): string {
+  return verification !== undefined && verification.ok !== true ? "Build verification failed" : `Build blocked: ${JSON.stringify(result)}`;
+}
+
+function applyCurrentBuildResponse(input: ImportBuildActionInput, request: WorkspaceRequest, response: Response, result: JsonRecord): void {
+  if (!input.requestGuard.isCurrent(request)) return;
+  const verification = asRecord(result.verification);
+  if (isSuccessfulBuild(response, verification)) {
+    applySuccessfulBuild(input, result);
+    return;
+  }
+  input.setActionErrorStatus(buildFailureStatus(verification, result));
+}
 
 export async function buildArchive(input: ImportBuildActionInput): Promise<void> {
   if (!input.requestGuard.canEditWorkspace()) {
@@ -14,22 +49,10 @@ export async function buildArchive(input: ImportBuildActionInput): Promise<void>
   input.setIsBuildLoading(true);
   input.setHasFreshBuild(false);
   try {
-    if (input.isDirty && await input.persistWorkspace(input.currentState.workspace, request) === undefined) return;
+    if (!await persistDirtyWorkspace(input, request)) return;
     const response = await postJson("/api/build", {});
     const result = await readJsonResponse<JsonRecord>(response);
-    if (!input.requestGuard.isCurrent(request)) return;
-    const verification = asRecord(result.verification);
-    if (!response.ok || verification?.ok !== true) {
-      input.setActionErrorStatus(verification !== undefined && verification.ok !== true ? "Build verification failed" : `Build blocked: ${JSON.stringify(result)}`);
-      return;
-    }
-    input.setState((current) => current === undefined ? current : {
-      ...current,
-      outputFile: typeof result.outputFile === "string" ? result.outputFile : current.outputFile,
-      sidecar: isEditorSidecarState(result.sidecar) ? result.sidecar : current.sidecar,
-    });
-    input.setHasFreshBuild(true);
-    input.setActionSuccessStatus(`Built ${String(result.outputFile)}`);
+    applyCurrentBuildResponse(input, request, response, result);
   } catch (error) {
     if (input.requestGuard.isCurrent(request)) {
       const message = errorMessage(error);

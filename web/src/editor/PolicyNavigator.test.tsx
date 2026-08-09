@@ -43,6 +43,92 @@ describe("PolicyNavigator", () => {
     fireEvent.change(search, { target: { value: "does not exist" } });
     expect(screen.getByText(/no policies match the search/i)).toBeTruthy();
   });
+
+  it("opens, cancels, and creates a policy while forwarding its name and platform", () => {
+    const onNewPolicyNameChange = vi.fn();
+    const onNewPolicyPlatformChange = vi.fn();
+    const onCreatePolicy = vi.fn();
+    render(
+      <PolicyNavigator
+        policies={[policy]}
+        selection={undefined}
+        templatesByType={new Map([[template.type, template]])}
+        newPolicyName=""
+        newPolicyPlatform="IOS"
+        creatablePlatforms={["IOS", "ANDROID"]}
+        isDirty={false}
+        onSelect={vi.fn()}
+        onMoveConfiguration={vi.fn()}
+        onRemoveConfiguration={vi.fn()}
+        onNewPolicyNameChange={onNewPolicyNameChange}
+        onNewPolicyPlatformChange={onNewPolicyPlatformChange}
+        onCreatePolicy={onCreatePolicy}
+      />,
+    );
+
+    const newPolicy = screen.getByRole("button", { name: /new policy/i });
+    expect(newPolicy.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(newPolicy);
+    expect(newPolicy.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.change(screen.getByLabelText(/new policy name/i), { target: { value: "Android baseline" } });
+    fireEvent.change(screen.getByLabelText(/new policy platform/i), { target: { value: "ANDROID" } });
+    expect(onNewPolicyNameChange).toHaveBeenCalledWith("Android baseline");
+    expect(onNewPolicyPlatformChange).toHaveBeenCalledWith("ANDROID");
+
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
+    expect(newPolicy.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(newPolicy);
+    fireEvent.click(screen.getByRole("button", { name: /^create$/i }));
+    expect(onCreatePolicy).toHaveBeenCalledTimes(1);
+    expect(newPolicy.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("opens the create form for an empty workspace and selects tree items", () => {
+    const onSelect = vi.fn();
+    const { rerender } = render(
+      <PolicyNavigator
+        policies={[]}
+        selection={undefined}
+        templatesByType={new Map()}
+        newPolicyName="New policy"
+        newPolicyPlatform="IOS"
+        creatablePlatforms={["IOS"]}
+        isDirty={false}
+        onSelect={onSelect}
+        onMoveConfiguration={vi.fn()}
+        onRemoveConfiguration={vi.fn()}
+        onNewPolicyNameChange={vi.fn()}
+        onNewPolicyPlatformChange={vi.fn()}
+        onCreatePolicy={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText(/new policy name/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /new policy/i }).getAttribute("aria-expanded")).toBe("true");
+
+    rerender(
+      <PolicyNavigator
+        policies={[policy]}
+        selection={undefined}
+        templatesByType={new Map([[template.type, template]])}
+        newPolicyName=""
+        newPolicyPlatform="IOS"
+        creatablePlatforms={["IOS"]}
+        isDirty={false}
+        onSelect={onSelect}
+        onMoveConfiguration={vi.fn()}
+        onRemoveConfiguration={vi.fn()}
+        onNewPolicyNameChange={vi.fn()}
+        onNewPolicyPlatformChange={vi.fn()}
+        onCreatePolicy={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^release baseline$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^iOS restrictionsIOS_RESTRICTION$/i }));
+    expect(onSelect).toHaveBeenNthCalledWith(1, { policyIndex: 0, versionIndex: 0 });
+    expect(onSelect).toHaveBeenNthCalledWith(2, { policyIndex: 0, versionIndex: 0, configurationIndex: 0 });
+  });
 });
 
 const template: ConfigurationTemplate = {

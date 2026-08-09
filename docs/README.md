@@ -21,6 +21,8 @@ usage, testing, operation, and troubleshooting guide.
 - [Security policy](../SECURITY.md): reporting and data boundaries.
 - [Contribution guide](../CONTRIBUTING.md): setup, change rules, and
   verification.
+- [Architecture decisions](decisions/README.md): active safety-boundary
+  invariants, ownership, compatibility, rollback, and verification evidence.
 
 ## Screenshots
 

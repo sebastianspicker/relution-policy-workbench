@@ -73,4 +73,12 @@ describe("EditorShell policy workspace", () => {
     fireEvent.keyDown(screen.getByLabelText(/search policies/i), { key: "s", ctrlKey: true });
     expect(controller.saveWorkspace).toHaveBeenCalledOnce();
   });
+
+  it("toggles the pinned inspector through its toolbar control", () => {
+    render(<EditorShell controller={createEditorControllerStub()} theme="studio" onThemeChange={vi.fn()} />);
+    const toggle = screen.getByRole("button", { name: /toggle inspector panel/i });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+  });
 });

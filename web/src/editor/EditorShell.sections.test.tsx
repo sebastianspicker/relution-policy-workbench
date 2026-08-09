@@ -89,4 +89,15 @@ describe("EditorShell sections", () => {
     expect(window.location.hash).toBe("#/policies");
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Policies" }).some((button) => button.getAttribute("aria-current") === "page")).toBe(true));
   });
+
+  it("translates Baselines tab changes into canonical baseline routes", async () => {
+    installFetchMock();
+    render(<EditorShell controller={createEditorControllerStub()} theme="studio" onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /baselines/i })[0]!);
+    fireEvent.click(await screen.findByRole("tab", { name: "Compliance" }));
+    expect(window.location.hash).toBe("#/baselines/compliance");
+    expect(screen.getByRole("tab", { name: "Compliance" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: "Builder" }));
+    expect(window.location.hash).toBe("#/baselines/builder");
+  });
 });

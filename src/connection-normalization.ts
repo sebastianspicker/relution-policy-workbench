@@ -1,22 +1,20 @@
 /** Normalizes user-provided HTTP connection details before outbound use. */
-import { isIP } from "node:net";
+import {
+  formatHttpUrlAuthority,
+  normalizeBasePath,
+  normalizeHttpHostname,
+  parseHostInput,
+} from "./connection-host-input.js";
+import type { HttpProtocol, NormalizedConnectionBase } from "./connection-normalization-types.js";
 
-export type HttpProtocol = "http" | "https";
+export type { HttpProtocol, NormalizedConnectionBase } from "./connection-normalization-types.js";
+export { formatHttpUrlAuthority, normalizeHttpHostname } from "./connection-host-input.js";
 
 export class HttpConnectionInputError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "HttpConnectionInputError";
   }
-}
-
-export interface NormalizedConnectionBase {
-  protocol: HttpProtocol;
-  host: string;
-  port?: number;
-  basePath: string;
-  baseUrl: string;
-  allowLocalServiceHosts: boolean;
 }
 
 /** Accepts either host fields or URL-like input, then produces one canonical authority. */
@@ -49,16 +47,6 @@ export function normalizeHttpConnectionInput(input: {
   };
 }
 
-export function formatHttpUrlAuthority(host: string, port?: number): string {
-  const normalizedHost = normalizeHttpHostname(host);
-  const authorityHost = isIP(normalizedHost) === 6 ? `[${normalizedHost}]` : normalizedHost;
-  return port === undefined ? authorityHost : `${authorityHost}:${String(port)}`;
-}
-
-export function normalizeHttpHostname(host: string): string {
-  return host.replace(/^\[(.*)\]$/u, "$1");
-}
-
 function assertHttpProtocol(protocol: string, serviceName: string): asserts protocol is HttpProtocol {
   if (protocol !== "http" && protocol !== "https") {
     throw new HttpConnectionInputError(`Unsupported ${serviceName} protocol: ${String(protocol)}`);
@@ -68,35 +56,5 @@ function assertHttpProtocol(protocol: string, serviceName: string): asserts prot
 function assertOptionalPort(port: number | undefined, serviceName: string): void {
   if (port !== undefined && (!Number.isSafeInteger(port) || port < 1 || port > 65535)) {
     throw new HttpConnectionInputError(`Invalid ${serviceName} port: ${String(port)}`);
-  }
-}
-
-function normalizeBasePath(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0 || trimmed === "/") {
-    return "";
-  }
-  return `/${trimmed.replace(/^\/+|\/+$/gu, "")}`;
-}
-
-function parseHostInput(value: string): { protocol?: HttpProtocol; host: string; port?: number; basePath?: string } {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return { host: "" };
-  }
-  const urlText = /^https?:\/\//iu.test(trimmed) ? trimmed : `https://${trimmed}`;
-  try {
-    const parsed = new URL(urlText);
-    const protocol = parsed.protocol === "http:" ? "http" : parsed.protocol === "https:" ? "https" : undefined;
-    const port = parsed.port.length === 0 ? undefined : Number(parsed.port);
-    const basePath = parsed.pathname === "/" ? undefined : parsed.pathname;
-    return {
-      ...(protocol === undefined || !/^https?:\/\//iu.test(trimmed) ? {} : { protocol }),
-      host: parsed.hostname,
-      ...(port === undefined ? {} : { port }),
-      ...(basePath === undefined ? {} : { basePath }),
-    };
-  } catch {
-    return { host: trimmed.replace(/^https?:\/\//iu, "").replace(/\/.*$/u, "") };
   }
 }

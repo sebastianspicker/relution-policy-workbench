@@ -13,6 +13,7 @@ import {
 } from "../src/zammad-api.js";
 import { ZammadTicketOperations, zammadTicketOperationId } from "../src/zammad-ticket-operations.js";
 import { claimOperation, persistCompleted } from "../src/zammad-operation-store.js";
+import { mergePersistedTicketResults } from "../src/zammad-operation-identity-merge.js";
 import { TEST_HTTP_SERVICE_TRANSPORT } from "./http-service-test-adapter.js";
 
 const CONNECTION = normalizeZammadConnection({
@@ -146,6 +147,30 @@ test("Zammad ticket-number validation is identical before and after persistence"
     globalThis.fetch = originalFetch;
     rmSync(workspace, { recursive: true, force: true });
   }
+});
+
+test("persisted ticket identity merges retain only corroborated identifiers in canonical order", () => {
+  const numberOnly = mergePersistedTicketResults({ number: "240300" }, { number: "240300" });
+  assert.deepEqual(numberOnly, { number: "240300" });
+  assert.deepEqual(Object.keys(numberOnly), ["number"]);
+
+  const full = { id: 300, number: "240300" };
+  const identical = mergePersistedTicketResults(full, full);
+  assert.deepEqual(identical, full);
+  assert.deepEqual(Object.keys(identical), ["id", "number"]);
+
+  const idOnly = { id: 300 };
+  const fullThenIdOnly = mergePersistedTicketResults(full, idOnly);
+  const idOnlyThenFull = mergePersistedTicketResults(idOnly, full);
+  assert.deepEqual(fullThenIdOnly, full);
+  assert.deepEqual(idOnlyThenFull, full);
+  assert.deepEqual(Object.keys(fullThenIdOnly), ["id", "number"]);
+  assert.deepEqual(Object.keys(idOnlyThenFull), ["id", "number"]);
+
+  assert.throws(
+    () => mergePersistedTicketResults({}, {}),
+    (error: unknown) => error instanceof Error && error.message === "Zammad operation completed with conflicting ticket identifiers",
+  );
 });
 
 test("compatible completion identities merge atomically into the canonical record", () => {

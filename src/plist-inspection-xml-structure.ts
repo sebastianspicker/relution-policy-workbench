@@ -1,24 +1,38 @@
 /** Recognizes only a closed plist element tree and the fixed public DTD. */
 import { isIgnoredXmlToken, isPermittedPlistPrologue, xmlElement } from "./plist-inspection-xml-syntax.js";
 
+interface PlistDocumentState {
+  elements: string[];
+  sawRoot: boolean;
+}
+
 export function isPlistDocument(tokens: string[]): boolean {
-  const elements: string[] = [];
-  let sawRoot = false;
+  const state: PlistDocumentState = { elements: [], sawRoot: false };
   for (const token of tokens) {
     if (isIgnoredXmlToken(token)) continue;
-    if (isPermittedPlistPrologue(token) && !sawRoot && elements.length === 0) continue;
-    const element = xmlElement(token);
-    if (element === undefined || (elements.length === 0 && element.name !== "plist") || sawRoot) return false;
-    if (element.closes) {
-      if (elements.pop() !== element.name) return false;
-      if (elements.length === 0) sawRoot = true;
-      continue;
-    }
-    if (element.selfClosing) {
-      if (elements.length === 0) return false;
-      continue;
-    }
-    elements.push(element.name);
+    if (isPermittedPlistPrologue(token) && isBeforeRoot(state)) continue;
+    if (!acceptElement(state, token)) return false;
   }
-  return sawRoot && elements.length === 0;
+  return state.sawRoot && state.elements.length === 0;
+}
+
+function isBeforeRoot(state: PlistDocumentState): boolean {
+  return !state.sawRoot && state.elements.length === 0;
+}
+
+function acceptElement(state: PlistDocumentState, token: string): boolean {
+  const element = xmlElement(token);
+  if (element === undefined) return false;
+  if (state.sawRoot) return false;
+  if (isBeforeRoot(state) && element.name !== "plist") return false;
+  if (element.closes) return closeElement(state, element.name);
+  if (element.selfClosing) return !isBeforeRoot(state);
+  state.elements.push(element.name);
+  return true;
+}
+
+function closeElement(state: PlistDocumentState, name: string): boolean {
+  if (state.elements.pop() !== name) return false;
+  if (state.elements.length === 0) state.sawRoot = true;
+  return true;
 }

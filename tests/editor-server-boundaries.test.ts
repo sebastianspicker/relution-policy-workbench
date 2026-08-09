@@ -13,6 +13,8 @@ import { handleRelutionApiRequest } from "../src/relution-editor-routes.js";
 import { handleZammadApiRequest } from "../src/zammad-editor-routes.js";
 import { loadEditorSidecar, saveEditorSidecar } from "../src/sidecar.js";
 import { SidecarInputError } from "../src/sidecar-types.js";
+import { OperationQueueAbortedError } from "../src/utils/bounded-operation-queue.js";
+import { WorkspaceInputError } from "../src/workspace.js";
 import { handleArchiveApiRequest } from "../src/editor-server-archive-compliance-routes.js";
 
 test("editor service namespaces require a complete path segment", () => {
@@ -47,18 +49,14 @@ test("editor handler chain stops at the first route that handles a request", asy
 });
 
 test("editor error boundary destroys a partial response instead of writing twice", () => {
-  let destroyCalls = 0;
   const originalError = console.error;
   console.error = () => undefined;
-  const response = {
-    destroyed: false,
-    writableEnded: false,
-    headersSent: true,
-    destroy: () => { destroyCalls += 1; },
-  };
+  const response = responseStub({ headersSent: true });
   try {
     handleEditorServerError(response as never, new Error("storage failure"));
-    assert.equal(destroyCalls, 1);
+    assert.equal(response.destroyCalls, 1);
+    assert.deepEqual(response.writeHeadCalls, []);
+    assert.deepEqual(response.endCalls, []);
   } finally {
     console.error = originalError;
   }
@@ -72,7 +70,101 @@ test("editor error boundary exposes client input without logging it as a server 
     const response = responseStub();
     handleEditorServerError(response as never, new HttpError(400, "Invalid request"));
     assert.equal(errors.length, 0);
-    assert.match(response.body, /Invalid request/u);
+    assertEditorJson(response, 400, { error: "Invalid request" });
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("editor error boundary ignores mutation cancellations without response or logging work", () => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    const response = responseStub();
+    handleEditorServerError(response as never, new OperationQueueAbortedError());
+    assert.equal(errors.length, 0);
+    assert.equal(response.destroyCalls, 0);
+    assert.deepEqual(response.writeHeadCalls, []);
+    assert.deepEqual(response.endCalls, []);
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("editor error boundary logs server failures before terminal-response checks", () => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    for (const response of [responseStub({ destroyed: true }), responseStub({ writableEnded: true })]) {
+      handleEditorServerError(response as never, new Error("storage failure"));
+      assert.equal(response.destroyCalls, 0);
+      assert.deepEqual(response.writeHeadCalls, []);
+      assert.deepEqual(response.endCalls, []);
+    }
+    assert.equal(errors.length, 2);
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("editor error boundary classifies workspace and sidecar input failures as client errors", () => {
+  for (const error of [new WorkspaceInputError("Invalid workspace"), new SidecarInputError("Invalid sidecar")]) {
+    const response = responseStub();
+    handleEditorServerError(response as never, error);
+    assertEditorJson(response, 400, { error: error.message });
+  }
+});
+
+test("editor error boundary sanitizes and logs unexposed server failures", () => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  const error = new HttpError(503, "Sensitive storage failure", false);
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    const response = responseStub();
+    handleEditorServerError(response as never, error);
+    assertEditorJson(response, 503, { error: "Internal editor error" });
+    assert.deepEqual(errors, [[error]]);
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("editor error boundary preserves exposed server messages while logging them", () => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  const error = new HttpError(503, "Retry after maintenance", true);
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    const response = responseStub();
+    handleEditorServerError(response as never, error);
+    assertEditorJson(response, 503, { error: "Retry after maintenance" });
+    assert.deepEqual(errors, [[error]]);
+  } finally {
+    console.error = originalError;
+  }
+});
+
+test("editor error boundary preserves unexposed client messages and sanitizes ordinary values", () => {
+  const errors: unknown[][] = [];
+  const originalError = console.error;
+  console.error = (...args: unknown[]) => { errors.push(args); };
+  try {
+    const clientResponse = responseStub();
+    handleEditorServerError(clientResponse as never, new HttpError(429, "Retry later", false));
+    assertEditorJson(clientResponse, 429, { error: "Retry later" });
+
+    const errorResponse = responseStub();
+    const error = new Error("Sensitive ordinary failure");
+    handleEditorServerError(errorResponse as never, error);
+    assertEditorJson(errorResponse, 500, { error: "Internal editor error" });
+
+    const valueResponse = responseStub();
+    handleEditorServerError(valueResponse as never, "Sensitive non-error failure");
+    assertEditorJson(valueResponse, 500, { error: "Internal editor error" });
+    assert.deepEqual(errors, [[error], ["Sensitive non-error failure"]]);
   } finally {
     console.error = originalError;
   }
@@ -108,12 +200,51 @@ test("editor build rejects weak new archive passphrases without affecting import
   );
 });
 
-function responseStub(): { body: string; on: () => void; writeHead: () => void; end: (body: string) => void } {
+interface ResponseStub {
+  readonly body: string;
+  readonly writeHeadCalls: Array<{ readonly status: number; readonly headers: Record<string, string> }>;
+  readonly endCalls: string[];
+  destroyed: boolean;
+  writableEnded: boolean;
+  headersSent: boolean;
+  destroyCalls: number;
+  on: () => void;
+  writeHead: (status: number, headers: Record<string, string>) => void;
+  end: (body: string) => void;
+  destroy: () => void;
+}
+
+function responseStub(options: Partial<Pick<ResponseStub, "destroyed" | "writableEnded" | "headersSent">> = {}): ResponseStub {
   let body = "";
+  const writeHeadCalls: Array<{ readonly status: number; readonly headers: Record<string, string> }> = [];
+  const endCalls: string[] = [];
   return {
     get body() { return body; },
+    writeHeadCalls,
+    endCalls,
+    destroyed: options.destroyed ?? false,
+    writableEnded: options.writableEnded ?? false,
+    headersSent: options.headersSent ?? false,
+    destroyCalls: 0,
     on: () => undefined,
-    writeHead: () => undefined,
-    end: (value: string) => { body = value; },
+    writeHead: (status, headers) => { writeHeadCalls.push({ status, headers }); },
+    end: (value: string) => { body = value; endCalls.push(value); },
+    destroy() { this.destroyCalls += 1; },
   };
+}
+
+function assertEditorJson(response: ResponseStub, status: number, value: { readonly error: string }): void {
+  const body = JSON.stringify(value);
+  assert.deepEqual(response.writeHeadCalls, [{
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "no-store",
+      pragma: "no-cache",
+      "x-content-type-options": "nosniff",
+      "x-frame-options": "DENY",
+    },
+  }]);
+  assert.deepEqual(response.endCalls, [body]);
+  assert.equal(response.body, body);
 }

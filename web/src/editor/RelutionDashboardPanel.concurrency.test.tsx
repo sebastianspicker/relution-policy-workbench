@@ -1,5 +1,5 @@
 /** Verifies that dashboard state keeps only current asynchronous operations. */
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   configureRelution,
@@ -35,23 +35,26 @@ describe("RelutionDashboardPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /run audit/i }));
     await screen.findByText(/campus ipad/i);
     await configureZammad();
-    fireEvent.click(screen.getByRole("button", { name: /ticket: missing-policy/i }));
-    fireEvent.click(screen.getByRole("button", { name: /review ticket destination/i }));
-    await screen.findByRole("group", { name: /confirm zammad ticket creation/i });
+    const missingPolicyButton = screen.getByRole("button", { name: /ticket: missing-policy/i }) as HTMLButtonElement;
+    const inactiveWarningButton = screen.getByRole("button", { name: /ticket: inactive-warning/i }) as HTMLButtonElement;
+    fireEvent.click(missingPolicyButton);
+    const reviewButton = screen.getByRole("button", { name: /review ticket destination/i }) as HTMLButtonElement;
+    fireEvent.click(reviewButton);
+    const confirmation = await screen.findByRole("group", { name: /confirm zammad ticket creation/i });
     act(() => {
-      fireEvent.click(screen.getByRole("button", { name: /confirm and create ticket/i }));
-      fireEvent.click(screen.getByRole("button", { name: /ticket: inactive-warning/i }));
+      fireEvent.click(within(confirmation).getByRole("button", { name: /confirm and create ticket/i }));
+      fireEvent.click(inactiveWarningButton);
     });
 
     expect(ticketRequests).toBe(1);
     await screen.findByText(/mdm inactive device: campus ipad/i);
     expect(screen.queryByRole("group", { name: /confirm zammad ticket creation/i })).toBeNull();
-    expect((screen.getByRole("button", { name: /ticket: missing-policy/i }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: /ticket: inactive-warning/i }) as HTMLButtonElement).disabled).toBe(true);
+    expect(missingPolicyButton.disabled).toBe(true);
+    expect(inactiveWarningButton.disabled).toBe(true);
     await act(async () => ticketResponse.resolve(jsonResponse({ ticket: { id: 42, number: "240042", raw: {} } })));
     await waitFor(() => expect(screen.queryByText(/working/i)).toBeNull());
     expect(screen.queryByText(/ticket created: 240042/i)).toBeNull();
-    expect((screen.getByRole("button", { name: /review ticket destination/i }) as HTMLButtonElement).disabled).toBe(false);
+    expect(reviewButton.disabled).toBe(false);
   });
 
   it("keeps the latest audit result when same-domain requests complete in reverse order", async () => {

@@ -13,6 +13,15 @@ async function runRelutionCliCommand(args: Parameters<typeof runRelutionCliComma
   await runRelutionCliCommandWithTransport(args, TEST_HTTP_SERVICE_TRANSPORT);
 }
 
+test("Relution CLI rejects missing and unknown actions with the exact dispatcher error", async () => {
+  for (const positionals of [[], ["unknown"]]) {
+    await assert.rejects(
+      runRelutionCliCommand({ positionals, options: {} }),
+      new Error("relution requires an action: test, devices, assess, or audit"),
+    );
+  }
+});
+
 test("Relution CLI queries devices with environment credentials", async () => {
   const originalFetch = globalThis.fetch;
   const originalBaseUrl = process.env.RELUTION_BASE_URL;

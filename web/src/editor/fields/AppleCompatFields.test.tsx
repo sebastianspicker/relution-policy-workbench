@@ -55,6 +55,31 @@ describe("AppleCompatFields", () => {
       expect(onError).not.toHaveBeenCalled();
     });
   });
+
+  it("applies valid payload JSON, rejects invalid JSON, and keeps no-UUID drafts keyed by the setting", () => {
+    const setting = createObjectListSetting();
+    withAppleCompatSetting(setting, () => {
+      let details = createAppleCompatConfiguration(setting.id).details as Record<string, unknown>;
+      delete details.uuid;
+      const onError = vi.fn();
+      const onChange = vi.fn((nextDetails: Record<string, unknown>) => { details = nextDetails; });
+      const view = render(<AppleCompatFields setting={setting} details={details} onChange={onChange} onError={onError} />);
+      const payloadEditor = screen.getByLabelText(/apple payload json/i) as HTMLTextAreaElement;
+
+      fireEvent.change(payloadEditor, { target: { value: '{"Domains":[{"Name":"example.test"}]}' } });
+      fireEvent.click(screen.getByRole("button", { name: /apply payload json/i }));
+      expect(getPayloadBody(setting, details)).toEqual({ Domains: [{ Name: "example.test" }] });
+
+      view.rerender(<AppleCompatFields setting={setting} details={details} onChange={onChange} onError={onError} />);
+      fireEvent.change(screen.getByLabelText(/apple payload json/i), { target: { value: "[]" } });
+      fireEvent.click(screen.getByRole("button", { name: /apply payload json/i }));
+      expect(onError).toHaveBeenCalledWith("Payload JSON must be an object");
+
+      fireEvent.click(screen.getByRole("button", { name: /add row/i }));
+      expect(getPayloadBody(setting, details)).toEqual({ Domains: [{ Name: "example.test" }, { Name: "" }] });
+      expect(onChange).toHaveBeenCalled();
+    });
+  });
 });
 
 function withAppleCompatSetting(setting: AppleCompatSetting, run: () => void): void {
@@ -122,6 +147,27 @@ function createOptionalNumericSetting(): AppleCompatSetting {
         defaultValue: undefined,
         payloadKey: "OptionalRatio",
       },
+    ],
+  };
+}
+
+function createObjectListSetting(): AppleCompatSetting {
+  return {
+    id: "test-object-list",
+    label: "Object List",
+    payloadType: "com.example.object-list",
+    platforms: ["IOS"],
+    status: "mobileconfig-backed",
+    jamfFeature: "Object list profile payload",
+    relutionTransportType: "APPLE_MOBILECONFIG",
+    description: "",
+    sourceUrls: ["https://example.invalid/profile"],
+    builder: "generic-json",
+    fields: [
+      { id: "payloadKeysJson", label: "Payload keys JSON", kind: "json", description: "", defaultValue: "{}" },
+      { id: "domains", label: "Domains", kind: "object-list", description: "", defaultValue: [], payloadKey: "Domains", itemFields: [
+        { id: "name", label: "Name", kind: "string", description: "", defaultValue: "", payloadKey: "Name" },
+      ] },
     ],
   };
 }
