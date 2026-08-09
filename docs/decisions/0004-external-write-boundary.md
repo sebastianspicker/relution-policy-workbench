@@ -1,6 +1,6 @@
 # 0004: Keep Relution read-only and Zammad writes explicit
 
-Status: Active  
+Status: Active
 Date: 2026-08-09
 
 ## Context

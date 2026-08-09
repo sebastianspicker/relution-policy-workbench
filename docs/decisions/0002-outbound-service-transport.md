@@ -1,6 +1,6 @@
 # 0002: Centralize fail-closed outbound service transport
 
-Status: Active  
+Status: Active
 Date: 2026-08-09
 
 ## Context

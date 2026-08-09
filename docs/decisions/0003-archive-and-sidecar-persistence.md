@@ -1,6 +1,6 @@
 # 0003: Preserve transactional archive and sidecar persistence
 
-Status: Active  
+Status: Active
 Date: 2026-08-09
 
 ## Context

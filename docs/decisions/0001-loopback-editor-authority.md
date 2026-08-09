@@ -1,6 +1,6 @@
 # 0001: Keep editor authority loopback-only and capability-bound
 
-Status: Active  
+Status: Active
 Date: 2026-08-09
 
 ## Context
