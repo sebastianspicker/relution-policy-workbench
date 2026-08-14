@@ -9,12 +9,165 @@ comparison_module = import_tool("compare_institution_policy_baseline")
 baseline_target_matches_policy = comparison_module.baseline_target_matches_policy
 compare_indexes = comparison_module.compare_indexes
 harvest_policy_file = comparison_module.harvest_policy_file
+harvest_relution_baseline_index = comparison_module.harvest_relution_baseline_index
 read_json = comparison_module.read_json
 write_outputs = comparison_module.write_outputs
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OUTPUT_ROOT = REPO_ROOT / "example" / "institution-policy-comparison"
+
+
+def test_harvest_relution_baseline_index_keeps_conflicts_before_filtering(
+    monkeypatch,
+) -> None:
+    """Keep non-actionable conflicts while skipping mappings without targets."""
+
+    baseline_module = __import__(
+        "_compare_institution_policy_baseline_baseline",
+        fromlist=["harvest_relution_baseline_index"],
+    )
+    index_path = REPO_ROOT / "synthetic-relution-baseline-index.json"
+    ios_ruleset_path = REPO_ROOT / "synthetic-ios-ruleset.json"
+    windows_ruleset_path = REPO_ROOT / "synthetic-windows-ruleset.json"
+    payloads = {
+        index_path: {
+            "generatedAt": "2026-08-05T00:00:00Z",
+            "consolidatedTemplates": [
+                {
+                    "platform": "IOS",
+                    "path": ios_ruleset_path.relative_to(REPO_ROOT).as_posix(),
+                },
+                {
+                    "platform": "WINDOWS",
+                    "path": windows_ruleset_path.relative_to(REPO_ROOT).as_posix(),
+                },
+            ],
+        },
+        ios_ruleset_path: {
+            "policies": [
+                {
+                    "rules": [
+                        {
+                            "id": "ios-conflicted-information",
+                            "title": "Conflicted informational rule",
+                            "informational": True,
+                            "conflict": {
+                                "ruleId": "ios-conflicted-information",
+                                "reason": "informational conflict",
+                            },
+                            "mappings": [{"type": "IOS_IGNORED"}],
+                        },
+                        {
+                            "id": "ios-missing-target",
+                            "title": "Missing target",
+                            "mappings": [
+                                {
+                                    "kind": "relution-native",
+                                    "values": {"name": "Ignored mapping"},
+                                }
+                            ],
+                        },
+                        {
+                            "id": "ios-mapped",
+                            "title": "Mapped iOS rule",
+                            "mappings": [
+                                {
+                                    "kind": "relution-native",
+                                    "schemaId": "IOS_RESTRICTION",
+                                    "values": {
+                                        "name": "iOS restriction",
+                                        "nested": {"z": 1, "a": True},
+                                    },
+                                }
+                            ],
+                            "sourceRules": [
+                                {"source": "bsi", "ruleId": "bsi-1"},
+                                {"source": "cis", "ruleId": "cis-1"},
+                                {"source": "bsi", "ruleId": "bsi-2"},
+                            ],
+                        },
+                    ]
+                }
+            ]
+        },
+        windows_ruleset_path: {
+            "policies": [
+                {
+                    "rules": [
+                        {
+                            "id": "windows-mapped",
+                            "title": "Mapped Windows rule",
+                            "mappings": [
+                                {
+                                    "kind": "relution-native",
+                                    "type": "WINDOWS_UPDATE",
+                                    "values": {"enabled": False},
+                                }
+                            ],
+                        }
+                    ]
+                }
+            ]
+        },
+    }
+    monkeypatch.setattr(baseline_module, "read_json", payloads.__getitem__)
+
+    index = harvest_relution_baseline_index(index_path)
+
+    expect(
+        index
+        == {
+            "version": 1,
+            "name": "Generated Relution Baseline Index",
+            "baselineTemplateIndexPath": "synthetic-relution-baseline-index.json",
+            "generatedAt": "2026-08-05T00:00:00Z",
+            "actionableTargets": [
+                {
+                    "platform": "IOS",
+                    "ruleId": "ios-mapped",
+                    "title": "Mapped iOS rule",
+                    "kind": "relution-native",
+                    "target": "IOS_RESTRICTION",
+                    "targetName": "iOS restriction",
+                    "fieldPaths": ["name", "nested.a", "nested.z"],
+                    "values": {
+                        "name": "iOS restriction",
+                        "nested": {"z": 1, "a": True},
+                    },
+                    "sources": ["bsi", "cis"],
+                    "sourceRules": [
+                        {"source": "bsi", "ruleId": "bsi-1"},
+                        {"source": "cis", "ruleId": "cis-1"},
+                        {"source": "bsi", "ruleId": "bsi-2"},
+                    ],
+                },
+                {
+                    "platform": "WINDOWS",
+                    "ruleId": "windows-mapped",
+                    "title": "Mapped Windows rule",
+                    "kind": "relution-native",
+                    "target": "WINDOWS_UPDATE",
+                    "targetName": None,
+                    "fieldPaths": ["enabled"],
+                    "values": {"enabled": False},
+                    "sources": [],
+                    "sourceRules": [],
+                },
+            ],
+            "suppressedConflicts": [
+                {
+                    "platform": "IOS",
+                    "ruleId": "ios-conflicted-information",
+                    "reason": "informational conflict",
+                }
+            ],
+            "summary": {
+                "total": 2,
+                "byPlatform": {"IOS": 1, "WINDOWS": 1},
+            },
+        }
+    )
 
 
 def test_institution_policy_file_harvest_extracts_policy_metadata(

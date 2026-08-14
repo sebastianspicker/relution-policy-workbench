@@ -2,7 +2,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { chmodSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, symlinkSync, truncateSync, writeFileSync } from "node:fs";
-import { request as httpRequest } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { assertAuthorizedEditorApiRequest } from "../src/editor-api-request-guards.js";
@@ -11,6 +10,7 @@ import { startEditorServer } from "../src/editor-server.js";
 import { loadEditorSidecar, MAX_EDITOR_SIDECAR_JSON_BYTES, saveEditorSidecar, type EditorSidecarState } from "../src/sidecar.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { createNewWorkspace } from "../src/workspace.js";
+import { getWithHost, objectWithProperties, postJson, postJsonWithHost, postRawWithHost } from "./editor-runtime-test-helpers.js";
 
 const EMPTY_SIDECAR: EditorSidecarState = {
   version: 1,
@@ -522,120 +522,3 @@ test("workspace save double-fault reports rollback failures and leaves the serve
     assert.equal(state.status, 200, await state.text());
   });
 });
-
-async function postJson(url: URL, apiToken: string, value: unknown): Promise<Response> {
-  return fetch(url, {
-    method: "POST",
-    headers: { "content-type": "application/json", "x-rexp-studio-token": apiToken },
-    body: JSON.stringify(value),
-  });
-}
-
-function getWithHost(url: URL, host: string, apiToken: string): Promise<{ status: number; body: string }> {
-  return new Promise((resolveRequest, rejectRequest) => {
-    const request = httpRequest(
-      {
-        hostname: url.hostname,
-        port: Number(url.port),
-        path: url.pathname,
-        method: "GET",
-        headers: { host, "x-rexp-studio-token": apiToken },
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk: Buffer | string) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
-        response.on("end", () => {
-          resolveRequest({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString("utf8"),
-          });
-        });
-      },
-    );
-    request.on("error", rejectRequest);
-    request.end();
-  });
-}
-
-function objectWithProperties(count: number): string {
-  return `{${Array.from({ length: count }, (_, index) => `"p${String(index)}":${String(index)}`).join(",")}}`;
-}
-
-function postJsonWithHost(
-  baseUrl: string,
-  options: { host: string; origin: string; token?: string; body: unknown },
-): Promise<{ status: number; body: string }> {
-  const url = new URL("api/key", baseUrl);
-  const body = JSON.stringify(options.body);
-
-  return new Promise((resolveRequest, rejectRequest) => {
-    const request = httpRequest(
-      {
-        hostname: url.hostname,
-        port: Number(url.port),
-        path: url.pathname,
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "content-length": Buffer.byteLength(body),
-          "host": options.host,
-          "origin": options.origin,
-          ...(typeof options.token === "undefined" ? {} : { "x-rexp-studio-token": options.token }),
-        },
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk: Buffer | string) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
-        response.on("end", () => {
-          resolveRequest({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString("utf8"),
-          });
-        });
-      },
-    );
-    request.on("error", rejectRequest);
-    request.end(body);
-  });
-}
-
-function postRawWithHost(
-  url: URL,
-  options: { host: string; origin: string; token: string; body: string },
-): Promise<{ status: number; body: string }> {
-  return new Promise((resolveRequest, rejectRequest) => {
-    const request = httpRequest(
-      {
-        hostname: url.hostname,
-        port: Number(url.port),
-        path: url.pathname,
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "content-length": Buffer.byteLength(options.body),
-          "host": options.host,
-          "origin": options.origin,
-          "x-rexp-studio-token": options.token,
-        },
-      },
-      (response) => {
-        const chunks: Buffer[] = [];
-        response.on("data", (chunk: Buffer | string) => {
-          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-        });
-        response.on("end", () => {
-          resolveRequest({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString("utf8"),
-          });
-        });
-      },
-    );
-    request.on("error", rejectRequest);
-    request.end(options.body);
-  });
-}

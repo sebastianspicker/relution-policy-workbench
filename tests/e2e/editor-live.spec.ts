@@ -119,9 +119,10 @@ test("wizard, ruleset import, rexp build/download, failed output download, and r
   await expect(page.getByRole("heading", { name: "Example iOS Policy" })).toBeVisible();
 });
 
-test("section routes and responsive panes preserve a contained document", async ({ page }) => {
+test("section routes and responsive panes preserve a contained document", async ({ browserName, page }) => {
   await page.goto("/#/policies");
-  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to main content" })).toBeVisible();
+  await page.keyboard.press(browserName === "webkit" && process.platform === "darwin" ? "Alt+Tab" : "Tab");
   await expect(page.getByRole("link", { name: "Skip to main content" })).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();

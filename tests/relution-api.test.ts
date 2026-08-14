@@ -23,7 +23,6 @@ async function queryRelutionDevices(
 ) {
   return await queryRelutionDevicesWithTransport(connection, input, TEST_HTTP_SERVICE_TRANSPORT);
 }
-
 async function testRelutionConnection(connection: Parameters<typeof testRelutionConnectionWithTransport>[0]) {
   return await testRelutionConnectionWithTransport(connection, TEST_HTTP_SERVICE_TRANSPORT);
 }
@@ -477,7 +476,99 @@ test("classifies known warning findings as issues rather than not-checkable", ()
   assert.equal(report.summary.issue, 1);
   assert.equal(report.summary.notCheckable, 0);
   assert.equal(report.devices[0]?.status, "issue");
-  assert.equal(report.devices[0]?.issues[0]?.severity, "warning");
+  assert.deepEqual(report.devices[0]?.issues, [{
+    id: "policy-status-not-applied",
+    severity: "warning",
+    message: "Policy status is PENDING.",
+    evidence: { policyStatus: "PENDING" },
+  }]);
+});
+
+test("classifies unavailable device and policy statuses as not-checkable", () => {
+  const missingDeviceStatus = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-MISSING-STATUS",
+    name: "Unknown compliance status",
+    policyStatus: "APPLIED",
+    raw: {},
+  }]);
+  const missingPolicyStatus = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-MISSING-POLICY",
+    name: "Unknown policy status",
+    status: "COMPLIANT",
+    raw: {},
+  }]);
+
+  assert.equal(missingDeviceStatus.devices[0]?.status, "not-checkable");
+  assert.deepEqual(missingDeviceStatus.devices[0]?.issues, [{
+    id: "device-status-missing",
+    severity: "unknown",
+    message: "Device compliance status is not exposed by the query response.",
+    evidence: {},
+  }]);
+  assert.equal(missingPolicyStatus.devices[0]?.status, "not-checkable");
+  assert.deepEqual(missingPolicyStatus.devices[0]?.issues, [{
+    id: "policy-status-missing",
+    severity: "unknown",
+    message: "Device policy status is not exposed by the query response.",
+    evidence: {},
+  }]);
+});
+
+test("accepts updated policy status and classifies unknown policy status as a problem", () => {
+  const updated = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-UPDATE",
+    name: "Updated policy device",
+    status: "COMPLIANT",
+    policyStatus: "UPDATE",
+    raw: {},
+  }]);
+  const unknown = assessRelutionDevices("https://relution.example.test", [{
+    uuid: "DEVICE-UNKNOWN",
+    name: "Unknown policy device",
+    status: "COMPLIANT",
+    policyStatus: "UNKNOWN",
+    raw: {},
+  }]);
+
+  assert.equal(updated.devices[0]?.status, "compliant");
+  assert.deepEqual(updated.devices[0]?.issues, []);
+  assert.equal(unknown.devices[0]?.status, "issue");
+  assert.deepEqual(unknown.devices[0]?.issues, [{
+    id: "policy-status-not-applied",
+    severity: "problem",
+    message: "Policy status is UNKNOWN.",
+    evidence: { policyStatus: "UNKNOWN" },
+  }]);
+});
+
+test("orders classification findings before policy and inactivity findings", () => {
+  const report = createRelutionAssessmentReport(
+    "https://relution.example.test",
+    [{
+      uuid: " ",
+      name: "Unidentified inactive device",
+      platform: "IOS",
+      status: "INACTIVE",
+      policyStatus: "NONE",
+      assignedPolicies: [],
+      lastConnectionDate: "2026-01-01T00:00:00.000Z",
+      raw: {},
+    }],
+    {
+      expectedPoliciesByPlatform: { IOS: ["Baseline iOS"] },
+      inactiveWarningDays: 30,
+      inactiveProblemDays: 90,
+      now: new Date("2026-04-26T00:00:00.000Z"),
+    },
+  );
+
+  assert.deepEqual(report.devices[0]?.issues.map((issue) => issue.id), [
+    "device-identity-missing",
+    "device-status-noncompliant",
+    "policy-status-not-applied",
+    "missing-policy",
+    "inactive-problem",
+  ]);
 });
 
 function createJsonResponse(): EventEmitter & { body: string; writeHead: (status: number) => void; end: (body: string) => void } {
@@ -488,141 +579,4 @@ function createJsonResponse(): EventEmitter & { body: string; writeHead: (status
   return response;
 }
 
-test("audits missing policies and inactive devices with evidence", () => {
-  const report = createRelutionAssessmentReport(
-    "https://relution.example.test",
-    [
-      {
-        uuid: "DEVICE-1",
-        name: "Campus iPad",
-        platform: "IOS",
-        status: "COMPLIANT",
-        policyStatus: "APPLIED",
-        assignedPolicies: ["Baseline iOS"],
-        lastConnectionDate: "2026-03-01T00:00:00.000Z",
-        raw: {},
-      },
-      {
-        uuid: "DEVICE-2",
-        name: "Dorm iPad",
-        platform: "IOS",
-        status: "COMPLIANT",
-        policyStatus: "APPLIED",
-        assignedPolicies: ["Other Policy"],
-        lastConnectionDate: "2026-01-01T00:00:00.000Z",
-        raw: {},
-      },
-      {
-        uuid: "DEVICE-3",
-        name: "Unknown policy iPad",
-        platform: "IOS",
-        status: "COMPLIANT",
-        policyStatus: "APPLIED",
-        raw: {},
-      },
-    ],
-    {
-      expectedPoliciesByPlatform: { IOS: ["Baseline iOS"] },
-      inactiveWarningDays: 30,
-      inactiveProblemDays: 90,
-      now: new Date("2026-04-26T00:00:00.000Z"),
-    },
-  );
-
-  assert.equal(report.summary.missingPolicy, 1);
-  assert.equal(report.summary.inactiveWarning, 2);
-  assert.equal(report.summary.inactiveProblem, 1);
-  assert.equal(report.devices[1]?.issues.some((issue) => issue.id === "missing-policy"), true);
-  assert.equal(report.devices[1]?.issues.some((issue) => issue.id === "inactive-problem"), true);
-  assert.equal(report.devices[2]?.issues.some((issue) => issue.id === "policy-assignment-unknown"), true);
-});
-
-test("assesses prototype-named platform and status values with safe JSON dictionaries", () => {
-  const keys = ["__proto__", "constructor", "toString"];
-  const expectedPoliciesByPlatform = Object.fromEntries(keys.map((key) => [key, [`${key} baseline`]]));
-  const report = createRelutionAssessmentReport(
-    "https://relution.example.test",
-    keys.map((key) => ({
-      uuid: `DEVICE-${key}`,
-      name: `${key} device`,
-      platform: key,
-      status: key,
-      policyStatus: key,
-      assignedPolicies: [],
-      raw: {},
-    })),
-    { expectedPoliciesByPlatform },
-  );
-
-  assert.equal(report.summary.missingPolicy, keys.length);
-  for (const counts of [report.summary.byPlatform, report.summary.byStatus, report.summary.byPolicyStatus]) {
-    for (const key of keys) {
-      assert.equal(Object.hasOwn(counts, key), true);
-      assert.equal(counts[key], 1);
-    }
-    assert.deepEqual(Object.keys(JSON.parse(JSON.stringify(counts)) as Record<string, number>).sort(), [...keys].sort());
-  }
-});
-
-test("validates expected policy dictionaries at the assessment boundary", () => {
-  assert.throws(
-    () => createRelutionAssessmentReport(
-      "https://relution.example.test",
-      [],
-      { expectedPoliciesByPlatform: { IOS: "Baseline" } as unknown as Record<string, string[]> },
-    ),
-    /Expected policies for platform IOS must be a string array/u,
-  );
-});
-
-test("rejects unsafe or misordered inactivity thresholds before classifying devices", () => {
-  const device = [{
-    uuid: "DEVICE-1",
-    name: "Campus iPad",
-    status: "COMPLIANT",
-    policyStatus: "APPLIED",
-    lastConnectionDate: "2026-03-07T00:00:00.000Z",
-    raw: {},
-  }];
-  const options = { now: new Date("2026-04-26T00:00:00.000Z") };
-
-  assert.throws(
-    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveWarningDays: 90, inactiveProblemDays: 30 }),
-    /problem days must be greater than or equal to inactive warning days/u,
-  );
-  assert.throws(
-    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveWarningDays: -1 }),
-    /warning days must be a non-negative safe integer/u,
-  );
-  assert.throws(
-    () => createRelutionAssessmentReport("https://relution.example.test", device, { ...options, inactiveProblemDays: 1.5 }),
-    /problem days must be a non-negative safe integer/u,
-  );
-  assert.throws(
-    () => createRelutionAssessmentReport("https://relution.example.test", [], { inactiveWarningDays: 90, inactiveProblemDays: 30 }),
-    /problem days must be greater than or equal to inactive warning days/u,
-  );
-  assert.throws(
-    () => createRelutionAssessmentReport("https://relution.example.test", device, { now: new Date("invalid") }),
-    /assessment time must be a valid date/u,
-  );
-});
-
-test("distinguishes complete, partial, and unknown assessment coverage", () => {
-  assert.equal(assessmentCompleteness({ count: 1, total: 1, truncated: false }).status, "complete");
-  assert.equal(assessmentCompleteness({ count: 1, total: 2, truncated: true }).status, "partial");
-  assert.equal(assessmentCompleteness({ count: 1, truncated: false }).status, "unknown");
-});
-
-test("rejects malformed device totals", async () => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response(JSON.stringify({ nonpagedCount: -1, results: [] }));
-  try {
-    await assert.rejects(
-      queryRelutionDevices(normalizeRelutionConnection({ host: "relution.example.test", apiToken: "secret-token" }), {}),
-      /nonpagedCount must be a non-negative safe integer/u,
-    );
-  } finally {
-    globalThis.fetch = originalFetch;
-  }
-});
+import "./relution-api-assessment.test-cases.js";

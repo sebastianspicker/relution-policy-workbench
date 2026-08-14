@@ -14,21 +14,18 @@ beforeEach(() => {
 });
 
 describe("EditorShell sections", () => {
-  it("keeps primary work areas reachable from the responsive section switcher", async () => {
+  it.each([
+    { label: "Policies", heading: /select a policy to start editing/i },
+    { label: "Baselines", heading: /baseline builder/i },
+    { label: "Device audit", heading: /device audit/i },
+    { label: "Settings", heading: /settings/i },
+  ])("keeps $label reachable from the responsive section switcher", async ({ label, heading }) => {
     installFetchMock();
     render(<EditorShell controller={createEditorControllerStub()} theme="studio" onThemeChange={vi.fn()} />);
-    const sections: readonly { readonly label: string; readonly heading: RegExp }[] = [
-      { label: "Policies", heading: /select a policy to start editing/i },
-      { label: "Baselines", heading: /baseline builder/i },
-      { label: "Device audit", heading: /device audit/i },
-      { label: "Settings", heading: /settings/i },
-    ];
-    for (const section of sections) {
-      const sectionButtons = screen.getAllByRole("button", { name: section.label });
-      fireEvent.click(sectionButtons[0]!);
-      expect(sectionButtons.some((button) => button.getAttribute("aria-current") === "page")).toBe(true);
-      expect(await screen.findByRole("heading", { name: section.heading })).toBeTruthy();
-    }
+    const sectionButtons = screen.getAllByRole("button", { name: label });
+    fireEvent.click(sectionButtons[0]!);
+    expect(sectionButtons.some((button) => button.getAttribute("aria-current") === "page")).toBe(true);
+    expect(await screen.findByRole("heading", { name: heading })).toBeTruthy();
   });
 
   it("renders baseline builder and expert coverage within Baselines", async () => {
@@ -88,5 +85,16 @@ describe("EditorShell sections", () => {
     window.dispatchEvent(new HashChangeEvent("hashchange"));
     expect(window.location.hash).toBe("#/policies");
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Policies" }).some((button) => button.getAttribute("aria-current") === "page")).toBe(true));
+  });
+
+  it("translates Baselines tab changes into canonical baseline routes", async () => {
+    installFetchMock();
+    render(<EditorShell controller={createEditorControllerStub()} theme="studio" onThemeChange={vi.fn()} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /baselines/i })[0]!);
+    fireEvent.click(await screen.findByRole("tab", { name: "Compliance" }));
+    expect(window.location.hash).toBe("#/baselines/compliance");
+    expect(screen.getByRole("tab", { name: "Compliance" }).getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(screen.getByRole("tab", { name: "Builder" }));
+    expect(window.location.hash).toBe("#/baselines/builder");
   });
 });

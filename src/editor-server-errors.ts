@@ -6,23 +6,32 @@ import { isEditorMutationCancellation } from "./editor-mutation-routing.js";
 import { sendJson } from "./editor-routes-utils.js";
 import { WorkspaceInputError } from "./workspace.js";
 
+interface EditorServerErrorDescriptor {
+  readonly status: number;
+  readonly message: string;
+}
+
+function describeEditorServerError(error: unknown): EditorServerErrorDescriptor {
+  if (error instanceof HttpError) {
+    return {
+      status: error.status,
+      message: error.expose || error.status < 500 ? error.message : "Internal editor error",
+    };
+  }
+  if (error instanceof WorkspaceInputError || error instanceof SidecarInputError) {
+    return { status: 400, message: error.message };
+  }
+  return { status: 500, message: "Internal editor error" };
+}
+
 export function handleEditorServerError(response: ServerResponse, error: unknown): void {
   if (isEditorMutationCancellation(error)) return;
-  const domainInputError = error instanceof WorkspaceInputError || error instanceof SidecarInputError;
-  const status = error instanceof HttpError ? error.status : domainInputError ? 400 : 500;
-  if (status >= 500) console.error(error);
+  const descriptor = describeEditorServerError(error);
+  if (descriptor.status >= 500) console.error(error);
   if (response.destroyed || response.writableEnded) return;
   if (response.headersSent) {
     response.destroy();
     return;
   }
-  sendJson(response, status, {
-    error: error instanceof HttpError && error.expose
-      ? error.message
-      : domainInputError && error instanceof Error
-        ? error.message
-        : status >= 500
-          ? "Internal editor error"
-          : error instanceof Error ? error.message : String(error),
-  });
+  sendJson(response, descriptor.status, { error: descriptor.message });
 }

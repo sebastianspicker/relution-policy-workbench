@@ -29,6 +29,7 @@ import {
   type WorkspaceValidateOnlyResponse,
   type WorkspaceValidationResponse,
 } from "./rexp-helpers.js";
+import { assertWorkspacePolicyMarker, clearFirstPolicyConfigurations, expandWorkspace, workspacePolicyMarker, workspaceWithPolicyMarker } from "./rexp-editor-workspace-test-helpers.js";
 
 
 test("validates a posted workspace without saving it", async () => {
@@ -193,96 +194,6 @@ test("concurrent failed workspace save cannot roll back a successful save", asyn
   }
 });
 
-function expandWorkspace(workspace: PolicyWorkspace, policyCount: number): PolicyWorkspace {
-  const templatePolicy = workspace.policies[0];
-  if (templatePolicy === undefined) {
-    throw new Error("Workspace has no template policy");
-  }
-  const expanded = structuredClone(workspace) as PolicyWorkspace;
-  const exportedPolicies: Record<string, unknown> = {};
-  const policiesToExport: string[] = [];
-  expanded.policies = Array.from({ length: policyCount }, (_unused, index) => {
-    const sequence = String(index + 1).padStart(12, "0");
-    const policyUuid = `00000000-0000-4000-8000-${sequence}`;
-    const versionUuid = `00000000-0000-4001-8000-${sequence}`;
-    const policy = structuredClone(templatePolicy);
-    policy.path = `policies/policy_${policyUuid}.json`;
-    policy.document.uuid = policyUuid;
-    policy.document.name = `Large Validate Policy ${sequence}`;
-    policy.document.description = "Large validation fixture padding ".repeat(100);
-    const versions = Array.isArray(policy.document.versions) ? policy.document.versions : [];
-    const firstVersion = versions[0];
-    if (typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)) {
-      (firstVersion as Record<string, unknown>).uuid = versionUuid;
-    }
-    policiesToExport.push(policyUuid);
-    exportedPolicies[policyUuid] = {
-      policyUuid,
-      policyName: policy.document.name,
-      result: "SUCCESS",
-      errors: [],
-    };
-    return policy;
-  });
-  expanded.report = {
-    ...expanded.report,
-    policiesToExport,
-    exportedPolicies,
-    failedPolicies: {},
-  };
-  return expanded;
-}
-
-function workspaceWithPolicyMarker(workspace: PolicyWorkspace, marker: string): PolicyWorkspace {
-  const marked = structuredClone(workspace) as PolicyWorkspace;
-  const policy = marked.policies[0];
-  if (policy === undefined) {
-    throw new Error("Workspace has no policy to mark");
-  }
-  const policyUuid = policy.document.uuid;
-  if (typeof policyUuid !== "string") {
-    throw new Error("Workspace policy has no UUID");
-  }
-  const policyName = `Concurrent ${marker}`;
-  policy.document.name = policyName;
-  marked.metadata.concurrentSaveMarker = marker;
-  const exportedPolicies =
-    typeof marked.report.exportedPolicies === "object" && marked.report.exportedPolicies !== null && !Array.isArray(marked.report.exportedPolicies)
-      ? marked.report.exportedPolicies as Record<string, unknown>
-      : undefined;
-  const exportedPolicy = exportedPolicies?.[policyUuid];
-  if (typeof exportedPolicy !== "object" || exportedPolicy === null || Array.isArray(exportedPolicy)) {
-    throw new Error("Workspace report has no exported policy entry");
-  }
-  (exportedPolicy as Record<string, unknown>).policyName = policyName;
-  return marked;
-}
-
-function workspacePolicyMarker(workspace: PolicyWorkspace): string {
-  const marker = workspace.metadata.concurrentSaveMarker;
-  if (typeof marker !== "string") {
-    throw new Error("Workspace has no concurrent save marker");
-  }
-  assertWorkspacePolicyMarker(workspace, marker);
-  return marker;
-}
-
-function assertWorkspacePolicyMarker(workspace: PolicyWorkspace, marker: string): void {
-  const policy = workspace.policies[0];
-  assert.notEqual(policy, undefined);
-  const policyUuid = policy?.document.uuid;
-  assert.equal(typeof policyUuid, "string");
-  const policyName = `Concurrent ${marker}`;
-  assert.equal(workspace.metadata.concurrentSaveMarker, marker);
-  assert.equal(policy?.document.name, policyName);
-  const exportedPolicies = workspace.report.exportedPolicies;
-  assert.equal(typeof exportedPolicies, "object");
-  assert.notEqual(exportedPolicies, null);
-  assert.equal(Array.isArray(exportedPolicies), false);
-  const exportedPolicy = (exportedPolicies as Record<string, unknown>)[policyUuid as string] as Record<string, unknown> | undefined;
-  assert.equal(exportedPolicy?.policyName, policyName);
-}
-
 test("rejects workspace save with policy paths outside the policies root", async () => {
   const bundle = loadTemplateBundle();
   const root = mkdtempSync(join(tmpdir(), "relution-editor-unsafe-save-"));
@@ -386,39 +297,11 @@ test("rejects workspace save with structurally invalid metadata or policy docume
 });
 
 test("workspace save refreshes mobileconfig restore state from the saved workspace", async () => {
-  const bundle = loadTemplateBundle();
-  const catalog = loadAppleSchemaCatalog();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-save-sidecar-refresh-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
-    platform: "IOS",
-    name: "Save Sidecar Refresh Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const policyPath = requirePolicyPath(workspace);
-  addAppleCompatConfigurationToWorkspace(workspaceDir, { policyPath, versionIndex: 0, settingId: "associated-domains" });
-  recordMobileConfigRestoreEntries(workspaceDir, loadWorkspace(workspaceDir), catalog.source.revision);
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
-  });
+  const { handle, workspaceDir } = await startMobileconfigWorkspace("relution-editor-save-sidecar-refresh-", "Save Sidecar Refresh Test");
 
   try {
     const updatedWorkspace = loadWorkspace(workspaceDir);
-    const firstPolicy = updatedWorkspace.policies[0];
-    const firstVersion = Array.isArray(firstPolicy?.document.versions) ? firstPolicy.document.versions[0] : undefined;
-    const firstVersionRecord =
-      typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)
-        ? (firstVersion as Record<string, unknown>)
-        : undefined;
-    if (firstVersionRecord !== undefined) {
-      firstVersionRecord.configurations = [];
-    }
+    clearFirstPolicyConfigurations(updatedWorkspace);
 
     const saveResponse = await postJson(`${handle.url}api/workspace`, { workspace: updatedWorkspace });
     assert.equal(saveResponse.ok, true);
@@ -436,39 +319,10 @@ test("workspace save refreshes mobileconfig restore state from the saved workspa
 });
 
 test("concurrent workspace save and sidecar reconcile leave sidecar matching the saved workspace", async () => {
-  const bundle = loadTemplateBundle();
-  const catalog = loadAppleSchemaCatalog();
-  const root = mkdtempSync(join(tmpdir(), "relution-editor-concurrent-save-reconcile-"));
-  const out = join(root, "policy.rexp");
-  const workspaceDir = join(root, "workspace");
-  const workspace = createNewWorkspace({
-    workspace: workspaceDir,
-    platform: "IOS",
-    name: "Concurrent Save Reconcile Test",
-    serverVersion: bundle.serverVersion,
-  });
-  const policyPath = requirePolicyPath(workspace);
-  addAppleCompatConfigurationToWorkspace(workspaceDir, { policyPath, versionIndex: 0, settingId: "associated-domains" });
-  recordMobileConfigRestoreEntries(workspaceDir, loadWorkspace(workspaceDir), catalog.source.revision);
-  const handle = await startEditorServer({
-    workspace: workspaceDir,
-    out,
-    key: password,
-    port: 0,
-    host: "127.0.0.1",
-  });
-
+  const { handle, workspaceDir } = await startMobileconfigWorkspace("relution-editor-concurrent-save-reconcile-", "Concurrent Save Reconcile Test");
   try {
     const workspaceWithoutMobileconfig = loadWorkspace(workspaceDir);
-    const firstPolicy = workspaceWithoutMobileconfig.policies[0];
-    const firstVersion = Array.isArray(firstPolicy?.document.versions) ? firstPolicy.document.versions[0] : undefined;
-    const firstVersionRecord =
-      typeof firstVersion === "object" && firstVersion !== null && !Array.isArray(firstVersion)
-        ? (firstVersion as Record<string, unknown>)
-        : undefined;
-    if (firstVersionRecord !== undefined) {
-      firstVersionRecord.configurations = [];
-    }
+    clearFirstPolicyConfigurations(workspaceWithoutMobileconfig);
 
     const [saveResponse, reconcileResponse] = await Promise.all([
       postJson(`${handle.url}api/workspace`, { workspace: workspaceWithoutMobileconfig }),
@@ -484,6 +338,25 @@ test("concurrent workspace save and sidecar reconcile leave sidecar matching the
     await handle.close();
   }
 });
+
+async function startMobileconfigWorkspace(prefix: string, name: string) {
+  const bundle = loadTemplateBundle();
+  const catalog = loadAppleSchemaCatalog();
+  const root = mkdtempSync(join(tmpdir(), prefix));
+  const out = join(root, "policy.rexp");
+  const workspaceDir = join(root, "workspace");
+  const workspace = createNewWorkspace({
+    workspace: workspaceDir,
+    platform: "IOS",
+    name,
+    serverVersion: bundle.serverVersion,
+  });
+  const policyPath = requirePolicyPath(workspace);
+  addAppleCompatConfigurationToWorkspace(workspaceDir, { policyPath, versionIndex: 0, settingId: "associated-domains" });
+  recordMobileConfigRestoreEntries(workspaceDir, loadWorkspace(workspaceDir), catalog.source.revision);
+  const handle = await startEditorServer({ workspace: workspaceDir, out, key: password, port: 0, host: "127.0.0.1" });
+  return { handle, workspaceDir };
+}
 
 test("restores the previous workspace when workspace save sidecar refresh fails", async () => {
   const bundle = loadTemplateBundle();

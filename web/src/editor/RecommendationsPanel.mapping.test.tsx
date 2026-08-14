@@ -1,213 +1,12 @@
-/** Verifies inspector tabs expose validation, preview, JSON, and artifacts accessibly. */
-import { fireEvent, render, screen, within } from "@testing-library/react";
-import { useState, type JSX } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { ConfigurationInspector } from "./ConfigurationInspector.js";
+/** Verifies recommendation mapping presentation and fallback behavior. */
+import { render, screen, within } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import { RecommendationsPanel } from "./RecommendationsPanel.js";
-import { createAppState, createBsiPasscodeRecommendation, createEditorControllerStub } from "./useEditorController.test-helpers.js";
-import type { InspectorTab } from "./types.js";
+import { createBsiPasscodeRecommendation, createEditorControllerStub } from "./useEditorController.test-helpers.js";
 
-describe("ConfigurationInspector", () => {
-  it("exposes inspector tabs and raw JSON to assistive technology", () => {
-    const controller = createEditorControllerStub({
-      inspectorTab: "json",
-      setInspectorTab: vi.fn(),
-      status: "Saved workspace",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: { type: "NATIVE_SINGLE" },
-      configuration: { uuid: "CONF-1" },
-      rawJson: "{\n  \"uuid\": \"CONF-1\"\n}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    const rawJsonTab = screen.getByRole("tab", { name: /^json$/i });
-    expect(rawJsonTab.getAttribute("aria-selected")).toBe("true");
-    expect(screen.getByRole("tabpanel").getAttribute("aria-labelledby")).toBe(rawJsonTab.id);
-    expect(screen.getByLabelText(/configuration raw json/i)).toBeTruthy();
-  });
-
-  it("does not surface save status as an alert (status lives in StatusBar)", () => {
-    const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "Save failed: validation error",
-      isDirty: false,
-      rulesetReport: undefined,
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("status").textContent).toMatch(/LOCAL · not a live tenant/i);
-    expect(screen.queryByText(/Save failed/i)).toBeNull();
-  });
-
-  it("shows Assurance heading with local checks chip and boundary badge", () => {
-    const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      isDirty: false,
-      rulesetReport: undefined,
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect(screen.getByRole("heading", { name: /^Assurance$/i })).toBeTruthy();
-    expect(screen.getByText(/local checks/i)).toBeTruthy();
-    expect(screen.getByRole("status").textContent).toMatch(/LOCAL · not a live tenant/i);
-  });
-
-  it("shows schema compatibility warnings when validation succeeds with weakened schemas", () => {
-    const state = createAppState();
-    state.validation = {
-      ok: true,
-      errors: [],
-      schemaCompatibilityIssueCount: 2,
-      schemaCompatibilityIssues: [
-        {
-          schemaName: "FirstSchema",
-          path: "FirstSchema.properties.name",
-          kind: "invalid-pattern",
-          pattern: "[",
-          message: "Invalid regular expression",
-        },
-        {
-          schemaName: "SecondSchema",
-          path: "SecondSchema.properties.code",
-          kind: "invalid-pattern",
-          pattern: "(",
-          message: "Invalid regular expression",
-        },
-      ],
-    };
-    const controller = createEditorControllerStub({
-      state,
-      inspectorTab: "validation",
-      isDirty: false,
-      rulesetReport: undefined,
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect(screen.getByText(/validation degraded: 2 regex constraints removed/i)).toBeTruthy();
-    expect(screen.getByText("FirstSchema.properties.name")).toBeTruthy();
-    expect(screen.getByText("SecondSchema.properties.code")).toBeTruthy();
-    expect(screen.queryByText(/^Workspace valid$/u)).toBeNull();
-  });
-
-  it("keeps the plain valid state when validation has no schema compatibility warnings", () => {
-    const state = createAppState();
-    state.validation = { ok: true, errors: [], schemaCompatibilityIssueCount: 0 };
-    const controller = createEditorControllerStub({
-      state,
-      inspectorTab: "validation",
-      isDirty: false,
-      rulesetReport: undefined,
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect(screen.getByText(/^Workspace valid$/u)).toBeTruthy();
-  });
-
-  it("disables raw JSON apply when no configuration is selected", () => {
-    const controller = createEditorControllerStub({
-      inspectorTab: "json",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect((screen.getByRole("button", { name: /apply json/i }) as HTMLButtonElement).disabled).toBe(true);
-  });
-
-  it("shows a reset control and dirty warning when raw JSON diverges", () => {
-    const controller = createEditorControllerStub({
-      inspectorTab: "json",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: { type: "NATIVE_SINGLE" },
-      configuration: { uuid: "CONF-1" },
-      rawJson: "{\n  \"draft\": true\n}",
-      rawJsonDirty: true,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
-    });
-
-    render(<ConfigurationInspector controller={controller} />);
-
-    expect(screen.getByText(/raw json draft differs from the live configuration/i)).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("button", { name: /reset json/i }));
-
-    expect(controller.resetRawJson).toHaveBeenCalledTimes(1);
-  });
-
-  it("switches inspector panels from tab interactions against the current controller state", () => {
-    function Harness(): JSX.Element {
-      const [inspectorTab, setInspectorTab] = useState<InspectorTab>("validation");
-      const controller = createEditorControllerStub({
-        inspectorTab,
-        setInspectorTab: (next) => setInspectorTab(next),
-        details: {
-          type: "NATIVE_SINGLE",
-          displayName: "Passcode policy",
-          payloadContent: { payload: { requirePasscode: true } },
-        },
-        configuration: { uuid: "CONF-1", details: { requirePasscode: true } },
-        rawJson: "{\n  \"uuid\": \"CONF-1\"\n}",
-      });
-      return <ConfigurationInspector controller={controller} />;
-    }
-
-    render(<Harness />);
-
-    expect(screen.getByRole("heading", { name: /^Validation$/i })).toBeTruthy();
-
-    fireEvent.click(screen.getByRole("tab", { name: /preview/i }));
-    const previewPanel = screen.getByRole("tabpanel", { name: /preview/i });
-    expect(within(previewPanel).getByRole("heading", { name: /^Preview$/i })).toBeTruthy();
-    expect(within(previewPanel).getByText("Passcode policy")).toBeTruthy();
-
-    fireEvent.keyDown(screen.getByRole("tab", { name: /preview/i }), { key: "ArrowDown" });
-
-    expect(screen.getByRole("tab", { name: /^json$/i }).getAttribute("aria-selected")).toBe("true");
-    expect((screen.getByLabelText(/configuration raw json/i) as HTMLTextAreaElement).value).toContain("CONF-1");
-  });
-
+describe("RecommendationsPanel mapping", () => {
   it("shows recommendation source tabs and selected recommendation details", () => {
     const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
       recommendationSource: "bsi",
       recommendationIndex: {
         sources: [
@@ -256,16 +55,8 @@ describe("ConfigurationInspector", () => {
           policies: [{ platform: "IOS", name: "iOS BSI Grundschutz", rules: [] }],
         },
       },
-      recommendationQuery: "",
       recommendationPlatform: "IOS",
       selectedRecommendationId: "bsi-ios-passcode",
-      recommendationsLoading: false,
-      recommendationsError: undefined,
-      setRecommendationSource: vi.fn(),
-      setRecommendationQuery: vi.fn(),
-      setRecommendationPlatform: vi.fn(),
-      setSelectedRecommendationId: vi.fn(),
-      importRecommendationRuleset: vi.fn(async () => {}),
     });
 
     render(<RecommendationsPanel controller={controller} />);
@@ -282,18 +73,6 @@ describe("ConfigurationInspector", () => {
 
   it("shows generated importability from implementation metadata instead of the legacy merge flag", () => {
     const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
       recommendationSource: "vendor",
       recommendationIndex: {
         sources: [
@@ -362,16 +141,7 @@ describe("ConfigurationInspector", () => {
           policies: [{ platform: "ANDROID_ENTERPRISE", name: "Android Vendor", rules: [] }],
         },
       },
-      recommendationQuery: "",
       recommendationPlatform: "ANDROID",
-      selectedRecommendationId: undefined,
-      recommendationsLoading: false,
-      recommendationsError: undefined,
-      setRecommendationSource: vi.fn(),
-      setRecommendationQuery: vi.fn(),
-      setRecommendationPlatform: vi.fn(),
-      setSelectedRecommendationId: vi.fn(),
-      importRecommendationRuleset: vi.fn(async () => {}),
     });
 
     render(<RecommendationsPanel controller={controller} />);
@@ -382,18 +152,6 @@ describe("ConfigurationInspector", () => {
 
   it("renders CIS fallback methods and keeps exact-mapped fallback sections collapsed by default", () => {
     const controller = createEditorControllerStub({
-      inspectorTab: "validation",
-      setInspectorTab: vi.fn(),
-      status: "",
-      isDirty: false,
-      rulesetReport: undefined,
-      details: undefined,
-      configuration: undefined,
-      rawJson: "{}",
-      rawJsonDirty: false,
-      setRawJson: vi.fn(),
-      resetRawJson: vi.fn(),
-      applyRawJson: vi.fn(),
       recommendationSource: "cis",
       recommendationIndex: {
         sources: [
@@ -490,16 +248,8 @@ describe("ConfigurationInspector", () => {
           policies: [{ platform: "MACOS", name: "macOS CIS", rules: [] }],
         },
       },
-      recommendationQuery: "",
       recommendationPlatform: "MACOS",
       selectedRecommendationId: "cis-macos-software-update",
-      recommendationsLoading: false,
-      recommendationsError: undefined,
-      setRecommendationSource: vi.fn(),
-      setRecommendationQuery: vi.fn(),
-      setRecommendationPlatform: vi.fn(),
-      setSelectedRecommendationId: vi.fn(),
-      importRecommendationRuleset: vi.fn(async () => {}),
     });
 
     render(<RecommendationsPanel controller={controller} />);
@@ -600,16 +350,8 @@ describe("ConfigurationInspector", () => {
           policies: [{ platform: "WINDOWS", name: "Windows CIS", rules: [] }],
         },
       },
-      recommendationQuery: "",
       recommendationPlatform: "WINDOWS",
       selectedRecommendationId: "cis-windows-audit-policy",
-      recommendationsLoading: false,
-      recommendationsError: undefined,
-      setRecommendationSource: vi.fn(),
-      setRecommendationQuery: vi.fn(),
-      setRecommendationPlatform: vi.fn(),
-      setSelectedRecommendationId: vi.fn(),
-      importRecommendationRuleset: vi.fn(async () => {}),
     });
 
     render(<RecommendationsPanel controller={controller} />);
@@ -621,5 +363,4 @@ describe("ConfigurationInspector", () => {
     expect(fallbackScope.getByText(/^auditpol\.exe$/i)).toBeTruthy();
     expect(fallbackScope.getByText(/advanced audit policy configuration/i)).toBeTruthy();
   });
-
 });

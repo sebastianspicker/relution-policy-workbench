@@ -1,14 +1,7 @@
 /** Performs Zammad requests through the shared pinned-service transport. */
 import type { HttpServiceTransportOptions } from "./http-service-transport.js";
-import { fetchServiceApi } from "./service-api-request.js";
+import { createServiceNetworkError, fetchServiceApi } from "./service-api-request.js";
 import type { ZammadConnection } from "./zammad-api-contract.js";
-
-class ZammadNetworkError extends Error {
-  constructor(message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "ZammadNetworkError";
-  }
-}
 
 export async function zammadFetch(
   connection: ZammadConnection,
@@ -28,7 +21,7 @@ export async function zammadFetch(
       "content-type": "application/json",
       Authorization: `Token token=${connection.apiToken}`,
     },
-    createNetworkError: (message, cause) => new ZammadNetworkError(message, { cause }),
+    createNetworkError: createServiceNetworkError("ZammadNetworkError"),
     ...(query === undefined ? {} : { query }),
   });
 }

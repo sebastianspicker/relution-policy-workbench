@@ -1,4 +1,4 @@
-/** Verifies workspace commands reflect dirty, undo, build, and request-in-flight state. */
+/** Verifies archive build and download actions. */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createEditorControllerStub } from "./useEditorController.test-helpers.js";
@@ -14,13 +14,6 @@ afterEach(() => {
 });
 
 describe("WorkspaceToolbar", () => {
-  it("identifies the active workspace context", () => {
-    render(<WorkspaceToolbar controller={createEditorControllerStub()} {...defaultProps} />);
-
-    expect(screen.getByRole("navigation", { name: "Workspace context" })).toBeTruthy();
-    expect(screen.getByText("Policies")).toBeTruthy();
-  });
-
   it("keeps download unavailable until a fresh build exists", () => {
     render(<WorkspaceToolbar controller={createEditorControllerStub({ hasFreshBuild: false })} {...defaultProps} />);
 
@@ -60,27 +53,6 @@ describe("WorkspaceToolbar", () => {
     await waitFor(() => expect(controller.setStatus).toHaveBeenCalledWith("Download failed: Failed to download output archive (404 Not Found)"));
   });
 
-  it("redo toolbar action only replays when an undone workspace change exists", () => {
-    const unavailableController = createEditorControllerStub({ canRedo: false });
-    const { rerender } = render(<WorkspaceToolbar controller={unavailableController} {...defaultProps} />);
-
-    const unavailableRedoButton = screen.getByRole("button", { name: /redo/i }) as HTMLButtonElement;
-
-    expect(unavailableRedoButton.disabled).toBe(true);
-    fireEvent.click(unavailableRedoButton);
-    expect(unavailableController.redoWorkspace).not.toHaveBeenCalled();
-
-    const controller = createEditorControllerStub({ canRedo: true });
-    rerender(<WorkspaceToolbar controller={controller} {...defaultProps} />);
-
-    const redoButton = screen.getByRole("button", { name: /redo/i }) as HTMLButtonElement;
-
-    expect(redoButton.disabled).toBe(false);
-    fireEvent.click(redoButton);
-
-    expect(controller.redoWorkspace).toHaveBeenCalledTimes(1);
-  });
-
   it("build action starts archive creation and blocks duplicate clicks while running", () => {
     const controller = createEditorControllerStub({ isBuildLoading: false });
     const { rerender } = render(<WorkspaceToolbar controller={controller} {...defaultProps} />);
@@ -99,23 +71,5 @@ describe("WorkspaceToolbar", () => {
     expect(loadingBuildButton.disabled).toBe(true);
     fireEvent.click(loadingBuildButton);
     expect(loadingController.buildArchive).not.toHaveBeenCalled();
-  });
-
-  it("does not contain a clear button (clear moved to Settings panel)", () => {
-    render(<WorkspaceToolbar controller={createEditorControllerStub()} {...defaultProps} />);
-
-    expect(screen.queryByRole("button", { name: /^clear/i })).toBeNull();
-  });
-
-  it("shows a dirty dot indicator when the workspace is unsaved", () => {
-    render(<WorkspaceToolbar controller={createEditorControllerStub({ isDirty: true })} {...defaultProps} />);
-
-    expect(screen.getByRole("status", { hidden: true })).toBeTruthy();
-  });
-
-  it("hides the dirty dot indicator when the workspace is saved", () => {
-    render(<WorkspaceToolbar controller={createEditorControllerStub({ isDirty: false })} {...defaultProps} />);
-
-    expect(screen.queryByRole("status", { hidden: true })).toBeNull();
   });
 });

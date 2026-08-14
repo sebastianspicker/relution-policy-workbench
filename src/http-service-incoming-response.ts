@@ -8,6 +8,32 @@ export async function incomingMessageToResponse(incoming: IncomingMessage, maxRe
     incoming.destroy();
     throw responseLimitError(maxResponseBytes);
   }
+
+  const bytes = await readResponseBytes(incoming, maxResponseBytes);
+  return new Response(bytes.length === 0 ? null : new Uint8Array(bytes), {
+    status: incoming.statusCode ?? 500,
+    statusText: incoming.statusMessage ?? "",
+    headers: responseHeaders(incoming),
+  });
+}
+
+function responseHeaders(incoming: IncomingMessage): Headers {
+  const headers = new Headers();
+  for (const [name, rawValue] of Object.entries(incoming.headers)) {
+    appendHeaderValue(headers, name, rawValue);
+  }
+  return headers;
+}
+
+function appendHeaderValue(headers: Headers, name: string, rawValue: string | string[] | undefined): void {
+  if (Array.isArray(rawValue)) {
+    for (const value of rawValue) headers.append(name, value);
+    return;
+  }
+  if (rawValue !== undefined) headers.append(name, rawValue);
+}
+
+async function readResponseBytes(incoming: IncomingMessage, maxResponseBytes: number): Promise<Buffer> {
   const chunks: Buffer[] = [];
   let totalBytes = 0;
   for await (const chunk of incoming) {
@@ -19,16 +45,7 @@ export async function incomingMessageToResponse(incoming: IncomingMessage, maxRe
     }
     chunks.push(buffer);
   }
-  const headers = new Headers();
-  for (const [name, rawValue] of Object.entries(incoming.headers)) {
-    for (const value of Array.isArray(rawValue) ? rawValue : rawValue === undefined ? [] : [rawValue]) headers.append(name, value);
-  }
-  const bytes = Buffer.concat(chunks);
-  return new Response(bytes.length === 0 ? null : bytes, {
-    status: incoming.statusCode ?? 500,
-    statusText: incoming.statusMessage ?? "",
-    headers,
-  });
+  return Buffer.concat(chunks);
 }
 
 function responseLimitError(maxResponseBytes: number): Error {

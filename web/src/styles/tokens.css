@@ -2,66 +2,7 @@
 
 :root,
 :root[data-theme="studio"],
-[data-theme="studio"] {
-  color-scheme: light;
-  --ci-font-display: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --ci-font-body: "IBM Plex Sans", "Segoe UI", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --ci-font-mono: "IBM Plex Mono", ui-monospace, monospace;
-  --ci-color-page: #e8edf2;
-  --ci-color-surface: #f7f9fb;
-  --ci-color-surface-muted: #eef2f6;
-  --ci-color-panel: #ffffff;
-  --ci-color-field-bg: #ffffff;
-  --ci-color-text: #1a2533;
-  --ci-color-heading: #0b1420;
-  --ci-color-muted: #5a6a7c;
-  --ci-color-border: #d2dae3;
-  --ci-color-border-strong: #b5c0cd;
-  --ci-color-toolbar-bg: #121a24;
-  --ci-color-toolbar-text: #d7e0ea;
-  --ci-color-toolbar-muted: #7a8a9c;
-  --ci-color-toolbar-border: rgb(255 255 255 / 6%);
-  --ci-color-primary: #0d6e66;
-  --ci-color-primary-hover: #0a5a54;
-  --ci-color-primary-active: #084943;
-  --ci-color-primary-contrast: #f4fffd;
-  --ci-color-accent: #0d6e66;
-  --ci-color-accent-2: #d9f0ed;
-  --ci-color-accent-3: #0b1420;
-  --ci-color-focus: #0d6e66;
-  --ci-color-focus-ring: rgb(13 110 102 / 20%);
-  --ci-color-active-bg: #d9f0ed;
-  --ci-color-success-bg: #e4f5ed;
-  --ci-color-success-text: #0a6b48;
-  --ci-color-info-bg: #e7f1f8;
-  --ci-color-info-text: #2a5678;
-  --ci-color-warning-bg: #fbf0dc;
-  --ci-color-warning-text: #8f5608;
-  --ci-color-danger-bg: #fceceb;
-  --ci-color-danger-text: #a8322d;
-  --ci-color-ink-950: #070b10;
-  --ci-color-ink-900: #0c1219;
-  --ci-color-ink-850: #121a24;
-  --ci-color-ink-800: #182230;
-  --ci-radius-control: 6px;
-  --ci-radius-card: 8px;
-  --ci-shadow-card: 0 1px 0 rgb(12 18 25 / 4%);
-  --ci-control-height: 34px;
-  --ci-touch-target: 44px;
-  --ci-layout-rail-width: 56px;
-  --ci-layout-navigation-width: 268px;
-  --ci-layout-inspector-width: 320px;
-  --ci-motion-fast: 140ms;
-  --ci-motion-standard: 200ms;
-  --z-dropdown: 100;
-  --z-popover: 200;
-  --z-sticky: 300;
-  --z-modal-backdrop: 400;
-  --z-modal: 500;
-  --z-toast: 600;
-  --z-tooltip: 700;
-}
-
+[data-theme="studio"],
 :root[data-theme="neutral"],
 [data-theme="neutral"],
 :root[data-theme="custom"],
@@ -112,6 +53,22 @@
   --ci-layout-rail-width: 56px;
   --ci-layout-navigation-width: 268px;
   --ci-layout-inspector-width: 320px;
+}
+
+:root,
+:root[data-theme="studio"],
+[data-theme="studio"] {
+  --ci-shadow-card: 0 1px 0 rgb(12 18 25 / 4%);
+  --ci-touch-target: 44px;
+  --ci-motion-fast: 140ms;
+  --ci-motion-standard: 200ms;
+  --z-dropdown: 100;
+  --z-popover: 200;
+  --z-sticky: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
 }
 
 :root[data-theme="custom"],

@@ -17,6 +17,15 @@ export interface ServiceApiRequestOptions {
   query?: URLSearchParams;
 }
 
+/** Creates service-specific named network errors for API clients. */
+export function createServiceNetworkError(name: string): (message: string, cause: unknown) => Error {
+  return (message, cause) => {
+    const error = new Error(message, { cause });
+    error.name = name;
+    return error;
+  };
+}
+
 /**
  * Builds a request inside the configured service root, uses the pinned transport,
  * and keeps failed responses free of remote response bodies.

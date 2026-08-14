@@ -22,6 +22,16 @@ type ComplianceApplyResult = ReturnType<typeof applyComplianceRemediationToWorks
   readonly selection: ReturnType<typeof parseComplianceSelectionBody>;
   readonly sources: RecommendationSource[];
 };
+type ArchiveBuildPreparation = {
+  readonly workspace: ReturnType<typeof loadWorkspace>;
+  readonly validation: ReturnType<typeof validateWorkspace>;
+  readonly constraintsRemoved: ReturnType<typeof getRemovedSchemaConstraints>;
+};
+type ArchiveBuildResult = {
+  readonly previousSidecar: ReturnType<typeof captureSidecarState>;
+  readonly sidecar: ReturnType<typeof recordMobileConfigRestoreEntries>;
+  readonly verification: ReturnType<typeof buildVerifiedEditorArchive>;
+};
 
 export async function handleComplianceApiRequest(
   url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext,
@@ -52,38 +62,66 @@ export async function handleComplianceApiRequest(
 export async function handleArchiveApiRequest(
   url: URL, request: IncomingMessage, response: ServerResponse, context: EditorRequestContext,
 ): Promise<boolean> {
-  const { options, bundle, appleSchema, runtimeState } = context;
   if (url.pathname === "/api/import" && request.method === "POST") {
-    const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
-    const importKey = optionalString(body, "key") ?? runtimeState.key;
-    if (importKey.length === 0) throw badRequest("Import requires an archive passphrase");
-    const previousWorkspace = loadWorkspace(options.workspace);
-    const previousSidecar = captureSidecarState(options.workspace);
-    const previousKey = runtimeState.key;
-    const previousKeyValidation = runtimeState.keyValidation;
-    const importDir = mkdtempSync(join(tmpdir(), "rexp-studio-import-"));
-    try {
-      writeFileSync(join(importDir, "import.rexp"), Buffer.from(requireString(body, "dataBase64"), "base64"));
-      const extractedDir = join(importDir, "workspace");
-      extractRexp(join(importDir, "import.rexp"), extractedDir, importKey, { force: true, pretty: true });
-      const workspace = loadWorkspace(extractedDir);
-      saveWorkspace(options.workspace, workspace);
-      const sidecar = replaceEditorSidecarFromWorkspace(options.workspace, workspace, appleSchema.source.revision);
-      runtimeState.key = importKey;
-      runtimeState.keyValidation = { keySet: true, validated: true };
-      sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), keySet: true, sidecar });
-    } catch (error) {
-      runtimeState.key = previousKey;
-      runtimeState.keyValidation = previousKeyValidation;
-      rollbackPersistedEditorState(options.workspace, previousWorkspace, previousSidecar, error);
-      throw error;
-    } finally { rmSync(importDir, { recursive: true, force: true }); }
+    await handleArchiveImportRequest(request, response, context);
     return true;
   }
-  if (url.pathname !== "/api/build" || request.method !== "POST") return false;
+  if (url.pathname === "/api/build" && request.method === "POST") {
+    handleArchiveBuildRequest(response, context);
+    return true;
+  }
+  return false;
+}
+
+async function handleArchiveImportRequest(
+  request: IncomingMessage, response: ServerResponse, context: EditorRequestContext,
+): Promise<void> {
+  const { options, bundle, appleSchema, runtimeState } = context;
+  const body = await readJsonBody(request, IMPORT_JSON_BODY_LIMIT_BYTES);
+  const importKey = optionalString(body, "key") ?? runtimeState.key;
+  if (importKey.length === 0) throw badRequest("Import requires an archive passphrase");
+  const previousWorkspace = loadWorkspace(options.workspace);
+  const previousSidecar = captureSidecarState(options.workspace);
+  const previousKey = runtimeState.key;
+  const previousKeyValidation = runtimeState.keyValidation;
+  const importDir = mkdtempSync(join(tmpdir(), "rexp-studio-import-"));
+  try {
+    writeFileSync(join(importDir, "import.rexp"), Buffer.from(requireString(body, "dataBase64"), "base64"));
+    const extractedDir = join(importDir, "workspace");
+    extractRexp(join(importDir, "import.rexp"), extractedDir, importKey, { force: true, pretty: true });
+    const workspace = loadWorkspace(extractedDir);
+    saveWorkspace(options.workspace, workspace);
+    const sidecar = replaceEditorSidecarFromWorkspace(options.workspace, workspace, appleSchema.source.revision);
+    runtimeState.key = importKey;
+    runtimeState.keyValidation = { keySet: true, validated: true };
+    sendJson(response, 200, { workspace, validation: validateWorkspace(workspace, bundle), keySet: true, sidecar });
+  } catch (error) {
+    runtimeState.key = previousKey;
+    runtimeState.keyValidation = previousKeyValidation;
+    rollbackPersistedEditorState(options.workspace, previousWorkspace, previousSidecar, error);
+    throw error;
+  } finally { rmSync(importDir, { recursive: true, force: true }); }
+}
+
+function handleArchiveBuildRequest(response: ServerResponse, context: EditorRequestContext): void {
+  const preparation = prepareArchiveBuild(response, context);
+  if (!preparation) return;
+  const archiveBuild = buildArchiveWithSidecar(context, preparation.workspace);
+  const { sidecar, verification } = archiveBuild;
+  if (!verification.ok) {
+    restoreSidecarState(context.options.workspace, archiveBuild.previousSidecar);
+    sendArchiveBuildVerificationFailure(response, preparation, verification);
+    return;
+  }
+  context.runtimeState.keyValidation = { keySet: true, validated: true };
+  sendJson(response, 200, { validation: preparation.validation, verification, outputFile: context.options.out, sidecar, ...(preparation.constraintsRemoved.length === 0 ? {} : { constraintsRemoved: preparation.constraintsRemoved }) });
+}
+
+function prepareArchiveBuild(response: ServerResponse, context: EditorRequestContext): ArchiveBuildPreparation | undefined {
+  const { options, bundle, runtimeState } = context;
   if (runtimeState.key.length === 0) {
     sendJson(response, 400, { error: "Build requires an archive passphrase. Enter one in Settings and click Set passphrase." });
-    return true;
+    return;
   }
   try {
     assertNewArchiveKey(runtimeState.key);
@@ -92,31 +130,43 @@ export async function handleArchiveApiRequest(
   }
   const workspace = loadWorkspace(options.workspace);
   const validation = validateWorkspace(workspace, bundle);
-  const constraintsRemoved = schemaCompatibilityIssues(bundle).map((issue) => ({ path: issue.path, constraint: issue.kind === "invalid-pattern" ? "pattern" : issue.kind, original: issue.pattern }));
+  const constraintsRemoved = getRemovedSchemaConstraints(bundle);
   if (!validation.ok) {
     sendJson(response, 400, { validation, ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }) });
-    return true;
+    return;
   }
+  return { workspace, validation, constraintsRemoved };
+}
+
+function buildArchiveWithSidecar(context: EditorRequestContext, workspace: ReturnType<typeof loadWorkspace>): ArchiveBuildResult {
+  const { options, appleSchema, runtimeState } = context;
   const previousSidecar = captureSidecarState(options.workspace);
-  let sidecar: ReturnType<typeof recordMobileConfigRestoreEntries>;
-  let verification: ReturnType<typeof buildVerifiedEditorArchive>;
   try {
-    sidecar = recordMobileConfigRestoreEntries(options.workspace, workspace, appleSchema.source.revision);
-    verification = buildVerifiedEditorArchive({ workspace: options.workspace, output: options.out, key: runtimeState.key });
+    const sidecar = recordMobileConfigRestoreEntries(options.workspace, workspace, appleSchema.source.revision);
+    const verification = buildVerifiedEditorArchive({ workspace: options.workspace, output: options.out, key: runtimeState.key });
+    return { previousSidecar, sidecar, verification };
   } catch (error) {
-    try { restoreSidecarState(options.workspace, previousSidecar); }
-    catch (rollbackError) { throw new AggregateError([error, rollbackError], "Archive build failed and sidecar rollback failed"); }
-    throw error;
+    rollbackArchiveBuildSidecar(options.workspace, previousSidecar, error);
   }
-  if (!verification.ok) {
-    restoreSidecarState(options.workspace, previousSidecar);
-    const failedEntryCount = verification.checkedEntries.filter((entry) => entry.hashStatus !== "match").length;
-    sendJson(response, 500, { error: `Build verification failed for ${failedEntryCount} archive entr${failedEntryCount === 1 ? "y" : "ies"}`, validation, verification, failedEntryCount, ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }) });
-    return true;
-  }
-  runtimeState.keyValidation = { keySet: true, validated: true };
-  sendJson(response, 200, { validation, verification, outputFile: options.out, sidecar, ...(constraintsRemoved.length === 0 ? {} : { constraintsRemoved }) });
-  return true;
+}
+
+function rollbackArchiveBuildSidecar(
+  workspace: EditorRequestContext["options"]["workspace"], previousSidecar: ReturnType<typeof captureSidecarState>, error: unknown,
+): never {
+  try { restoreSidecarState(workspace, previousSidecar); }
+  catch (rollbackError) { throw new AggregateError([error, rollbackError], "Archive build failed and sidecar rollback failed"); }
+  throw error;
+}
+
+function sendArchiveBuildVerificationFailure(
+  response: ServerResponse, preparation: ArchiveBuildPreparation, verification: ReturnType<typeof buildVerifiedEditorArchive>,
+): void {
+  const failedEntryCount = verification.checkedEntries.filter((entry) => entry.hashStatus !== "match").length;
+  sendJson(response, 500, { error: `Build verification failed for ${failedEntryCount} archive entr${failedEntryCount === 1 ? "y" : "ies"}`, validation: preparation.validation, verification, failedEntryCount, ...(preparation.constraintsRemoved.length === 0 ? {} : { constraintsRemoved: preparation.constraintsRemoved }) });
+}
+
+function getRemovedSchemaConstraints(bundle: EditorRequestContext["bundle"]) {
+  return schemaCompatibilityIssues(bundle).map((issue) => ({ path: issue.path, constraint: issue.kind === "invalid-pattern" ? "pattern" : issue.kind, original: issue.pattern }));
 }
 
 function applyComplianceRequestBody(body: JsonRecord, context: EditorRequestContext): ComplianceApplyResult {

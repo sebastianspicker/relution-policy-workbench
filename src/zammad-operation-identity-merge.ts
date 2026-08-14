@@ -2,13 +2,39 @@
 import type { PersistedTicketResult } from "./zammad-operation-contract.js";
 
 export function mergePersistedTicketResults(existing: PersistedTicketResult, incoming: PersistedTicketResult): PersistedTicketResult {
-  const matchingId = existing.id !== undefined && incoming.id !== undefined && existing.id === incoming.id;
-  const matchingNumber = existing.number !== undefined && incoming.number !== undefined && existing.number === incoming.number;
-  const conflictingId = existing.id !== undefined && incoming.id !== undefined && existing.id !== incoming.id;
-  const conflictingNumber = existing.number !== undefined && incoming.number !== undefined && existing.number !== incoming.number;
-  if (conflictingId || conflictingNumber || (!matchingId && !matchingNumber)) throw new Error("Zammad operation completed with conflicting ticket identifiers");
-  return {
-    ...(existing.id === undefined ? (incoming.id === undefined ? {} : { id: incoming.id }) : { id: existing.id }),
-    ...(existing.number === undefined ? (incoming.number === undefined ? {} : { number: incoming.number }) : { number: existing.number }),
-  };
+  const matchingId = sameDefinedIdentifier(existing.id, incoming.id);
+  const matchingNumber = sameDefinedIdentifier(existing.number, incoming.number);
+  if (conflictingDefinedIdentifier(existing.id, incoming.id)) throw conflictingTicketIdentifiers();
+  if (conflictingDefinedIdentifier(existing.number, incoming.number)) throw conflictingTicketIdentifiers();
+  if (!hasSharedIdentifier(matchingId, matchingNumber)) throw conflictingTicketIdentifiers();
+
+  const result: PersistedTicketResult = {};
+  const id = chooseExistingOrIncoming(existing.id, incoming.id);
+  if (id !== undefined) result.id = id;
+  const number = chooseExistingOrIncoming(existing.number, incoming.number);
+  if (number !== undefined) result.number = number;
+  return result;
+}
+
+function sameDefinedIdentifier<T>(existing: T | undefined, incoming: T | undefined): boolean {
+  if (existing === undefined || incoming === undefined) return false;
+  return existing === incoming;
+}
+
+function conflictingDefinedIdentifier<T>(existing: T | undefined, incoming: T | undefined): boolean {
+  if (existing === undefined || incoming === undefined) return false;
+  return existing !== incoming;
+}
+
+function hasSharedIdentifier(matchingId: boolean, matchingNumber: boolean): boolean {
+  return matchingId || matchingNumber;
+}
+
+function chooseExistingOrIncoming<T>(existing: T | undefined, incoming: T | undefined): T | undefined {
+  if (existing !== undefined) return existing;
+  return incoming;
+}
+
+function conflictingTicketIdentifiers(): Error {
+  return new Error("Zammad operation completed with conflicting ticket identifiers");
 }

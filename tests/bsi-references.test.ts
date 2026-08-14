@@ -4,7 +4,7 @@ import test from "node:test";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
-import { valueAtPath, type DownloadManifestEntry, type ImportableRuleset, type JsonRecord, type SourceEntry } from "./reference-test-helpers.js";
+import { assertReferenceManifestCoverage, valueAtPath, type DownloadManifestEntry, type ImportableRuleset, type JsonRecord, type SourceEntry } from "./reference-test-helpers.js";
 import { readJson } from "./rexp-helpers.js";
 
 type BaselineSummary = {
@@ -169,16 +169,7 @@ test("download manifest covers every referenced BSI source", () => {
   const sources = readJson<SourceEntry[]>("example/bsi-references/sources.json");
   const manifest = readJson<DownloadManifestEntry[]>("example/bsi-references/downloads/manifest.json");
 
-  assert.deepEqual(
-    manifest.map((entry) => entry.id).sort(),
-    sources.map((entry) => entry.id).sort(),
-  );
-
-  for (const entry of manifest) {
-    assert.equal(entry.url, sources.find((source) => source.id === entry.id)?.url);
-    assert.equal(entry.sha256.length, 64, entry.id);
-    assert.equal(entry.sizeBytes > 0, true, entry.id);
-  }
+  assertReferenceManifestCoverage(sources, manifest);
 });
 
 test("baseline summary exposes the current 2023 baseline and relution mapping context", () => {

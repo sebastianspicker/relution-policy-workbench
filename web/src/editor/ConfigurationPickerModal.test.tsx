@@ -14,6 +14,14 @@ beforeEach(() => {
 });
 
 describe("ConfigurationPickerModal", () => {
+  it("opens the native dialog with showModal", () => {
+    const showModal = vi.fn(function(this: HTMLDialogElement) { this.setAttribute("open", ""); });
+    Object.defineProperty(HTMLDialogElement.prototype, "showModal", { configurable: true, value: showModal });
+    render(<EmptyPicker onClose={vi.fn()} />);
+    expect(showModal).toHaveBeenCalledOnce();
+    expect((screen.getByRole("dialog", { name: /add configuration/i }) as HTMLDialogElement).open).toBe(true);
+  });
+
   it("handles native cancel and restores focus to the trigger", () => {
     render(<ModalHarness />);
     const trigger = screen.getByRole("button", { name: /open picker/i });
@@ -39,6 +47,16 @@ describe("ConfigurationPickerModal", () => {
     fireEvent.keyDown(close, { key: "Enter" });
     fireEvent.click(close);
 
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("closes only when a click targets the dialog backdrop", () => {
+    const onClose = vi.fn();
+    render(<EmptyPicker onClose={onClose} />);
+    const dialog = screen.getByRole("dialog", { name: /add configuration/i });
+    fireEvent.click(screen.getByRole("heading", { name: /add configuration/i }));
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledOnce();
   });
 });

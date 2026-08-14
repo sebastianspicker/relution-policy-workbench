@@ -7,13 +7,18 @@ export interface BoundedRegularFileReadOptions {
 }
 
 /**
- * Return the byte length of a regular file without following its final path
- * component. Callers can use this to enforce aggregate budgets before parsing.
+ * Open and validate a regular file without following its final path component,
+ * then synchronously consume it before closing the same descriptor.
  */
-export function regularFileSizeNoFollow(path: string, options: BoundedRegularFileReadOptions): number {
+function withRegularFileNoFollow(
+  path: string,
+  options: BoundedRegularFileReadOptions,
+  consume: (descriptor: number, size: number) => Buffer,
+): Buffer {
   const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
   try {
-    return checkedRegularFileSize(descriptor, path, options);
+    const size = checkedRegularFileSize(descriptor, path, options);
+    return consume(descriptor, size);
   } finally {
     closeSync(descriptor);
   }
@@ -21,9 +26,7 @@ export function regularFileSizeNoFollow(path: string, options: BoundedRegularFil
 
 /** Read a bounded regular file through a no-follow descriptor. */
 export function readBoundedRegularFileNoFollow(path: string, options: BoundedRegularFileReadOptions): Buffer {
-  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK);
-  try {
-    const size = checkedRegularFileSize(descriptor, path, options);
+  return withRegularFileNoFollow(path, options, (descriptor, size) => {
     const data = Buffer.alloc(size);
     let offset = 0;
     while (offset < data.length) {
@@ -35,9 +38,7 @@ export function readBoundedRegularFileNoFollow(path: string, options: BoundedReg
       throw new Error(`${options.label} changed while reading: ${path}`);
     }
     return data;
-  } finally {
-    closeSync(descriptor);
-  }
+  });
 }
 
 function checkedRegularFileSize(descriptor: number, path: string, options: BoundedRegularFileReadOptions): number {

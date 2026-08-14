@@ -4,7 +4,7 @@ import test from "node:test";
 import { loadAppleSchemaCatalog } from "../src/apple-schema-catalog.js";
 import { loadTemplateBundle } from "../src/templates.js";
 import { importRulesetWorkspace } from "../web/src/editor/ruleset-import.js";
-import { valueAtPath, type DownloadManifestEntry, type ImportableRuleset, type JsonRecord, type SourceEntry } from "./reference-test-helpers.js";
+import { assertReferenceManifestCoverage, valueAtPath, type DownloadManifestEntry, type ImportableRuleset, type JsonRecord, type SourceEntry } from "./reference-test-helpers.js";
 import { readJson } from "./rexp-helpers.js";
 
 type CisBaselineSummary = {
@@ -114,16 +114,7 @@ test("download manifest covers every referenced CIS source", () => {
   const sources = readJson<SourceEntry[]>("example/cis-references/sources.json");
   const manifest = readJson<DownloadManifestEntry[]>("example/cis-references/downloads/manifest.json");
 
-  assert.deepEqual(
-    manifest.map((entry) => entry.id).sort(),
-    sources.map((entry) => entry.id).sort(),
-  );
-
-  for (const entry of manifest) {
-    assert.equal(entry.url, sources.find((source) => source.id === entry.id)?.url);
-    assert.equal(entry.sha256.length, 64, entry.id);
-    assert.equal(entry.sizeBytes > 0, true, entry.id);
-  }
+  assertReferenceManifestCoverage(sources, manifest);
 });
 
 test("CIS baseline summary exposes current family context and harvested PDF coverage", () => {

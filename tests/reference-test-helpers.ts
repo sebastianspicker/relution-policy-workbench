@@ -1,4 +1,5 @@
 /** Shares fixture readers and structural assertions for reference-catalog tests. */
+import assert from "node:assert/strict";
 export type JsonRecord = Record<string, unknown>;
 
 export type SourceEntry = {
@@ -16,6 +17,18 @@ export type DownloadManifestEntry = {
   sizeBytes: number;
   sha256: string;
 };
+
+export function assertReferenceManifestCoverage(
+  sources: readonly SourceEntry[],
+  manifest: readonly DownloadManifestEntry[],
+): void {
+  assert.deepEqual(manifest.map((entry) => entry.id).sort(), sources.map((entry) => entry.id).sort());
+  for (const entry of manifest) {
+    assert.equal(entry.url, sources.find((source) => source.id === entry.id)?.url);
+    assert.equal(entry.sha256.length, 64, entry.id);
+    assert.equal(entry.sizeBytes > 0, true, entry.id);
+  }
+}
 
 type RulesetPolicy = {
   platform: string;

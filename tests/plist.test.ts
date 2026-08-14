@@ -2,6 +2,38 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildMobileConfig, inspectMobileConfigText, jsonPayloadKeys, plistValueFromUnknown, type PlistValue } from "../src/plist.js";
+import { isPlistDocument } from "../src/plist-inspection-xml-structure.js";
+
+const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>';
+const APPLE_PLIST_DTD = '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">';
+
+test("plist document recognition preserves its bounded lexical XML contract", () => {
+  const validDocuments = [
+    ["<plist>", "</plist>"],
+    ["<plist>", "<anything/>", "<nested>", "</nested>", "</plist>"],
+    [APPLE_PLIST_DTD, XML_DECLARATION, XML_DECLARATION, APPLE_PLIST_DTD, "<plist>", "</plist>"],
+    ["<!-- comment -->", "<![CDATA[ignored]]>", "<plist>", "</plist>", "<!-- after root -->", "<![CDATA[after root]]>"],
+  ];
+  const invalidDocuments = [
+    ["<plist/>"],
+    ["<dict>", "</dict>"],
+    ["<plist>", "<dict>", "</plist>", "</dict>"],
+    ["<plist>", "</plist>", "<dict>", "</dict>"],
+    ["<plist>", XML_DECLARATION, "</plist>"],
+    ["<plist>", "</plist>", APPLE_PLIST_DTD],
+    ['<!DOCTYPE plist [<!ENTITY forged "value">]>', "<plist>", "</plist>"],
+    ["<!DOCTYPE unknown>", "<plist>", "</plist>"],
+    ["<plist>", "<dict"],
+  ];
+
+  for (const tokens of validDocuments) assert.equal(isPlistDocument(tokens), true, tokens.join(" "));
+  for (const tokens of invalidDocuments) assert.equal(isPlistDocument(tokens), false, tokens.join(" "));
+});
+
+test("plaintext remains an invalid mobileconfig inspection", () => {
+  assert.equal(inspectMobileConfigText("this is not xml").signatureState, "signed-invalid");
+  assert.equal(inspectMobileConfigText("before <plist></plist> after").signatureState, "unsigned");
+});
 
 test("plist conversion preserves reserved object keys as literal data", () => {
   const parsed = JSON.parse('{"__proto__":{"PayloadType":"evil"},"constructor":"literal","toString":true}') as Record<string, unknown>;

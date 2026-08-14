@@ -21,6 +21,44 @@ semantic_candidates_for = _semantic_candidates_for_reexport
 semantic_concepts_for = _semantic_concepts_for_reexport
 semantic_metadata_for = _semantic_metadata_for_reexport
 
+
+def _checklist_metadata_and_header(
+    rows: list[dict[int, str]],
+) -> tuple[str, str, int]:
+    """Return checklist metadata found before the first requirements header."""
+    module_title = ""
+    edition = ""
+    for index, row in enumerate(rows):
+        marker = normalize_space(str(row.get(2, "")))
+        if marker.startswith("Baustein:"):
+            module_title = marker.removeprefix("Baustein:").strip()
+            continue
+        if marker.startswith("Kompendium:"):
+            edition = marker.removeprefix("Kompendium:").strip()
+            continue
+        if marker == "ID-Anforderung":
+            return module_title, edition, index
+    return module_title, edition, -1
+
+
+def _checklist_requirements_after_header(
+    rows: list[dict[int, str]], header_index: int, module_id: str
+) -> dict[str, dict[str, str]]:
+    """Extract normalized requirement records for one checklist module."""
+    requirements: dict[str, dict[str, str]] = {}
+    for row in rows[header_index + 1 :]:
+        requirement_id = normalize_space(str(row.get(2, "")))
+        if not requirement_id.startswith(f"{module_id}.A"):
+            continue
+        requirements[requirement_id] = {
+            "requirementId": requirement_id,
+            "title": normalize_space(str(row.get(3, ""))),
+            "text": normalize_space(str(row.get(4, ""))),
+            "type": normalize_space(str(row.get(5, ""))),
+        }
+    return requirements
+
+
 def parse_individual_checklist_workbooks(directory: Path) -> dict[str, dict[str, Any]]:
     """Parse BSI per-module checklist workbooks into requirement records by module."""
     checklists: dict[str, dict[str, Any]] = {}
@@ -30,32 +68,12 @@ def parse_individual_checklist_workbooks(directory: Path) -> dict[str, dict[str,
             module_id = normalize_space(sheet_name)
             if not module_id:
                 continue
-            module_title = ""
-            edition = ""
-            header_index = -1
-            for index, row in enumerate(rows):
-                marker = normalize_space(str(row.get(2, "")))
-                if marker.startswith("Baustein:"):
-                    module_title = marker.removeprefix("Baustein:").strip()
-                    continue
-                if marker.startswith("Kompendium:"):
-                    edition = marker.removeprefix("Kompendium:").strip()
-                    continue
-                if marker == "ID-Anforderung":
-                    header_index = index
-                    break
-            requirements: dict[str, dict[str, str]] = {}
-            if header_index >= 0:
-                for row in rows[header_index + 1 :]:
-                    requirement_id = normalize_space(str(row.get(2, "")))
-                    if not requirement_id.startswith(f"{module_id}.A"):
-                        continue
-                    requirements[requirement_id] = {
-                        "requirementId": requirement_id,
-                        "title": normalize_space(str(row.get(3, ""))),
-                        "text": normalize_space(str(row.get(4, ""))),
-                        "type": normalize_space(str(row.get(5, ""))),
-                    }
+            module_title, edition, header_index = _checklist_metadata_and_header(rows)
+            requirements = (
+                _checklist_requirements_after_header(rows, header_index, module_id)
+                if header_index >= 0
+                else {}
+            )
             checklists[module_id] = {
                 "moduleId": module_id,
                 "moduleTitle": module_title or module_id,

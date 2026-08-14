@@ -1,6 +1,6 @@
 /** Verifies that dashboard state keeps only current asynchronous operations. */
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   configureRelution,
   configureZammad,
@@ -14,44 +14,55 @@ import { auditResponseFor, campusIpadAuditResponse, deferred, jsonResponse } fro
 afterEach(() => vi.restoreAllMocks());
 
 describe("RelutionDashboardPanel", () => {
-  it("invalidates a pending ticket when a new draft is selected and closes its confirmation", async () => {
-    const ticketResponse = deferred<Response>();
-    const auditResponse = campusIpadAuditResponse();
-    const issues = auditResponse.report.devices[0]!.issues as Array<{ id: string; severity: "warning" | "problem"; message: string; evidence: Record<string, string> }>;
-    issues.push({ id: "inactive-warning", severity: "warning", message: "Device has not connected recently.", evidence: { inactiveDays: "65" } });
-    let ticketRequests = 0;
-    mockDashboardApi({
-      "/api/relution/session": () => configuredRelutionSession(),
-      "/api/relution/devices/audit": () => jsonResponse(auditResponse),
-      "/api/zammad/session": () => configuredZammadSession(),
-      "/api/zammad/tickets": () => {
-        ticketRequests += 1;
-        return ticketResponse.promise;
-      },
+  describe("pending ticket invalidation", () => {
+    let ticketResponse: ReturnType<typeof deferred<Response>>;
+    let ticketRequests: number;
+
+    beforeEach(async () => {
+      ticketResponse = deferred<Response>();
+      ticketRequests = 0;
+      const auditResponse = campusIpadAuditResponse();
+      const issues = auditResponse.report.devices[0]!.issues as Array<{ id: string; severity: "warning" | "problem"; message: string; evidence: Record<string, string> }>;
+      issues.push({ id: "inactive-warning", severity: "warning", message: "Device has not connected recently.", evidence: { inactiveDays: "65" } });
+      mockDashboardApi({
+        "/api/relution/session": () => configuredRelutionSession(),
+        "/api/relution/devices/audit": () => jsonResponse(auditResponse),
+        "/api/zammad/session": () => configuredZammadSession(),
+        "/api/zammad/tickets": () => {
+          ticketRequests += 1;
+          return ticketResponse.promise;
+        },
+      });
+
+      renderDashboard();
+      await configureRelution();
+      fireEvent.click(screen.getByRole("button", { name: /run audit/i }));
+      await screen.findByText(/campus ipad/i);
+      await configureZammad();
     });
 
-    renderDashboard();
-    await configureRelution();
-    fireEvent.click(screen.getByRole("button", { name: /run audit/i }));
-    await screen.findByText(/campus ipad/i);
-    await configureZammad();
-    fireEvent.click(screen.getByRole("button", { name: /ticket: missing-policy/i }));
-    fireEvent.click(screen.getByRole("button", { name: /review ticket destination/i }));
-    await screen.findByRole("group", { name: /confirm zammad ticket creation/i });
-    act(() => {
-      fireEvent.click(screen.getByRole("button", { name: /confirm and create ticket/i }));
-      fireEvent.click(screen.getByRole("button", { name: /ticket: inactive-warning/i }));
-    });
+    it("invalidates a pending ticket when a new draft is selected and closes its confirmation", async () => {
+      const missingPolicyButton = screen.getByRole("button", { name: /ticket: missing-policy/i }) as HTMLButtonElement;
+      const inactiveWarningButton = screen.getByRole("button", { name: /ticket: inactive-warning/i }) as HTMLButtonElement;
+      fireEvent.click(missingPolicyButton);
+      const reviewButton = screen.getByRole("button", { name: /review ticket destination/i }) as HTMLButtonElement;
+      fireEvent.click(reviewButton);
+      const confirmation = await screen.findByRole("group", { name: /confirm zammad ticket creation/i });
+      act(() => {
+        fireEvent.click(within(confirmation).getByRole("button", { name: /confirm and create ticket/i }));
+        fireEvent.click(inactiveWarningButton);
+      });
 
-    expect(ticketRequests).toBe(1);
-    await screen.findByText(/mdm inactive device: campus ipad/i);
-    expect(screen.queryByRole("group", { name: /confirm zammad ticket creation/i })).toBeNull();
-    expect((screen.getByRole("button", { name: /ticket: missing-policy/i }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole("button", { name: /ticket: inactive-warning/i }) as HTMLButtonElement).disabled).toBe(true);
-    await act(async () => ticketResponse.resolve(jsonResponse({ ticket: { id: 42, number: "240042", raw: {} } })));
-    await waitFor(() => expect(screen.queryByText(/working/i)).toBeNull());
-    expect(screen.queryByText(/ticket created: 240042/i)).toBeNull();
-    expect((screen.getByRole("button", { name: /review ticket destination/i }) as HTMLButtonElement).disabled).toBe(false);
+      expect(ticketRequests).toBe(1);
+      await screen.findByText(/mdm inactive device: campus ipad/i);
+      expect(screen.queryByRole("group", { name: /confirm zammad ticket creation/i })).toBeNull();
+      expect(missingPolicyButton.disabled).toBe(true);
+      expect(inactiveWarningButton.disabled).toBe(true);
+      await act(async () => ticketResponse.resolve(jsonResponse({ ticket: { id: 42, number: "240042", raw: {} } })));
+      await waitFor(() => expect(screen.queryByText(/working/i)).toBeNull());
+      expect(screen.queryByText(/ticket created: 240042/i)).toBeNull();
+      expect(reviewButton.disabled).toBe(false);
+    });
   });
 
   it("keeps the latest audit result when same-domain requests complete in reverse order", async () => {

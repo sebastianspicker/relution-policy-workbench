@@ -5,6 +5,9 @@ from python_tool_helpers import expect, import_tool
 
 artifact_module = import_tool("build_relution_import_artifacts")
 recommendation_mapping_module = import_tool("recommendation_mapping")
+candidate_inference_module = import_tool(
+    "_recommendation_mapping_modules.candidate_inference"
+)
 
 classify_mapping_update = artifact_module.classify_mapping_update
 classify_recommendation_mapping_change = (
@@ -18,6 +21,10 @@ manual_promotion_ruleset_mapping = artifact_module.manual_promotion_ruleset_mapp
 semantic_support_level = artifact_module.semantic_support_level
 semantic_candidates_for = recommendation_mapping_module.semantic_candidates_for
 semantic_concepts_for = recommendation_mapping_module.semantic_concepts_for
+apple_numeric_analog_mappings_for = (
+    candidate_inference_module.apple_numeric_analog_mappings_for
+)
+ios_numeric_analog_mappings = candidate_inference_module.ios_numeric_analog_mappings
 
 
 def evidence(
@@ -96,6 +103,159 @@ def test_compatible_thresholds_are_differences_not_contradictions() -> None:
     ]
 
     expect(exact_leaf_difference_is_hard(leaves) is False)
+
+
+def test_ios_numeric_analog_mappings_preserve_every_recognized_payload() -> None:
+    """Keep each iOS numeric recognition payload exact through the internal seam."""
+    cases = (
+        (
+            "require alphanumeric value enabled",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"requireAlphanumeric": True},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["requireAlphanumeric"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched alphanumeric requirement."
+                    ),
+                },
+            },
+        ),
+        (
+            "minimum password length 12",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"minLength": 12},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["minLength"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched minimum length requirement."
+                    ),
+                },
+                "constraints": [
+                    {"path": "minLength", "operator": "atLeast", "value": 12}
+                ],
+            },
+        ),
+        (
+            "maximum auto-lock 5",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"maxInactivity": 5},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["maxInactivity"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched auto-lock maximum requirement."
+                    ),
+                },
+                "constraints": [
+                    {"path": "maxInactivity", "operator": "atMost", "value": 5}
+                ],
+            },
+        ),
+        (
+            "maximum minutes of inactivity until screen locks 5",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"maxInactivity": 5},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["maxInactivity"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched auto-lock maximum requirement."
+                    ),
+                },
+                "constraints": [
+                    {"path": "maxInactivity", "operator": "atMost", "value": 5}
+                ],
+            },
+        ),
+        (
+            "maximum grace period for device lock immediately",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"maxGracePeriod": 0},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["maxGracePeriod"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched immediate device-lock grace period."
+                    ),
+                },
+            },
+        ),
+        (
+            "maximum number of failed attempts 10",
+            {
+                "kind": "apple-schema-profile",
+                "schemaId": "profile:com.apple.mobiledevice.passwordpolicy",
+                "values": {"maxFailedAttempts": 10},
+                "match": {
+                    "score": 100,
+                    "matchedTerms": ["maxFailedAttempts"],
+                    "valueCompatibility": "curated-analog",
+                    "reason": (
+                        "Curated Apple passcode analog matched failed-attempt limit."
+                    ),
+                },
+            },
+        ),
+    )
+
+    for haystack, expected_mapping in cases:
+        expect(ios_numeric_analog_mappings(haystack) == [expected_mapping])
+
+
+def test_ios_numeric_analog_mappings_preserve_overlap_order_and_facade_boundaries() -> (
+    None
+):
+    """Keep ordered overlap behavior and unsupported-platform emptiness exact."""
+    haystack = (
+        "require alphanumeric value enabled minimum passcode length 12 "
+        "maximum auto-lock 5 maximum grace period for device lock immediately "
+        "maximum number of failed attempts 10"
+    )
+
+    mappings = apple_numeric_analog_mappings_for("IOS", haystack)
+
+    expect(
+        [mapping["values"] for mapping in mappings]
+        == [
+            {"requireAlphanumeric": True},
+            {"minLength": 12},
+            {"maxInactivity": 12},
+            {"maxGracePeriod": 0},
+            {"maxFailedAttempts": 12},
+        ]
+    )
+    expect(
+        [mapping["match"]["matchedTerms"] for mapping in mappings]
+        == [
+            ["requireAlphanumeric"],
+            ["minLength"],
+            ["maxInactivity"],
+            ["maxGracePeriod"],
+            ["maxFailedAttempts"],
+        ]
+    )
+    expect(ios_numeric_analog_mappings("unrecognized requirement") == [])
+    expect(ios_numeric_analog_mappings("require alphanumeric value") == [])
+    expect(ios_numeric_analog_mappings("maximum grace period for device lock") == [])
+    expect(apple_numeric_analog_mappings_for("ANDROID", haystack) == [])
+    expect(apple_numeric_analog_mappings_for("ios", haystack) == [])
 
 
 def test_exact_leaf_difference_classifier_flags_unbounded_value_conflicts_as_hard() -> (

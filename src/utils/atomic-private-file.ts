@@ -54,22 +54,35 @@ export function writePrivateFileAtomic(
     }
     return resolvedOutput;
   } catch (error) {
-    if (descriptor !== undefined) closeSync(descriptor);
-    const cleanupErrors: unknown[] = [error];
-    if (linkedOutput) {
-      try {
-        unlinkSync(resolvedOutput);
-      } catch (cleanupError) {
-        if (!isMissingPathError(cleanupError)) cleanupErrors.push(cleanupError);
-      }
-    }
-    try {
-      unlinkSync(temporary);
-    } catch (cleanupError) {
-      if (!isMissingPathError(cleanupError)) cleanupErrors.push(cleanupError);
-    }
+    const cleanupErrors = cleanUpFailedPrivateFileWrite(error, { descriptor, linkedOutput, resolvedOutput, temporary });
     if (cleanupErrors.length > 1) throw new AggregateError(cleanupErrors, `Failed to write and clean up ${options.label}`);
     throw error;
+  }
+}
+
+/** Closes and removes unpublished output after a failed atomic write. */
+function cleanUpFailedPrivateFileWrite(
+  error: unknown,
+  failedWrite: {
+    readonly descriptor: number | undefined;
+    readonly linkedOutput: boolean;
+    readonly resolvedOutput: string;
+    readonly temporary: string;
+  },
+): unknown[] {
+  if (failedWrite.descriptor !== undefined) closeSync(failedWrite.descriptor);
+  const cleanupErrors: unknown[] = [error];
+  if (failedWrite.linkedOutput) removeFailedPrivateFileWritePath(failedWrite.resolvedOutput, cleanupErrors);
+  removeFailedPrivateFileWritePath(failedWrite.temporary, cleanupErrors);
+  return cleanupErrors;
+}
+
+/** Adds a cleanup failure unless the path was already absent. */
+function removeFailedPrivateFileWritePath(path: string, cleanupErrors: unknown[]): void {
+  try {
+    unlinkSync(path);
+  } catch (cleanupError) {
+    if (!isMissingPathError(cleanupError)) cleanupErrors.push(cleanupError);
   }
 }
 

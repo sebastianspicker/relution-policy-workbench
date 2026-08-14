@@ -31,4 +31,11 @@ it("posts the current dirty workspace when saving", async () => {
     expect(currentReady(result).controller.isDirty).toBe(true);
     expect(currentReady(result).controller.canUndo).toBe(true);
   });
+
+  it("records rejected save request status and result", async () => {
+    const { result } = await renderSelectedController(createAppState(), { workspaceStatus: 503 });
+    await act(async () => { await currentReady(result).controller.saveWorkspace(); });
+    expect(currentReady(result).controller.status).toMatch(/^Save failed: /u);
+    expect(currentReady(result).controller.lastActionResult).toEqual({ ok: false, error: expect.stringContaining("\"workspace\"") });
+  });
 });

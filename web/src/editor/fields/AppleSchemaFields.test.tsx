@@ -1,5 +1,5 @@
 /** Verifies Apple schema fields render supported controls and preserve profile values. */
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
   createAppleSchemaProfileConfiguration,
@@ -7,6 +7,8 @@ import {
   type AppleSchemaEntry,
 } from "../../../../src/apple-schema.js";
 import { AppleSchemaFields } from "./AppleSchemaFields.js";
+import { createOptionalParityAppleSchemaEntry } from "../../../../tests/rexp-apple-compat-fixtures.js";
+import { getFieldContainer, getFieldNumberInput } from "./field-test-helpers.js";
 
 describe("AppleSchemaFields", () => {
   it("preserves omit versus explicit optional boolean number and enum values", () => {
@@ -73,84 +75,6 @@ function getFieldCombobox(fieldTitle: string): HTMLSelectElement {
   return within(getFieldContainer(fieldTitle)).getByRole("combobox");
 }
 
-function getFieldNumberInput(fieldTitle: string): HTMLInputElement {
-  return within(getFieldContainer(fieldTitle)).getByRole("spinbutton");
-}
-
-function getFieldContainer(fieldTitle: string): HTMLElement {
-  const label = screen.getByText(fieldTitle);
-  const container = label.closest(".field, .checkbox-field");
-  if (container === null) {
-    throw new Error(`Missing field container for ${fieldTitle}`);
-  }
-  return container as HTMLElement;
-}
-
 function getPayloadBody(entry: AppleSchemaEntry, details: Record<string, unknown>): Record<string, unknown> {
   return JSON.parse(extractAppleSchemaPayloadBodyJson(details, entry)) as Record<string, unknown>;
-}
-
-function createOptionalParityAppleSchemaEntry(): AppleSchemaEntry {
-  return {
-    id: "profile:com.example.optional-parity",
-    kind: "profile",
-    title: "Optional Parity",
-    description: "",
-    identifier: "com.example.optional-parity",
-    sourcePath: "local/OptionalParity.yaml",
-    availability: {
-      platforms: ["IOS"],
-      allowMultiple: true,
-      requiresMdm: false,
-      deprecated: false,
-      notes: [],
-    },
-    deprecated: false,
-    fields: [
-      {
-        path: "requiredName",
-        payloadKey: "RequiredName",
-        title: "Required name",
-        kind: "string",
-        required: true,
-        description: "",
-        defaultValue: "alpha",
-        enumValues: [],
-        variableSafe: true,
-      },
-      {
-        path: "optionalToggle",
-        payloadKey: "OptionalToggle",
-        title: "Optional toggle",
-        kind: "boolean",
-        required: false,
-        description: "",
-        defaultValue: false,
-        enumValues: [],
-        variableSafe: false,
-      },
-      {
-        path: "optionalCount",
-        payloadKey: "OptionalCount",
-        title: "Optional count",
-        kind: "integer",
-        required: false,
-        description: "",
-        defaultValue: 0,
-        enumValues: [],
-        variableSafe: false,
-      },
-      {
-        path: "optionalMode",
-        payloadKey: "OptionalMode",
-        title: "Optional mode",
-        kind: "string",
-        required: false,
-        description: "",
-        defaultValue: "",
-        enumValues: ["automatic", "manual"],
-        variableSafe: true,
-      },
-    ],
-  };
 }
