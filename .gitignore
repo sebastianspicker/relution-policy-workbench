@@ -155,7 +155,10 @@ docs/archive/
 
 /.agents/
 /.impeccable/
-/.codacy/
+/.codacy/*
+!/.codacy/codacy.config.json
+!/.codacy/codacy.yaml
+!/.codacy/codacy.yml
 /.codex/
 /.codegraph/
 /.claude/
