@@ -164,6 +164,7 @@ docs/archive/
 /.claude/
 /.cursor/
 /.serena/
+/.mcp.json
 # RepoWise job and server state contains machine-local paths and runtime data.
 /.repowise/jobs/
 /.repowise/mcp.json
