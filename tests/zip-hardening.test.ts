@@ -2,7 +2,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readZip, writeZip } from "../src/zip.js";
-import { centralDirectoryOffsetOf, withDataDescriptor } from "./zip-test-helpers.js";
+
+function centralDirectoryOffsetOf(archive: Buffer): number {
+  return archive.readUInt32LE(archive.length - 22 + 16);
+}
+
+function withDataDescriptor(archive: Buffer): Buffer {
+  const central = centralDirectoryOffsetOf(archive);
+  const descriptor = Buffer.alloc(16);
+  descriptor.writeUInt32LE(0x08074b50, 0);
+  descriptor.writeUInt32LE(archive.readUInt32LE(central + 16), 4);
+  descriptor.writeUInt32LE(archive.readUInt32LE(central + 20), 8);
+  descriptor.writeUInt32LE(archive.readUInt32LE(central + 24), 12);
+  archive.writeUInt16LE(archive.readUInt16LE(6) | 0x0008, 6);
+  archive.fill(0, 14, 26);
+  archive.writeUInt16LE(archive.readUInt16LE(central + 8) | 0x0008, central + 8);
+  const modified = Buffer.concat([archive.subarray(0, central), descriptor, archive.subarray(central)]);
+  modified.writeUInt32LE(central + descriptor.length, modified.length - 22 + 16);
+  return modified;
+}
 
 test("readZip rejects ZIP64 entry markers and nonzero central disk starts", () => {
   const cases: Array<{ offset: number; value: number; bytes: 2 | 4; error: RegExp }> = [

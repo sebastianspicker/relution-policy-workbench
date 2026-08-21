@@ -30,7 +30,7 @@ export function policyPlatform(policy: WorkspacePolicy | undefined): string | un
   return typeof policy?.document.platform === "string" ? policy.document.platform : undefined;
 }
 
-export function filterRecommendationRuleset(ruleset: RecommendationRuleset, platform: string | undefined): RecommendationRuleset {
+function filterRecommendationRuleset(ruleset: RecommendationRuleset, platform: string | undefined): RecommendationRuleset {
   if (platform === undefined) {
     return ruleset;
   }

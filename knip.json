@@ -13,12 +13,8 @@
   ],
   "includeEntryExports": true,
   "ignoreBinaries": [
-    "jscpd",
     "mkfifo",
     "uv"
-  ],
-  "ignoreDependencies": [
-    "jscpd"
   ],
   "rules": {
     "cycles": "error",

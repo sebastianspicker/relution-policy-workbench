@@ -31,7 +31,7 @@ function parseSectionRoute(hash: string): SectionRoute | undefined {
   return SECTION_ROUTES.has(candidate as SectionRoute) ? candidate as SectionRoute : undefined;
 }
 
-export function canonicalHashFor(route: SectionRoute): string {
+function canonicalHashFor(route: SectionRoute): string {
   return `#/${route}`;
 }
 

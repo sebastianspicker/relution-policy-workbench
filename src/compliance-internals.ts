@@ -6,4 +6,3 @@ export {
 export { appliesToPolicy } from "./compliance-policy-applicability.js";
 export { selectedPolicyTarget } from "./compliance-policy-target.js";
 export { evaluateRecommendation } from "./compliance-recommendation-evaluation.js";
-export { recommendationImplementationOf } from "./compliance-remediation-options.js";
