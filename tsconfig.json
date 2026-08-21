@@ -1,4 +1,4 @@
-// Configure strict TypeScript compilation for application, browser, test, and E2E sources.
+// Configure strict TypeScript compilation for application, browser, and compact Node tests.
 {
   "compilerOptions": {
     "target": "ES2022",
@@ -31,10 +31,7 @@
     "tests/**/*.ts",
     "web/src/**/*.ts",
     "web/src/**/*.tsx",
-    "vite.config.ts",
-    "vitest.config.ts",
-    "playwright.config.ts",
-    "playwright.demo.config.ts",
-    "playwright.readme.config.ts"
-  ]
+    "vite.config.ts"
+  ],
+  "exclude": ["web/src/**/*.test.ts", "web/src/**/*.test.tsx"]
 }

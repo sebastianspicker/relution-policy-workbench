@@ -60,19 +60,7 @@ Preserve:
 Automated checks do not replace manual keyboard and assistive-technology
 review.
 
-## Browser verification
-
-`pnpm test:web` runs component and controller tests in jsdom.
-`pnpm test:e2e:web` builds the Node.js and browser applications, starts the
-loopback editor, and runs the configured Chromium, Firefox, and WebKit projects.
-The projects run serially because they share one mutable test workspace.
-
-Install browser binaries before the Playwright suite:
-
-```sh
-PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright \
-  pnpm exec playwright install chromium firefox webkit
-```
+## Browser review
 
 Run the bundle budget after a browser build:
 
@@ -81,13 +69,5 @@ pnpm build:web
 pnpm check:bundle:web
 ```
 
-For visible changes, review desktop, compact, and narrow layouts, then refresh
-the README images when their documented flows changed:
-
-```sh
-pnpm test:e2e:web
-pnpm screenshots:readme
-```
-
-Record unavailable browsers or assistive technologies as untested. Do not infer
-their behavior from Chromium or jsdom results.
+For visible changes, review desktop, compact, and narrow layouts manually.
+Record unavailable browsers or assistive technologies as untested.

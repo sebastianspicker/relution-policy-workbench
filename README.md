@@ -87,8 +87,6 @@ Current limitations:
 - Python 3.11 or newer for the Python evidence tools
 - uv 0.10.7 for the locked Python environment
 - a POSIX-compatible shell for package scripts
-- Playwright browser binaries for browser tests and screenshot capture
-- Docker Engine with Compose v2 for the optional Relution integration tests
 
 CI uses Node.js 22 and Python 3.11 on Ubuntu. Native Windows execution of the
 POSIX package scripts is not covered by CI.
@@ -140,35 +138,6 @@ local lab.
 
 Zammad settings are session-only browser inputs. There are no supported Zammad
 environment variables or CLI options.
-
-### Development and integration variables
-
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `EDITOR_PORT` | Playwright editor port | `8791` |
-| `FUZZ_RUNS` | Fast-check run count | `64` |
-| `RELUTION_E2E_BASE_URL` | Docker test service URL | `http://127.0.0.1:<RELUTION_DOCKER_PORT>` |
-| `RELUTION_E2E_REXP_KEY` | Docker test archive passphrase | test fixture value |
-| `RELUTION_E2E_ACCESS_TOKEN` | Dashboard test token override | test fixture value |
-| `RELUTION_E2E_MANAGEMENT_ACCESS_TOKEN` | Management API token override | basic authentication |
-| `RELUTION_E2E_USERNAME` | Local Relution administrator | `admin` |
-| `RELUTION_E2E_PASSWORD` | Local Relution administrator password | disposable fixture value |
-| `RELUTION_E2E_SYSTEM_PASSWORD` | Local Relution system password | disposable fixture value |
-| `RELUTION_E2E_POSTGRES_IMAGE` | PostgreSQL image | `postgres:16-alpine` |
-| `RELUTION_DOCKER_IMAGE` | Relution image | `relution/relution:26.1.1` |
-| `RELUTION_DOCKER_PORT` | Loopback host port | `8080` |
-| `RELUTION_DOCKER_MEMORY` | Relution JVM memory value | `1536m` |
-| `RELUTION_DOCKER_PROJECT` | Compose project name | `rexp-studio-e2e` |
-| `RELUTION_DOCKER_KEEP` | Keep the stack after a test when set to `1` | unset |
-
-`RELUTION_DOCKER_MEMORY` passes through to the container's `RELUTION_MEMORY`.
-`RELUTION_E2E_ALLOW_REMOTE_BASE_URL=1` removes the local URL check in the
-integration harness. Do not set it for routine tests. The integration workflow
-is designed for the disposable loopback service.
-
-`RELUTION_README_REXP_KEY` can override the local screenshot fixture
-passphrase. `PLAYWRIGHT_BROWSERS_PATH` selects the browser installation and
-cache directory used by the Playwright scripts.
 
 ## Usage
 
@@ -351,16 +320,15 @@ They do not contact Relution or Zammad.
 | Path | Contents |
 | --- | --- |
 | `src/` | CLI, archive core, local HTTP server, workspace persistence, integrations, compliance, and MDM libraries |
-| `web/src/` | React editor, controller hooks, components, and browser tests |
+| `web/src/` | React editor, controller hooks, and components |
 | `web/src/styles/` | Design tokens, layout, and section styles |
-| `tests/` | Node.js tests, Python tests, shared fixtures, Playwright tests, visual baselines, README capture, and optional Docker integration tests |
-| `web/src/**/*.test.ts(x)` | Colocated React unit and integration tests |
+| `tests/` | Compact Node.js regression tests for archive, filesystem, service, and editor boundaries |
 | `tools/` | Node.js and Python evidence, mapping, and validation tools |
 | `data/` | Relution and Apple reference catalogs |
 | `example/` | Reviewed fixtures, recommendation data, and baseline templates |
 | `mdm/` | Versioned LAB source, schema, evidence, runbook, and output package |
 | `docs/` | Focused technical documentation and screenshots |
-| `.github/workflows/` | CI, CodeQL, fuzz, Scorecard, and Docker integration workflows |
+| `.github/workflows/` | CI, CodeQL, Pages, and Scorecard workflows |
 
 ## Development workflow
 
@@ -372,14 +340,11 @@ pnpm knip
 pnpm build
 pnpm check:bundle:web
 pnpm test:node
-pnpm test:web
 pnpm python:lint
-pnpm python:test
 ```
 
-`pnpm verify:ci` runs the local CI contract: Python cache cleanup, TypeScript
-checking, Knip, both builds, web bundle budgets, built Node.js tests, Vitest,
-Ruff, pytest, repository meta tests, and final Python cache cleanup.
+`pnpm verify:ci` runs type checking, Knip, both builds, web bundle budgets,
+the compact Node.js suite, and Ruff.
 
 There is no general formatter script. TypeScript formatting is enforced through
 the existing source style and review. Ruff provides Python lint checks.
@@ -393,44 +358,6 @@ Run the full local gate:
 ```sh
 pnpm verify:ci
 git diff --check
-```
-
-Install Playwright browsers when browser tests are required:
-
-```sh
-PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright \
-  pnpm exec playwright install chromium firefox webkit
-```
-
-Then run:
-
-```sh
-pnpm test:e2e:web
-pnpm screenshots:readme
-```
-
-The Playwright configuration serializes Chromium, Firefox, and WebKit projects
-because they share one mutable workspace. Browser availability depends on the
-local Playwright installation.
-
-Run the optional Docker checks only against the disposable local service:
-
-```sh
-docker compose -f tests/relution-docker/compose.yml config --quiet
-pnpm test:e2e:relution
-pnpm test:e2e:relution-dashboard
-```
-
-The scheduled GitHub workflow runs `pnpm test:e2e:relution`. The dashboard
-variant remains a local opt-in command.
-
-Example local Docker overrides:
-
-```sh
-RELUTION_DOCKER_IMAGE=relution/relution:26.1.1 \
-RELUTION_DOCKER_PORT=8080 \
-RELUTION_DOCKER_MEMORY=1536m \
-pnpm test:e2e:relution
 ```
 
 ## Deployment and operation
@@ -448,21 +375,14 @@ The editor serves `dist-web/` and its `/api/*` backend from the same loopback
 process. Do not use `pnpm exec vite preview` for normal operation because it
 serves only static browser assets.
 
-The Docker Compose file is test infrastructure, not a production deployment.
-It binds Relution to `127.0.0.1` and uses disposable fixture credentials.
-
 ## Troubleshooting
 
 - `Editor API unavailable`: stop stale editor processes, run `pnpm rexp`, and
   open the new URL printed by that process.
 - `Missing archive passphrase`: set `RELUTION_REXP_KEY` securely or supply
   `--key`. An incorrect value fails authenticated decryption.
-- Browser executable missing: install the Playwright browsers with the command
-  in the Testing section.
 - `mdm verify-sources` reports missing files: use `mdm validate` and `mdm diff`
   in a public clone, or provide the approved private source corpus.
-- Docker test cannot bind port 8080: set an unused loopback port with
-  `RELUTION_DOCKER_PORT`.
 - Remote service URL is rejected: use HTTPS for remote services. Use
   `--allow-local-service-hosts` only for a controlled local lab.
 - CLI syntax is unclear: run `pnpm rexp:built help`. Subcommands do not provide

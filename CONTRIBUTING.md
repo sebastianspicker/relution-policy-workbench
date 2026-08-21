@@ -9,8 +9,6 @@ and the distinction between reference validation and device evidence.
 - pnpm 10.34.5
 - Python 3.11 or newer
 - uv 0.10.7
-- Playwright browsers for browser tests
-- Docker Engine with Compose v2 for optional Relution integration tests
 
 The package scripts use POSIX shell utilities. CI runs on Ubuntu with Node.js 22
 and Python 3.11.
@@ -27,13 +25,6 @@ Start the local editor:
 
 ```sh
 pnpm rexp:built
-```
-
-Install browser binaries only when they are needed:
-
-```sh
-PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright \
-  pnpm exec playwright install chromium firefox webkit
 ```
 
 ## Change guidelines
@@ -69,16 +60,7 @@ Common focused checks:
 pnpm typecheck
 pnpm knip
 pnpm test:node
-pnpm test:web
 pnpm python:lint
-pnpm python:test
-```
-
-For visible browser changes:
-
-```sh
-pnpm test:e2e:web
-pnpm screenshots:readme
 ```
 
 For MDM source or output changes:
@@ -86,14 +68,6 @@ For MDM source or output changes:
 ```sh
 pnpm rexp mdm validate
 pnpm rexp mdm diff
-```
-
-Optional local Relution integration:
-
-```sh
-docker compose -f tests/relution-docker/compose.yml config --quiet
-pnpm test:e2e:relution
-pnpm test:e2e:relution-dashboard
 ```
 
 If a check cannot run, report the exact command and the environmental reason.

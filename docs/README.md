@@ -26,10 +26,8 @@ usage, testing, operation, and troubleshooting guide.
 
 ## Screenshots
 
-`readme-tour/` contains seven 1440 by 1000 PNG captures used by the root README.
-`pnpm screenshots:readme` rebuilds the application and captures them from
-deterministic fixtures. Browser visual baselines under `tests/e2e/` are a separate
-test surface.
+`readme-tour/` contains seven 1440 by 1000 product images used by the root
+README. They are maintained documentation assets, not test output.
 
 ## Private and local files
 

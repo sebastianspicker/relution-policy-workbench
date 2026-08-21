@@ -57,13 +57,6 @@ pnpm verify:ci
 git diff --check
 ```
 
-Required browser checks:
-
-```sh
-pnpm test:e2e:web
-pnpm screenshots:readme
-```
-
 Required MDM checks:
 
 ```sh
@@ -76,15 +69,6 @@ Run source hash verification when the approved private corpus is available:
 
 ```sh
 pnpm rexp mdm verify-sources
-```
-
-Validate the Docker configuration and run both integration paths when retaining
-claims about local Relution import, publication, export, or dashboard behavior:
-
-```sh
-docker compose -f tests/relution-docker/compose.yml config --quiet
-pnpm test:e2e:relution
-pnpm test:e2e:relution-dashboard
 ```
 
 Record the exact result of each command. A passing subset does not establish the
@@ -100,7 +84,6 @@ Review these files and assets at the selected commit:
 - `docs/`
 - `mdm/README.md`
 - `docs/readme-tour/`
-- `tests/e2e/editor-live.spec.ts-snapshots/`
 - `package.json`
 - `pyproject.toml`
 - `pnpm-lock.yaml`

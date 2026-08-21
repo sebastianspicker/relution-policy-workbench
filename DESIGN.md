@@ -48,7 +48,7 @@ geometry or interaction behavior.
   horizontal scrolling.
 
 The active breakpoints and dimensions are implemented in `web/src/styles/`.
-Tests under `tests/e2e/` cover desktop, compact, and narrow layouts.
+Inspect affected layouts locally when changing responsive behavior.
 
 ## Components
 
